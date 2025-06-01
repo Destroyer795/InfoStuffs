@@ -16,6 +16,7 @@ const App = () => {
   const [infos, setInfos] = useState([]);
   const [darkMode, setDarkMode] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const theme = useMemo(() => (darkMode ? darkTheme : lightTheme), [darkMode]);
 
@@ -24,7 +25,7 @@ const theme = useMemo(() => (darkMode ? darkTheme : lightTheme), [darkMode]);
   const toggleDrawer = () => setDrawerOpen(!drawerOpen);
 
   useEffect(() => {
-    axios.get('http://localhost:5000/api/info')
+    axios.get(`${API_BASE_URL}/api/info`)
       .then(res => setInfos(res.data.data))
       .catch(err => console.error(err));
   }, []);
@@ -32,7 +33,7 @@ const theme = useMemo(() => (darkMode ? darkTheme : lightTheme), [darkMode]);
   
   const handleCreate = async (newData) => {
     try {
-      const response = await axios.post('http://localhost:5000/api/info', newData);
+      const response = await axios.post(`${API_BASE_URL}/api/info`, newData);
       const data = response.data;  // not response.data.data
 
       const newInfo = {
@@ -54,7 +55,7 @@ const theme = useMemo(() => (darkMode ? darkTheme : lightTheme), [darkMode]);
   
   const handleUpdate = async (id, updatedData) => {
     try {
-      const response = await axios.patch(`http://localhost:5000/api/info/${id}`, updatedData);
+      const response = await axios.patch(`${API_BASE_URL}/api/info/${id}`, updatedData);
       setInfos(prev =>
         prev.map(info => (info._id === id ? response.data.data : info))
       );
@@ -65,7 +66,7 @@ const theme = useMemo(() => (darkMode ? darkTheme : lightTheme), [darkMode]);
 
   const handleDelete = async (id) => {
     try {
-      await axios.delete(`http://localhost:5000/api/info/${id}`);
+      await axios.delete(`${API_BASE_URL}/api/info/${id}`);
       setInfos(prev => prev.filter(info => info._id !== id));
     } catch (err) {
       console.error('Delete failed:', err);
