@@ -33,26 +33,14 @@ const theme = useMemo(() => (darkMode ? darkTheme : lightTheme), [darkMode]);
   
   const handleCreate = async (newData) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/info`, newData);
-      const data = response.data;  // not response.data.data
-
-      const newInfo = {
-        name: data.name || '',
-        category: data.category || '',
-        importance: data.importance || '',
-        content: data.content || '',
-        image: data.image || 'https://via.placeholder.com/300x180?text=No+Image',
-        _id: data._id
-      };
-      
-      setInfos(prev => [...prev, newInfo]);
+      await axios.post(`${API_BASE_URL}/api/info`, newData);
+      const res = await axios.get(`${API_BASE_URL}/api/info`);
+      setInfos(res.data.data);
     } catch (err) {
       console.error('Create failed:', err);
     }
   };
 
-
-  
   const handleUpdate = async (id, updatedData) => {
     try {
       const response = await axios.patch(`${API_BASE_URL}/api/info/${id}`, updatedData);
