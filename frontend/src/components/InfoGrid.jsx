@@ -79,8 +79,8 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
             >
               <CardMedia
                 component="img"
-                height="140"
-                image={info?.imageURL || `https://picsum.photos/300/140?random=${info._id}`}
+                height="150"
+                image={info?.imageURL || `https://picsum.photos/300/150?random=${info._id}`}
                 alt={info?.name || 'Info Card'}
                 sx={{
                   objectFit: 'cover',
@@ -96,7 +96,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
                   justifyContent: 'space-between',
                   px: 2,
                   py: 1.5,
-                  height: 'calc(100% - 120px - 48px)',
+                  height: 'calc(100% - 150px - 48px)',
                   overflow: 'hidden'
                 }}
               >

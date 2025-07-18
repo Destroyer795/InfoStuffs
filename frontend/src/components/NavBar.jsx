@@ -9,8 +9,8 @@ function NavBar({ darkMode, toggleDarkMode, onMenuClick }) {
   return (
     <AppBar position="static"
     sx={{
-      backgroundColor: !darkMode ? '#0063B2' : 'grey.900', // or any color you prefer
-      color: 'white' // ensure text/icons are visible
+      backgroundColor: !darkMode ? '#0063B2' : 'grey.900',
+      color: 'white'
     }}
   >
       <Toolbar sx={{ justifyContent: "space-between" }}>
