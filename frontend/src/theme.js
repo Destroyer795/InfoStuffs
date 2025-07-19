@@ -4,8 +4,8 @@ export const lightTheme = createTheme({
   palette: {
     mode: 'light',
     background: {
-      default: '#d9b48fff', // custom light background
-      paper: '#85b3d1ff',   // card/dialog background
+      default: '#85b3d1ff', // custom light background
+      paper: '#d1fdff',   // card/dialog background
     },
     text: {
       primary: '#0F172A',

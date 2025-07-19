@@ -96,7 +96,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
                   justifyContent: 'space-between',
                   px: 2,
                   py: 1.5,
-                  height: 'calc(100% - 150px - 48px)',
+                  height: 'calc(100% - 150px - 35px)',
                   overflow: 'hidden'
                 }}
               >
@@ -162,7 +162,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
                 px={1}
                 pb={1}
                 sx={{
-                  height: '48px',
+                  height: '35px',
                   alignItems: 'center',
                   flexShrink: 0
                 }}
