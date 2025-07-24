@@ -11,6 +11,7 @@ import {
   Routes,
   Route
 } from 'react-router-dom'; 
+import CustomCursor from './components/Cursor.jsx';
 
 const App = () => {
   const [infos, setInfos] = useState([]);
@@ -64,6 +65,7 @@ const theme = useMemo(() => (darkMode ? darkTheme : lightTheme), [darkMode]);
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
+      <CustomCursor />
       <Router>
         <Box>
           <NavBar darkMode={darkMode} toggleDarkMode={toggleDarkMode} onMenuClick={toggleDrawer} />
