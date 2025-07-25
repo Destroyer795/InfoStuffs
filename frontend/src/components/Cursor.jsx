@@ -16,6 +16,23 @@ useEffect(() => {
 const move = (e) => {
     mousePosition.current = { x: e.clientX, y: e.clientY };
     setVisible(true);
+
+    const tag = e.target.tagName.toLowerCase();
+    if (tag === 'a' || tag === 'button' || tag === 'input' || tag === 'textarea' || tag === 'select' || tag === 'label' || tag === 'svg' || tag === 'img' || tag === 'video' || e.target.closest('.cursor-hover-target')) {
+        if (outerRef1.current) {
+        outerRef1.current.classList.add('cursor-hovering');
+        }
+        if (outerRef2.current) {
+        outerRef2.current.classList.add('cursor-hovering');
+        }
+    } else {
+        if (outerRef1.current) {
+        outerRef1.current.classList.remove('cursor-hovering');
+        }
+        if (outerRef2.current) {
+        outerRef2.current.classList.remove('cursor-hovering');
+        }
+    }
 };
 
 const handleMouseOut = (e) => {
@@ -32,7 +49,7 @@ const handleMouseDown = () => {
     if (outerRef1.current) {
     outerRef1.current.style.opacity = '1';
     outerRef2.current.style.opacity = '0.6';
-    outerRef1.current.style.backgroundColor = 'rgb(66, 133, 244)'
+    outerRef1.current.style.backgroundColor = 'rgba(244, 66, 197, 1)'
     outerRef2.current.style.transition = 'background-color 0.3s ease-out';
     }
 };

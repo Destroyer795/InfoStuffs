@@ -24,21 +24,21 @@ export default function SideBar({ open, toggleDrawer }) {
     >
     <List>
       <ListItem disablePadding>
-        <ListItemButton onClick={() => navigate('/create')}>
+        <ListItemButton className="cursor-hover-target" onClick={() => navigate('/create')}>
           <ListItemIcon><AddBoxOutlinedIcon/></ListItemIcon>
-          <ListItemText primary="Create" />
+          <ListItemText primary="Create"/>
         </ListItemButton>
       </ListItem>
 
       <ListItem disablePadding>
-        <ListItemButton>
+        <ListItemButton className="cursor-hover-target">
           <ListItemIcon><SettingsIcon /></ListItemIcon>
           <ListItemText primary="Settings" />
         </ListItemButton>
       </ListItem>
 
       <ListItem disablePadding>
-        <ListItemButton>
+        <ListItemButton className="cursor-hover-target">
           <ListItemIcon><LogoutIcon /></ListItemIcon>
           <ListItemText primary="Logout" />
         </ListItemButton>

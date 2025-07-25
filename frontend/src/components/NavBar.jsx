@@ -18,7 +18,7 @@ function NavBar({ darkMode, toggleDarkMode, onMenuClick }) {
           <IconButton color="inherit" onClick={onMenuClick}>
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" onClick={() => navigate('/')} sx={{ cursor: 'pointer', transition: 'transform 0.2s', '&:hover': { transform: 'scale(1.02)' } }} >Impostuffs</Typography>
+          <Typography variant="h6" onClick={() => navigate('/')} sx={{ cursor: 'pointer', transition: 'transform 0.2s', '&:hover': { transform: 'scale(1.02)' } }} className='cursor-hover-target'>Impostuffs</Typography>
         </Stack>
         <IconButton color="inherit" onClick={toggleDarkMode}>
           {darkMode ? <Brightness7 /> : <Brightness4 />}
