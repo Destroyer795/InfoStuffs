@@ -1,7 +1,8 @@
 import React from 'react';
-import { AppBar, Toolbar, Typography, IconButton, Stack } from '@mui/material';
+import { AppBar, Toolbar, Typography, IconButton, Stack, Icon } from '@mui/material';
 import { Brightness4, Brightness7, Menu as MenuIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { UserButton } from '@clerk/clerk-react';
 
 
 function NavBar({ darkMode, toggleDarkMode, onMenuClick }) {
@@ -20,9 +21,12 @@ function NavBar({ darkMode, toggleDarkMode, onMenuClick }) {
           </IconButton>
           <Typography variant="h6" onClick={() => navigate('/')} sx={{ cursor: 'pointer', transition: 'transform 0.2s', '&:hover': { transform: 'scale(1.05)' } }} className='cursor-hover-target'>Impostuffs</Typography>
         </Stack>
-        <IconButton color="inherit" onClick={toggleDarkMode}>
-          {darkMode ? <Brightness7 /> : <Brightness4 />}
-        </IconButton>
+        <Stack direction="row" spacing={2} alignItems="center">
+          <UserButton afterSwitchSessionUrl='/login'/>
+          <IconButton color="inherit" onClick={toggleDarkMode}>
+            {darkMode ? <Brightness7 /> : <Brightness4 />}
+          </IconButton>
+        </Stack>
       </Toolbar>
     </AppBar>
   );

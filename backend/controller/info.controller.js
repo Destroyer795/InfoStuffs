@@ -1,10 +1,9 @@
 import mongoose from 'mongoose';
 import Info from '../models/info.model.js';
 
-// @desc Get all info items
 export const getInfos = async (req, res) => {
   try {
-    const infos = await Info.find({}).sort({ createdAt: -1 }); // Optional: sort by newest first
+    const infos = await Info.find({userId: req.auth.userId}).sort({ createdAt: -1 }); //sorting by newest first
     res.status(200).json({ success: true, data: infos });
   } catch (error) {
     console.error('Error fetching infos:', error);
@@ -12,9 +11,8 @@ export const getInfos = async (req, res) => {
   }
 };
 
-// @desc Create a new info item
 export const createInfo = async (req, res) => {
-  const info = req.body;
+  const info = { ...req.body, userId: req.auth.userId };
 
   // Basic required fields
   if (!info.name || !info.category || !info.importance || !info.type) {
@@ -37,31 +35,32 @@ export const createInfo = async (req, res) => {
   try {
     const newInfo = new Info(info);
     await newInfo.save();
-    res.status(201).json({ success: true, data: newInfo }); // ✅ Consistent response
+    res.status(201).json({ success: true, data: newInfo });
   } catch (error) {
     console.error('Error creating info:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
-// @desc Update an existing info item
 export const updateInfo = async (req, res) => {
   const { id } = req.params;
-  const info = req.body;
+  const updates = req.body;
+  const userId = req.auth.userId;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({ success: false, message: 'Invalid ID format' });
   }
 
   try {
-    const updatedInfo = await Info.findByIdAndUpdate(id, info, {
+    const existingInfo = await Info.findOne({ _id: id, userId });
+
+    if (!existingInfo) {
+      return res.status(403).json({ success: false, message: 'Unauthorized or info not found' });
+    }
+    const updatedInfo = await Info.findByIdAndUpdate(id, updates, {
       new: true,
       runValidators: true,
     });
-
-    if (!updatedInfo) {
-      return res.status(404).json({ success: false, message: 'Info not found' });
-    }
 
     res.status(200).json({ success: true, data: updatedInfo });
   } catch (error) {
@@ -70,20 +69,22 @@ export const updateInfo = async (req, res) => {
   }
 };
 
-// @desc Delete an info item
 export const deleteInfo = async (req, res) => {
   const { id } = req.params;
+  const userId = req.auth.userId;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({ success: false, message: 'Invalid ID format' });
   }
 
   try {
-    const deletedInfo = await Info.findByIdAndDelete(id);
+    const existingInfo = await Info.findOne({ _id: id, userId });
 
-    if (!deletedInfo) {
-      return res.status(404).json({ success: false, message: 'Info not found' });
+    if (!existingInfo) {
+      return res.status(403).json({ success: false, message: 'Unauthorized or info not found' });
     }
+
+    await Info.findByIdAndDelete(id);
 
     res.status(200).json({ success: true, message: 'Info deleted successfully' });
   } catch (error) {
