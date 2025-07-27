@@ -1,6 +1,6 @@
 # InfoStuffs – Information Manager Web App
 
-InfoStuffs is a full-stack web application that allows users to create, view, update, and delete categorized information. Each information entry can be of type **text**, **image**, or **file**. Built using the **MERN stack** and **Supabase** for file storage with clerk for user authentication.
+InfoStuffs is a full-stack web application that allows users to create, view, update, and delete categorized information. Each information entry can be of type text, image, or file. Built using the MERN stack and Supabase for file and image storage with clerk user authentication.
 
 ---
 
@@ -11,7 +11,7 @@ InfoStuffs is a full-stack web application that allows users to create, view, up
 - **Database**: MongoDB (Mongoose)
 - **Authentication**: Clerk
 - **File Storage**: Supabase Storage
-- **Deployment**: Not yet completed
+- **Deployment**: Exploring
 
 ---
 
@@ -23,9 +23,10 @@ InfoStuffs is a full-stack web application that allows users to create, view, up
   - Image uploads
   - Document uploads
 - View all info cards (name, category, importance)
-- Click to view full details (text, file, or image preview)
+- Click card to view full details (text, file, or image preview)
 - Edit or delete existing entries
 - Responsive design using Material UI
+- Custom cursor using React.js
 - Supabase integration for media storage
 
 ---
