@@ -49,7 +49,7 @@ const handleMouseDown = () => {
     if (outerRef1.current) {
     outerRef1.current.style.opacity = '1';
     outerRef2.current.style.opacity = '0.6';
-    outerRef1.current.style.backgroundColor = 'rgba(244, 66, 197, 1)'
+    outerRef1.current.style.backgroundColor = 'rgba(115, 65, 101, 1)'
     outerRef2.current.style.transition = 'background-color 0.3s ease-out';
     }
 };

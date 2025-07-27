@@ -183,6 +183,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
                   }}
                   color="primary"
                   size="small"
+                  className="cursor-hover-target"
                 >
                   <EditSquareIcon />
                 </IconButton>
@@ -193,6 +194,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
                   }}
                   color="error"
                   size="small"
+                  className="cursor-hover-target"
                 >
                   <DeleteIcon />
                 </IconButton>
