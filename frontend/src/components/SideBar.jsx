@@ -13,9 +13,16 @@ import AddBoxOutlinedIcon from '@mui/icons-material/AddBoxOutlined';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useNavigate } from 'react-router-dom';
+import { useClerk } from '@clerk/clerk-react';
 
 export default function SideBar({ open, toggleDrawer }) {
   const navigate = useNavigate();
+  const { signOut } = useClerk();
+
+  const handleLogout = () => {
+    signOut();
+  };
+
   const DrawerList = (
     <Box
       sx={{ width: '75vw', maxWidth: 300,}}
@@ -31,14 +38,14 @@ export default function SideBar({ open, toggleDrawer }) {
       </ListItem>
 
       <ListItem disablePadding>
-        <ListItemButton className="cursor-hover-target">
+        <ListItemButton className="cursor-hover-target" onClick={() => navigate('/update-profile')}>
           <ListItemIcon><SettingsIcon /></ListItemIcon>
           <ListItemText primary="Settings" />
         </ListItemButton>
       </ListItem>
 
       <ListItem disablePadding>
-        <ListItemButton className="cursor-hover-target">
+        <ListItemButton className="cursor-hover-target" onClick={handleLogout}>
           <ListItemIcon><LogoutIcon /></ListItemIcon>
           <ListItemText primary="Logout" />
         </ListItemButton>

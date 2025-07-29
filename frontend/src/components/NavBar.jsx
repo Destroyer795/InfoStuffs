@@ -22,7 +22,26 @@ function NavBar({ darkMode, toggleDarkMode, onMenuClick }) {
           <Typography variant="h6" onClick={() => navigate('/')} sx={{ cursor: 'pointer', transition: 'transform 0.2s', '&:hover': { transform: 'scale(1.05)' } }} className='cursor-hover-target'>Impostuffs</Typography>
         </Stack>
         <Stack direction="row" spacing={2} alignItems="center">
-          <UserButton afterSwitchSessionUrl='/login'/>
+        <UserButton
+          afterSwitchSessionUrl="/login"
+          userProfileMode="navigation"
+          appearance={{
+            elements: {
+              userButtonPopoverActionButton__manageAccount: {
+                display: "none",
+              },
+              userButtonPopoverActionButton__signOut: {
+                display: "none",
+              },
+              userButtonPopoverActionButton__switchSession: {
+                display: "none",
+              },
+              userButtonPopoverActionButton__signIn: {
+                display: "none",
+              },
+            },
+          }}
+        />
           <IconButton color="inherit" onClick={toggleDarkMode}>
             {darkMode ? <Brightness7 /> : <Brightness4 />}
           </IconButton>

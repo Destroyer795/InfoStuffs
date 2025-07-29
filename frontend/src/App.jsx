@@ -19,6 +19,7 @@ import Login from './pages/Login.jsx';
 import Signup from './pages/Signup.jsx';
 import { SignedOut } from '@clerk/clerk-react';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
+import { UpdateProf } from './pages/UpdateProf.jsx';
 
 
 const App = () => {
@@ -148,6 +149,14 @@ function AppContent({
           element={
             <ProtectedRoute>
               <Create handleCreate={handleCreate} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/update-profile"
+          element={
+            <ProtectedRoute>
+              <UpdateProf />
             </ProtectedRoute>
           }
         />
