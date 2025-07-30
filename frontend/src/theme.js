@@ -4,12 +4,15 @@ export const lightTheme = createTheme({
   palette: {
     mode: 'light',
     background: {
-      default: '#5686a7ff',
+      default: '#8fc9ffff',
       paper: '#81aaf6ff',
     },
     text: {
       primary: '#0F172A',
     },
+    secondary: {
+      main: '#f50057',
+    }
   },
 });
 
@@ -23,5 +26,6 @@ export const darkTheme = createTheme({
     text: {
       primary: '#ffffff',
     },
+    
   },
 });

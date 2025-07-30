@@ -3,23 +3,25 @@ import { AppBar, Toolbar, Typography, IconButton, Stack, Icon } from '@mui/mater
 import { Brightness4, Brightness7, Menu as MenuIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { UserButton } from '@clerk/clerk-react';
+import { useTheme } from '@mui/material/styles';
 
 
 function NavBar({ darkMode, toggleDarkMode, onMenuClick }) {
-    const navigate = useNavigate();
+  const theme = useTheme();
+  const navigate = useNavigate();
   return (
     <AppBar position="static"
     sx={{
-      backgroundColor: !darkMode ? '#0063B2' : 'grey.900',
-      color: 'white'
+      backgroundColor: theme.palette.background.default,
+      boxShadow: 'none',
     }}
   >
-      <Toolbar sx={{ justifyContent: "space-between" }}>
+      <Toolbar sx={{ justifyContent: "space-between", backgroundColor: theme.palette.background.default }}>
         <Stack direction="row" alignItems="center" spacing={2}>
-          <IconButton color="inherit" onClick={onMenuClick}>
+          <IconButton color="inherit" onClick={onMenuClick} sx={{ color: theme.palette.text.primary }}>
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" onClick={() => navigate('/')} sx={{ cursor: 'pointer', transition: 'transform 0.2s', '&:hover': { transform: 'scale(1.05)' } }} className='cursor-hover-target'>Impostuffs</Typography>
+          <Typography variant="h6" onClick={() => navigate('/')} sx={{ cursor: 'pointer', transition: 'transform 0.2s', color: theme.palette.text.primary , '&:hover': { transform: 'scale(1.05)' } }} className='cursor-hover-target'>Impostuffs</Typography>
         </Stack>
         <Stack direction="row" spacing={2} alignItems="center">
         <UserButton
@@ -42,7 +44,7 @@ function NavBar({ darkMode, toggleDarkMode, onMenuClick }) {
             },
           }}
         />
-          <IconButton color="inherit" onClick={toggleDarkMode}>
+          <IconButton color="inherit" onClick={toggleDarkMode} sx={{ color: theme.palette.text.primary}}>
             {darkMode ? <Brightness7 /> : <Brightness4 />}
           </IconButton>
         </Stack>

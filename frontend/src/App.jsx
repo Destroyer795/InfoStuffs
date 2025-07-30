@@ -21,7 +21,6 @@ import { SignedOut } from '@clerk/clerk-react';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import { UpdateProf } from './pages/UpdateProf.jsx';
 
-
 const App = () => {
   const [infos, setInfos] = useState([]);
   const [darkMode, setDarkMode] = useState(false);
