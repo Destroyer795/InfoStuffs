@@ -26,3 +26,23 @@ export const uploadToSupabase = async (file, folder = "uploads") => {
     return null;
   }
 };
+
+export const deleteFromSupabase = async (filePath) => {
+  if (!filePath) return null;
+
+  try {
+    const { data, error } = await supabase.storage
+      .from("infostuffs")
+      .remove([filePath]);
+
+    if (error) {
+      console.error("Supabase delete error:", error);
+      return null;
+    }
+
+    return data;
+  } catch (err) {
+    console.error("Delete failed:", err);
+    return null;
+  }
+};

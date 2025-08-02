@@ -13,7 +13,6 @@ import {
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { uploadToSupabase } from "../utils/supabaseUpload";
-import { set } from "mongoose";
 
 export default function Create({ handleCreate }) {
   const [formData, setFormData] = useState({

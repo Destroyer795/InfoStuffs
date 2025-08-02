@@ -14,12 +14,16 @@ import {
   TextField,
   Link,
   Box,
-  Alert
+  MenuItem,
+  Select,
+  InputLabel,
+  FormControl,
 } from '@mui/material';
 import EditSquareIcon from '@mui/icons-material/EditSquare';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useTheme } from '@mui/material/styles';
 import { Link as RouterLink } from 'react-router-dom';
+import { uploadToSupabase, deleteFromSupabase } from "../utils/supabaseUpload";
 
 const InfoGrid = ({ infos, onUpdate, onDelete }) => {
   const [selectedInfo, setSelectedInfo] = useState(null);
@@ -33,10 +37,143 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
     imageURL: '',
     file: ''
   });
+  const [newFileData, setNewFileData] = useState({
+    imageFile: null,
+    documentFile: null
+  });
 
   const handleOpen = (info) => setSelectedInfo(info);
   const handleClose = () => setSelectedInfo(null);
   const theme = useTheme();
+
+  const handleFileUpdate = (e) => {
+    if (!e.target.files.length) return;
+    const file = e.target.files[0];
+    
+    if (formData.type === 'image') {
+      setNewFileData(prev => ({ ...prev, imageFile: file }));
+    } else if (formData.type === 'file') {
+      setNewFileData(prev => ({ ...prev, documentFile: file }));
+    }
+  };
+
+  const getRelativePathFromUrl = (url) => {
+    if (typeof url !== 'string') return null;
+    const parts = url.split('/infostuffs/');
+    return parts?.[1] || null;
+  };
+
+  const handleFileSubmit = async () => {
+    let newImageUrl = formData.imageURL;
+    let newFileUrl = formData.file;
+
+    try {
+
+      if (editInfo?.type === 'image' && formData.type !== 'image') {
+        const oldImagePath = getRelativePathFromUrl(editInfo.imageURL);
+        if (oldImagePath) {
+          await deleteFromSupabase(oldImagePath);
+        }
+        newImageUrl = '';
+      }
+
+      if (editInfo?.type === 'file' && formData.type !== 'file') {
+        const oldFilePath = getRelativePathFromUrl(editInfo.file);
+        if (oldFilePath) {
+          await deleteFromSupabase(oldFilePath);
+        }
+        newFileUrl = ''; 
+      }
+
+      if (formData.type === 'image') {
+        if (newFileData.imageFile) {
+          const oldImagePath = getRelativePathFromUrl(editInfo?.imageURL);
+          if (oldImagePath) {
+            await deleteFromSupabase(oldImagePath);
+          }
+
+          const uploadedImageUrl = await uploadToSupabase(newFileData.imageFile, 'images');
+          if (uploadedImageUrl) {
+            newImageUrl = uploadedImageUrl;
+          }
+        }
+        newFileUrl = '';
+      }
+
+      if (formData.type === 'file') {
+        if (newFileData.documentFile) {
+          const oldFilePath = getRelativePathFromUrl(editInfo?.file);
+          if (oldFilePath) {
+            await deleteFromSupabase(oldFilePath);
+          }
+          const uploadedFileUrl = await uploadToSupabase(newFileData.documentFile, 'documents');
+          if (uploadedFileUrl) {
+            newFileUrl = uploadedFileUrl;
+          }
+        }
+        newImageUrl = '';
+      }
+
+      if (formData.type === 'text') {
+        newImageUrl = '';
+        newFileUrl = '';
+      }
+
+      return { imageURL: newImageUrl, file: newFileUrl };
+    } catch (error) {
+      console.error('File upload failed:', error);
+      throw error;
+    }
+  };
+
+  const handleEditOpen = (info) => {
+    setEditInfo(info);
+    setFormData({
+      name: info.name,
+      category: info.category,
+      importance: info.importance,
+      content: info.content || '',
+      type: info.type,
+      imageURL: info.imageURL || '',
+      file: info.file || ''
+    });
+    setNewFileData({
+      imageFile: null,
+      documentFile: null
+    });
+  };
+
+  const handleEditClose = () => {
+    setEditInfo(null);
+    setNewFileData({
+      imageFile: null,
+      documentFile: null
+    });
+  };
+
+  const handleSave = async () => {
+    if (!onUpdate || !editInfo) return;
+
+    try {
+      const { imageURL, file } = await handleFileSubmit();
+      
+      const updatedData = {
+        ...formData,
+        imageURL,
+        file
+      };
+
+      await onUpdate(editInfo._id, updatedData);
+
+      if (selectedInfo && selectedInfo._id === editInfo._id) {
+        setSelectedInfo({ ...editInfo, ...updatedData });
+      }
+      
+      handleEditClose();
+    } catch (error) {
+      console.error('Save failed:', error);
+    }
+  };
 
   if (!Array.isArray(infos) || infos.length === 0) {
     return (
@@ -170,16 +307,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
                 <IconButton
                   onClick={(e) => {
                     e.stopPropagation();
-                    setEditInfo(info);
-                    setFormData({
-                      name: info.name,
-                      category: info.category,
-                      importance: info.importance,
-                      content: info.content || '',
-                      type: info.type,
-                      imageURL: info.imageURL || '',
-                      file: info.file || ''
-                    });
+                    handleEditOpen(info);
                   }}
                   color="primary"
                   size="small"
@@ -257,7 +385,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
       </Dialog>
 
       {/* Edit Dialog */}
-      <Dialog open={!!editInfo} onClose={() => setEditInfo(null)} fullWidth maxWidth="sm">
+      <Dialog open={!!editInfo} onClose={handleEditClose} fullWidth maxWidth="sm">
         <DialogTitle>Edit Info</DialogTitle>
         <DialogContent dividers>
           <TextField
@@ -281,49 +409,52 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
             value={formData.importance}
             onChange={(e) => setFormData({ ...formData, importance: e.target.value })}
           />
-          {formData.type === 'text' && (
-            <TextField
-              margin="dense"
-              label="Content"
-              multiline
-              rows={4}
-              fullWidth
-              value={formData.content}
-              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-            />
-          )}
-          {formData.type === 'image' && (
-            <TextField
-              margin="dense"
-              label="Image URL"
-              fullWidth
-              value={formData.imageURL}
-              onChange={(e) => setFormData({ ...formData, imageURL: e.target.value })}
-            />
-          )}
-          {formData.type === 'file' && (
-            <TextField
-              margin="dense"
-              label="Document Link"
-              fullWidth
-              value={formData.file}
-              onChange={(e) => setFormData({ ...formData, file: e.target.value })}
-            />
-          )}
+        <FormControl fullWidth margin="dense">
+          <InputLabel id="select-label">Content Type</InputLabel>
+          <Select
+            labelId="select-label"
+            id="content-type"
+            value={formData.type}
+            label="Content Type"
+            onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+          >
+            <MenuItem value="text">Text</MenuItem>
+            <MenuItem value="image">Image</MenuItem>
+            <MenuItem value="file">File</MenuItem>
+          </Select>
+        </FormControl>
+      {formData.type === 'text' && (
+        <TextField
+          margin="dense"
+          label="Content"
+          multiline
+          rows={4}
+          fullWidth
+          value={formData.content}
+          onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+        />
+      )}
+
+      {(formData.type === 'image' || formData.type === 'file') && (
+        <TextField
+          margin="dense"
+          type="file"
+          fullWidth
+          inputProps={{
+            accept: formData.type === 'image' ? 'image/*' : '.pdf,.doc,.docx,.txt,.ppt,.pptx,.xlsx',
+          }}
+          onChange={handleFileUpdate}
+        />
+      )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditInfo(null)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={() => {
-              if (onUpdate && editInfo) {
-                onUpdate(editInfo._id, formData);
-              }
-              setEditInfo(null);
-            }}
-          >
-            Save
-          </Button>
+          <Button onClick={handleEditClose}>Cancel</Button>
+        <Button
+          variant="contained"
+          onClick={handleSave}
+        >
+          Save
+        </Button>
         </DialogActions>
       </Dialog>
     </>
