@@ -5,7 +5,6 @@ export const uploadToSupabase = async (file, folder = "uploads") => {
 
   const fileExt = file.name.split(".").pop();
   const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-
   try {
     const { data, error } = await supabase.storage
       .from("infostuffs")
@@ -27,22 +26,18 @@ export const uploadToSupabase = async (file, folder = "uploads") => {
   }
 };
 
-export const deleteFromSupabase = async (filePath) => {
-  if (!filePath) return null;
-
+export const deleteFromSupabase = async (url) => {
+  if (!url) return false;
   try {
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from("infostuffs")
-      .remove([filePath]);
+      .remove([url]);
 
     if (error) {
-      console.error("Supabase delete error:", error);
-      return null;
+      return false;
     }
-
-    return data;
+    return true;
   } catch (err) {
-    console.error("Delete failed:", err);
-    return null;
+    return false;
   }
 };

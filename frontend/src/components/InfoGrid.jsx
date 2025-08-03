@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Grid,
   Card,
@@ -18,6 +18,8 @@ import {
   Select,
   InputLabel,
   FormControl,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import EditSquareIcon from '@mui/icons-material/EditSquare';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -28,6 +30,7 @@ import { uploadToSupabase, deleteFromSupabase } from "../utils/supabaseUpload";
 const InfoGrid = ({ infos, onUpdate, onDelete }) => {
   const [selectedInfo, setSelectedInfo] = useState(null);
   const [editInfo, setEditInfo] = useState(null);
+  const [justDeleted, setJustDeleted] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     category: '',
@@ -41,6 +44,29 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
     imageFile: null,
     documentFile: null
   });
+
+  const [snack, setSnack] = React.useState({
+    open: false,
+    type: 'success',
+    message: '',
+  });
+
+  const showSnack = (type, message) => {
+    setSnack((prev) => ({...prev, open: false }))
+    setSnack({ open: true, type, message });
+    setTimeout(() => setSnack((prev) => ({ ...prev, open: false })), 400);
+  };
+
+
+  useEffect(() => {
+  if (justDeleted) {
+    const timer = setTimeout(() => {
+      setJustDeleted(false);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }
+}, [justDeleted]);
 
   const handleOpen = (info) => setSelectedInfo(info);
   const handleClose = () => setSelectedInfo(null);
@@ -154,6 +180,23 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
   const handleSave = async () => {
     if (!onUpdate || !editInfo) return;
 
+  const noChanges =
+    JSON.stringify(formData) === JSON.stringify({
+      name: editInfo.name || "",
+      category: editInfo.category || "",
+      importance: editInfo.importance || "",
+      content: editInfo.content || "",
+      type: editInfo.type || "",
+      imageURL: editInfo.imageURL || "",
+      file: editInfo.file || "",
+    });
+
+  if (noChanges) {
+    showSnack("info", "Nothing modified");
+    handleEditClose();
+    return;
+  }
+
     try {
       const { imageURL, file } = await handleFileSubmit();
       
@@ -168,10 +211,10 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
       if (selectedInfo && selectedInfo._id === editInfo._id) {
         setSelectedInfo({ ...editInfo, ...updatedData });
       }
-      
+      showSnack("success", "Card updated successfully")
       handleEditClose();
     } catch (error) {
-      console.error('Save failed:', error);
+    showSnack("error", "Card update failed")
     }
   };
 
@@ -184,6 +227,21 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
             Click here to create info
           </Link>
         </Typography>
+      {(justDeleted) &&(
+      <Snackbar
+        open={true}
+        autoHideDuration={400}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          severity={"success"}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {"Card deleted Successfully"}
+        </Alert>
+      </Snackbar>
+      )}
       </Grid>
     );
   }
@@ -316,9 +374,28 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
                   <EditSquareIcon />
                 </IconButton>
                 <IconButton
-                  onClick={(e) => {
+                  onClick={async (e) => {
                     e.stopPropagation();
-                    onDelete?.(info._id);
+                    try {
+                      if (info.imageURL) {
+                        const imagePath = getRelativePathFromUrl(info.imageURL);
+                        if (imagePath) {
+                          await deleteFromSupabase(imagePath);
+                        }
+                      }
+                      if (info.file) {
+                        const filePath = getRelativePathFromUrl(info.file);
+                        if (filePath) {
+                          await deleteFromSupabase(filePath);
+                        }
+                      }
+                      onDelete?.(info._id);
+                      showSnack("success", "Card deleted successfully")
+                      setJustDeleted(true);
+                    } catch (error) {
+                      showSnack("error", "Card deletion failed")
+                    }
+
                   }}
                   color="error"
                   size="small"
@@ -448,7 +525,10 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
       )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleEditClose}>Cancel</Button>
+          <Button onClick={() => {
+            handleEditClose();
+            showSnack("info", "Card update cancelled");
+            }}>Cancel</Button>
         <Button
           variant="contained"
           onClick={handleSave}
@@ -457,6 +537,21 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
         </Button>
         </DialogActions>
       </Dialog>
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={400}
+        onClose={() => setSnack((prev) => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnack((prev) => ({ ...prev, open: false }))}
+          severity={snack.type}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snack.message}
+        </Alert>
+      </Snackbar>
     </>
   );
 };

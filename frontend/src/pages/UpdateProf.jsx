@@ -33,7 +33,7 @@ export const UpdateProf = () => {
 
   const showSnack = (type, message) => {
     setSnack({ open: true, type, message });
-    setTimeout(() => setSnack({ ...snack, open: false }), 4000);
+    setTimeout(() => setSnack({ ...snack, open: false }), 400);
   };
 
   const handleSubmit = async (e) => {
@@ -211,7 +211,7 @@ export const UpdateProf = () => {
 
       <Snackbar
         open={snack.open}
-        autoHideDuration={4000}
+        autoHideDuration={400}
         onClose={() => setSnack((prev) => ({ ...prev, open: false }))}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
