@@ -22,9 +22,9 @@ InfoStuffs is a full-stack web application that allows users to create, view, up
   - Text content
   - Image uploads
   - Document uploads
-- View all info cards (name, category, importance)
+- View all info cards (name, category, importance) sorted by most recent
 - Click card to view full details (text, file download, or image preview)
-- Edit/Update the card contents
+- Edit the card contents
 - Delete existing entries
 - Responsive design using Material UI
 - Light/dark mode toggle
