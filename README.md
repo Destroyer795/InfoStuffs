@@ -10,8 +10,8 @@ InfoStuffs is a full-stack web application that allows users to create, view, up
 - **Backend**: Node.js, Express.js
 - **Database**: MongoDB (Mongoose)
 - **Authentication**: Clerk
-- **File Storage**: Supabase Storage
-- **Deployment**: Exploring
+- **Image/File Storage**: Supabase Storage
+- **Deployment**: Render (exploring other options)
 
 ---
 
@@ -22,11 +22,14 @@ InfoStuffs is a full-stack web application that allows users to create, view, up
   - Text content
   - Image uploads
   - Document uploads
-- View all info cards (name, category, importance)
-- Click card to view full details (text, file, or image preview)
-- Edit or delete existing entries
+- View all info cards (name, category, importance) sorted by most recent
+- Click card to view full details (text, file download, or image preview)
+- Edit the card contents
+- Delete existing entries
 - Responsive design using Material UI
+- Light/dark mode toggle
 - Custom cursor using React.js
 - Supabase integration for media storage
+- Modify clerk profile (username, email, password, profile image)
 
 ---
