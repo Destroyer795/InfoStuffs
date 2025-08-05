@@ -6,10 +6,9 @@ export const uploadToSupabase = async (file, folder = "uploads") => {
   const fileExt = file.name.split(".").pop();
   const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
   try {
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from("infostuffs")
       .upload(`${folder}/${fileName}`, file);
-
     if (error) {
       console.error("Supabase upload error:", error);
       return null;
@@ -38,6 +37,7 @@ export const deleteFromSupabase = async (url) => {
     }
     return true;
   } catch (err) {
+    console.log(err)
     return false;
   }
 };
