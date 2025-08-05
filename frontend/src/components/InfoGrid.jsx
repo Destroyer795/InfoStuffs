@@ -42,7 +42,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
   });
   const [newFileData, setNewFileData] = useState({
     imageFile: null,
-    documentFile: null
+    docFile: null
   });
 
   const [snack, setSnack] = React.useState({
@@ -79,7 +79,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
     if (formData.type === 'image') {
       setNewFileData(prev => ({ ...prev, imageFile: file }));
     } else if (formData.type === 'file') {
-      setNewFileData(prev => ({ ...prev, documentFile: file }));
+      setNewFileData(prev => ({ ...prev, docFile: file }));
     }
   };
 
@@ -127,12 +127,12 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
       }
 
       if (formData.type === 'file') {
-        if (newFileData.documentFile) {
+        if (newFileData.docFile) {
           const oldFilePath = getRelativePathFromUrl(editInfo?.file);
           if (oldFilePath) {
             await deleteFromSupabase(oldFilePath);
           }
-          const uploadedFileUrl = await uploadToSupabase(newFileData.documentFile, 'documents');
+          const uploadedFileUrl = await uploadToSupabase(newFileData.docFile, 'documents');
           if (uploadedFileUrl) {
             newFileUrl = uploadedFileUrl;
           }
@@ -165,7 +165,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
     });
     setNewFileData({
       imageFile: null,
-      documentFile: null
+      docFile: null
     });
   };
 
@@ -173,25 +173,23 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
     setEditInfo(null);
     setNewFileData({
       imageFile: null,
-      documentFile: null
+      docFile: null
     });
   };
 
   const handleSave = async () => {
     if (!onUpdate || !editInfo) return;
 
-  const noChanges =
-    JSON.stringify(formData) === JSON.stringify({
-      name: editInfo.name || "",
-      category: editInfo.category || "",
-      importance: editInfo.importance || "",
-      content: editInfo.content || "",
-      type: editInfo.type || "",
-      imageURL: editInfo.imageURL || "",
-      file: editInfo.file || "",
-    });
-
-  if (noChanges) {
+  const noChanges = 
+    formData.name !== (editInfo.name || "") ||
+    formData.category !== (editInfo.category || "") ||
+    formData.importance !== (editInfo.importance || "") ||
+    formData.content !== (editInfo.content || "") ||
+    formData.type !== (editInfo.type || "");
+    
+  const hasNewFiles = newFileData.imageFile !== null || newFileData.docFile !== null;
+  const AllChanges = !noChanges && !hasNewFiles;
+  if (AllChanges) {
     showSnack("info", "Nothing modified");
     handleEditClose();
     return;
@@ -214,7 +212,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
       showSnack("success", "Card updated successfully")
       handleEditClose();
     } catch (error) {
-    showSnack("error", "Card update failed")
+    showSnack("error", "Card update failed: " + error.message)
     }
   };
 
@@ -393,7 +391,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
                       showSnack("success", "Card deleted successfully")
                       setJustDeleted(true);
                     } catch (error) {
-                      showSnack("error", "Card deletion failed")
+                      showSnack("error", "Card deletion failed: " + error.message)
                     }
 
                   }}
