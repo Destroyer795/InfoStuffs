@@ -26,6 +26,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { useTheme } from '@mui/material/styles';
 import { Link as RouterLink } from 'react-router-dom';
 import { uploadToSupabase, deleteFromSupabase } from "../utils/supabaseUpload";
+import { useUser } from "@clerk/clerk-react";
 
 const InfoGrid = ({ infos, onUpdate, onDelete }) => {
   const [selectedInfo, setSelectedInfo] = useState(null);
@@ -44,6 +45,9 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
     imageFile: null,
     docFile: null
   });
+
+  const { user } = useUser();
+  const userId = user?.id;
 
   const [snack, setSnack] = React.useState({
     open: false,
@@ -85,7 +89,8 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
 
   const getRelativePathFromUrl = (url) => {
     if (typeof url !== 'string') return null;
-    const parts = url.split('/infostuffs/');
+    const mainUrlPart = url.split('?')[0]; 
+    const parts = mainUrlPart.split('/infostuffsende/');
     return parts?.[1] || null;
   };
 
@@ -118,7 +123,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
             await deleteFromSupabase(oldImagePath);
           }
 
-          const uploadedImageUrl = await uploadToSupabase(newFileData.imageFile, 'images');
+          const uploadedImageUrl = await uploadToSupabase(newFileData.imageFile, userId, 'images');
           if (uploadedImageUrl) {
             newImageUrl = uploadedImageUrl;
           }
@@ -132,7 +137,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
           if (oldFilePath) {
             await deleteFromSupabase(oldFilePath);
           }
-          const uploadedFileUrl = await uploadToSupabase(newFileData.docFile, 'documents');
+          const uploadedFileUrl = await uploadToSupabase(newFileData.docFile, userId, 'documents');
           if (uploadedFileUrl) {
             newFileUrl = uploadedFileUrl;
           }
@@ -177,6 +182,15 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
     });
   };
 
+  const handleEditTypeChange = (e) => {
+    const newType = e.target.value;
+    setFormData(prev => ({
+        ...prev,
+        type: newType,
+        content: newType === 'text' ? prev.content : '',
+    }));
+  };
+
   const handleSave = async () => {
     if (!onUpdate || !editInfo) return;
 
@@ -201,7 +215,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
       const updatedData = {
         ...formData,
         imageURL,
-        file
+        file,
       };
 
       await onUpdate(editInfo._id, updatedData);
@@ -491,7 +505,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
             id="content-type"
             value={formData.type}
             label="Content Type"
-            onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+            onChange={handleEditTypeChange}
           >
             <MenuItem value="text">Text</MenuItem>
             <MenuItem value="image">Image</MenuItem>

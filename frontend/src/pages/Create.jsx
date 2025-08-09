@@ -13,6 +13,7 @@ import {
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { uploadToSupabase } from "../utils/supabaseUpload";
+import { useUser } from "@clerk/clerk-react";
 
 export default function Create({ handleCreate }) {
   const [formData, setFormData] = useState({
@@ -31,6 +32,9 @@ export default function Create({ handleCreate }) {
   const navigate = useNavigate();
   const theme = useTheme();
 
+  const { user } = useUser();
+  const userId = user?.id;
+
   const handleTypeChange = (e) => {
     const type = e.target.value;
     setFormData({
@@ -41,7 +45,6 @@ export default function Create({ handleCreate }) {
       docFile: null,
     });
   };
-
 
   const handleFileChange = (e) => {
     if (!e.target.files.length) return;
@@ -54,7 +57,11 @@ export default function Create({ handleCreate }) {
   };
 
   const handleSubmit = async () => {
-    
+    if (!userId) {
+      alert("You must be signed in to upload.");
+      return;
+    }
+
     const submission = {
       name: formData.name,
       category: formData.category,
@@ -64,9 +71,9 @@ export default function Create({ handleCreate }) {
 
     try {
       if (!formData.name.trim() || !formData.category.trim() || !formData.importance.trim()) {
-        alert("Please fill in all fields.");
+        alert("Please fill in all required fields.");
         return;
-      } 
+      }
       if (formData.type === 'text') {
         if (!formData.content.trim()) {
           alert("Please provide text content.");
@@ -74,13 +81,12 @@ export default function Create({ handleCreate }) {
         }
         submission.content = formData.content.trim();
       }
-
       if (formData.type === 'image') {
         if (!formData.imageFile) {
           alert("Please upload an image.");
           return;
         }
-        const url = await uploadToSupabase(formData.imageFile, "images");
+        const url = await uploadToSupabase(formData.imageFile, userId, "images");
         if (!url) {
           alert("Image upload failed.");
           return;
@@ -93,22 +99,32 @@ export default function Create({ handleCreate }) {
           alert("Please upload a file.");
           return;
         }
-        const url = await uploadToSupabase(formData.docFile, "documents");
+        const url = await uploadToSupabase(formData.docFile, userId, "documents");
         if (!url) {
           alert("File upload failed.");
           return;
         }
         submission.file = url;
       }
-      setHasSubmitted(true);
+
+
+
       handleCreate(submission)
-      .then(() => {
-        setSuccess(true);
-        setTimeout(() => navigate("/"), 2000);
-      });
+        .then(() => {
+          setSuccess(true);
+          setHasSubmitted(true);
+          setTimeout(() => navigate("/"), 2000);
+        })
+        .catch((err) => {
+          console.error("Creation failed in handleCreate:", err);
+          setSuccess(false);
+          setHasSubmitted(true); 
+        });
+
     } catch (err) {
-      console.error("Upload or creation failed:", err);
+      console.error("An unexpected error occurred:", err);
       setSuccess(false);
+      setHasSubmitted(true);
     }
   };
 
@@ -133,6 +149,7 @@ export default function Create({ handleCreate }) {
         margin="dense"
         label="Name"
         fullWidth
+        required
         value={formData.name}
         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
       />
@@ -140,6 +157,7 @@ export default function Create({ handleCreate }) {
         margin="dense"
         label="Category"
         fullWidth
+        required
         value={formData.category}
         onChange={(e) => setFormData({ ...formData, category: e.target.value })}
       />
@@ -147,6 +165,7 @@ export default function Create({ handleCreate }) {
         margin="dense"
         label="Importance"
         fullWidth
+        required
         value={formData.importance}
         onChange={(e) => setFormData({ ...formData, importance: e.target.value })}
       />
@@ -195,14 +214,15 @@ export default function Create({ handleCreate }) {
           Create
         </Button>
       </Box>
-      {success && hasSubmitted  && (
+      
+      {success && hasSubmitted && (
         <Alert severity="success" sx={{ mt: 2 }}>
-          Created Successfully!
+          Created Successfully! Redirecting...
         </Alert>
       )}
-      {!success || !hasSubmitted && (
+      {!success && hasSubmitted && (
         <Alert severity="error" sx={{ mt: 2 }}>
-          Creation Failed! Retry again
+          Creation Failed! Please try again.
         </Alert>
       )}
     </Box>
