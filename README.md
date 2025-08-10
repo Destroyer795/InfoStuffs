@@ -1,6 +1,6 @@
 # InfoStuffs – Information Manager Web App
 
-InfoStuffs is a full-stack web application that allows users to create, view, update, and delete categorized information. Each information entry can be of type text, image, or file. Built using the MERN stack and Supabase for file and image storage with clerk user authentication.
+InfoStuffs is a full-stack web application for securely storing and managing categorized information. Users can create, view, update, and delete entries that may contain text, images, or files. All text content is encrypted before being saved, ensuring enhanced privacy.
 
 ---
 
@@ -10,26 +10,34 @@ InfoStuffs is a full-stack web application that allows users to create, view, up
 - **Backend**: Node.js, Express.js
 - **Database**: MongoDB (Mongoose)
 - **Authentication**: Clerk
-- **Image/File Storage**: Supabase Storage
+- **Image and File Storage**: Supabase Storage
+- **Text Encrpyption/Decryption**: Crypto-js
 - **Deployment**: Render (exploring other options)
 
 ---
 
 ## Features
 
-- User sign up and login for multi-user support
+- Multi-User Authentication - Secure sign-up and login via Clerk
 - Create entries with:
-  - Text content
+  - Encrypted text content
   - Image uploads
   - Document uploads
-- View all info cards (name, category, importance) sorted by most recent
-- Click card to view full details (text, file download, or image preview)
-- Edit the card contents
-- Delete existing entries
+- Categorized Info Cards - Display name, category, and importance, sorted by most recent
+- Detailed View - Click a card to view full details (decrypted text, file download, or image preview)
+- Edit and update the card contents
+- Delete entries with file cleanup in Supabase
 - Responsive design using Material UI
 - Light/dark mode toggle
 - Custom cursor using React.js
-- Supabase integration for media storage
-- Modify clerk profile (username, email, password, profile image)
+- Profile Management - Update username, email, password, and profile image
+- Supabase integration for secure media storage
+
+---
+
+## Security
+- Private Supabase Bucket with signed URLs for time-limited access
+- AES Text Encryption using crypto-js before saving to MongoDB
+- User-Scoped File Storage to ensure isolation between accounts
 
 ---
