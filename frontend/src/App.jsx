@@ -7,7 +7,7 @@ import {
   CssBaseline,
   CircularProgress,
   Typography,
-  Backdrop
+  Backdrop,
 } from '@mui/material';
 import {
   BrowserRouter as Router,
@@ -57,6 +57,7 @@ const App = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
   const { getToken, isLoaded: authLoaded } = useAuth();
@@ -66,6 +67,17 @@ const App = () => {
 
   const toggleDarkMode = () => setDarkMode((prev) => !prev);
   const toggleDrawer = () => setDrawerOpen((prev) => !prev);
+
+  const filteredInfos = useMemo(() => {
+    if (!searchQuery) {
+      return infos;
+    }
+    return infos.filter(
+      (info) =>
+        info.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        info.category.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [infos, searchQuery]);
 
   const getAuthHeaders = async () => {
     const token = await getToken();
@@ -152,7 +164,7 @@ const App = () => {
 
       <Router>
         <AppContent
-          infos={infos}
+          infos={filteredInfos}
           handleUpdate={handleUpdate}
           handleDelete={handleDelete}
           handleCreate={handleCreate}
@@ -162,6 +174,8 @@ const App = () => {
           toggleDrawer={toggleDrawer}
           error={error}
           isLoading={isLoading}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
         />
       </Router>
     </ThemeProvider>
@@ -178,7 +192,9 @@ function AppContent({
   drawerOpen,
   toggleDrawer,
   error,
-  isLoading
+  isLoading,
+  searchQuery,
+  setSearchQuery
 }) {
   const location = useLocation();
   const { isSignedIn, isLoaded } = useUser();
@@ -221,6 +237,8 @@ function AppContent({
                 onDelete={handleDelete}
                 error={error}
                 isLoading={isLoading}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
               />
             </ProtectedRoute>
           }

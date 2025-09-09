@@ -18,7 +18,7 @@ export const uploadToSupabase = async (file, userId, folder = "uploads") => {
     }
     const { data: signedUrlData, error: signedUrlError } = await supabase.storage
       .from("infostuffsende")
-      .createSignedUrl(filePath, 60 * 60 * 24 * 7);
+      .createSignedUrl(filePath, 60 * 60 * 24 * 365);
 
     if (signedUrlError) {
       console.error("Signed URL generation failed:", signedUrlError);

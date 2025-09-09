@@ -28,7 +28,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { uploadToSupabase, deleteFromSupabase } from "../utils/supabaseUpload";
 import { useUser } from "@clerk/clerk-react";
 
-const InfoGrid = ({ infos, onUpdate, onDelete }) => {
+const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) => {
   const [selectedInfo, setSelectedInfo] = useState(null);
   const [editInfo, setEditInfo] = useState(null);
   const [justDeleted, setJustDeleted] = useState(false);
@@ -229,38 +229,33 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
     showSnack("error", "Card update failed: " + error.message)
     }
   };
+  
+  const renderContent = () => {
+    if (infos.length === 0 && searchQuery) {
+      return (
+        <Grid container justifyContent="center" alignItems="center" sx={{ height: '50vh' }}>
+          <Typography variant="h5" color="text.secondary">
+            No results found for "{searchQuery}"
+          </Typography>
+        </Grid>
+      );
+    }
+  
+    if (infos.length === 0) {
+      return (
+        <Grid container justifyContent="center" alignItems="center" sx={{ height: '100vh' }}>
+          <Typography variant="h4" color="text.secondary" sx={{ textAlign: 'center' }}>
+            No information available. Please add some! <br />
+            <Link component={RouterLink} to="/create">
+              Click here to create info
+            </Link>
+          </Typography>
+        </Grid>
+      );
+    }
 
-  if (!Array.isArray(infos) || infos.length === 0) {
     return (
-      <Grid container justifyContent="center" alignItems="center" sx={{ height: '100vh' }}>
-        <Typography variant="h4" color="text.secondary" sx={{ textAlign: 'center' }}>
-          No information available. Please add some! <br />
-          <Link component={RouterLink} to="/create">
-            Click here to create info
-          </Link>
-        </Typography>
-      {(justDeleted) &&(
-      <Snackbar
-        open={true}
-        autoHideDuration={400}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert
-          severity={"success"}
-          variant="filled"
-          sx={{ width: '100%' }}
-        >
-          {"Card deleted Successfully"}
-        </Alert>
-      </Snackbar>
-      )}
-      </Grid>
-    );
-  }
-
-  return (
-    <>
-      <Grid container spacing={3} padding={2}>
+        <Grid container spacing={3} padding={2}>
         {infos.map((info) => (
           <Grid item xs={12} sm={6} md={4} lg={3} key={info._id} sx={{ display: 'flex', justifyContent: 'center' }}>
             <Card
@@ -420,8 +415,25 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
           </Grid>
         ))}
       </Grid>
+    );
+  };
+  
 
-      {/* View Dialog */}
+  return (
+    <>
+      <Box sx={{ p: 2, display: 'flex', justifyContent: 'center' }}>
+        <TextField
+          label="Search by name or category"
+          variant="outlined"
+          fullWidth
+          sx={{ maxWidth: '500px' }}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </Box>
+      
+      {renderContent()}
+
       <Dialog
         open={!!selectedInfo}
         onClose={handleClose}
@@ -473,7 +485,6 @@ const InfoGrid = ({ infos, onUpdate, onDelete }) => {
         </DialogActions>
       </Dialog>
 
-      {/* Edit Dialog */}
       <Dialog open={!!editInfo} onClose={handleEditClose} fullWidth maxWidth="sm">
         <DialogTitle>Edit Info</DialogTitle>
         <DialogContent dividers>
