@@ -243,7 +243,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
   
     if (infos.length === 0) {
       return (
-        <Grid container justifyContent="center" alignItems="center" sx={{ height: '100vh' }}>
+        <Grid container justifyContent="center" alignItems="center" sx={{ height: '50vh' }}>
           <Typography variant="h4" color="text.secondary" sx={{ textAlign: 'center' }}>
             No information available. Please add some! <br />
             <Link component={RouterLink} to="/create">
