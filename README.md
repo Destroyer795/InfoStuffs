@@ -13,7 +13,7 @@ InfoStuffs is a full-stack web application for securely storing and managing cat
 - **Authentication**: Clerk
 - **Image and File Storage**: Supabase Storage
 - **Text Encrpyption/Decryption**: Crypto-js
-- **Deployment**: Render (exploring other options)
+- **Deployment**: Google Cloud Run (GCP) and Render
 
 ---
 
@@ -25,6 +25,7 @@ InfoStuffs is a full-stack web application for securely storing and managing cat
   - Image uploads
   - Document uploads
 - Categorized Info Cards - Display name, category, and importance, sorted by most recent
+- Search and Filter - Real-time search functionality to filter cards by name or category.
 - Detailed View - Click a card to view full details (decrypted text, file download, or image preview)
 - Edit and update the card contents
 - Delete entries with file cleanup in Supabase
@@ -33,6 +34,7 @@ InfoStuffs is a full-stack web application for securely storing and managing cat
 - Custom cursor using React.js
 - Profile Management - Update username, email, password, and profile image
 - Supabase integration for secure media storage
+- Fully containerized with Docker for consistent development and deployment environments.
 
 ---
 
