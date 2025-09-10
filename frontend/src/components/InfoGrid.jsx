@@ -282,7 +282,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
               <CardMedia
                 component="img"
                 height="150"
-                image={info?.imageURL || `https://picsum.photos/300/150?random=${info._id}`}
+                image={info?.imageURL || `https://api.dicebear.com/8.x/initials/svg?seed=${info.name}`}
                 alt={info?.name || 'Info Card'}
                 sx={{
                   objectFit: 'cover',
