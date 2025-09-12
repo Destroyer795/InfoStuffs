@@ -11,11 +11,11 @@
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.37.0",
-    "@mui/icons-material": "^7.1.0",
-    "@supabase/supabase-js": "^2.51.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
+    "@mui/icons-material": "^7.1.0",
     "@mui/material": "^7.1.0",
+    "@supabase/supabase-js": "^2.51.0",
     "axios": "^1.9.0",
     "crypto-js": "^4.2.0",
     "damn": "file:..",

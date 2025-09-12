@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, lazy, Suspense } from 'react';
 import { useAuth, useUser, SignedOut } from '@clerk/clerk-react';
 import axios from 'axios';
 import {
@@ -19,16 +19,17 @@ import {
 
 import NavBar from './components/NavBar.jsx';
 import SideBar from './components/SideBar.jsx';
-import InfoGrid from './components/InfoGrid.jsx';
 import CustomCursor from './components/Cursor.jsx';
 import Login from './pages/Login.jsx';
 import Signup from './pages/Signup.jsx';
-import Create from './pages/Create.jsx';
-import { UpdateProf } from './pages/UpdateProf.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 
 import { encryptText, decryptText } from './utils/encryption';
 import { lightTheme, darkTheme } from './theme';
+
+const InfoGrid = lazy(() => import('./components/InfoGrid.jsx'));
+const Create = lazy(() => import('./pages/Create.jsx'));
+const UpdateProf = lazy(() => import('./pages/UpdateProf.jsx').then(module => ({ default: module.UpdateProf })));
 
 const LoadingScreen = ({ darkMode }) => (
   <Backdrop
@@ -46,7 +47,7 @@ const LoadingScreen = ({ darkMode }) => (
       sx={{ color: darkMode ? '#90caf9' : '#1976d2' }}
     />
     <Typography variant="h6" sx={{ color: darkMode ? '#fff' : '#000', fontWeight: 500 }}>
-      Loading your content...
+      Loading...
     </Typography>
   </Backdrop>
 );
@@ -86,19 +87,15 @@ const App = () => {
 
   const fetchInfos = async () => {
     if (!isSignedIn) return;
-
     setIsLoading(true);
     setError(null);
-
     try {
       const headers = await getAuthHeaders();
       const res = await axios.get(`${API_BASE_URL}/api/info`, { headers });
-
       const decrypted = (res.data.data || []).map((item) => ({
         ...item,
         content: item.type === 'text' ? decryptText(item.content) : item.content
       }));
-
       setInfos(decrypted);
     } catch (err) {
       console.error('Fetch failed:', err);
@@ -119,31 +116,16 @@ const App = () => {
 
   const handleCreate = async (newData) => {
     const headers = await getAuthHeaders();
-
-    const encryptedData = {
-      ...newData,
-      content: newData.type === 'text' ? encryptText(newData.content) : newData.content,
-    };
-
+    const encryptedData = { ...newData, content: newData.type === 'text' ? encryptText(newData.content) : newData.content };
     await axios.post(`${API_BASE_URL}/api/info`, encryptedData, { headers });
     await fetchInfos();
   };
 
   const handleUpdate = async (id, updatedData) => {
     const headers = await getAuthHeaders();
-
-    const encryptedData = {
-      ...updatedData,
-      content: updatedData.type === 'text' ? encryptText(updatedData.content) : updatedData.content,
-    };
-
+    const encryptedData = { ...updatedData, content: updatedData.type === 'text' ? encryptText(updatedData.content) : updatedData.content };
     const response = await axios.patch(`${API_BASE_URL}/api/info/${id}`, encryptedData, { headers });
-
-    const updated = {
-      ...response.data.data,
-      content: updatedData.type === 'text' ? decryptText(response.data.data.content) : response.data.data.content
-    };
-
+    const updated = { ...response.data.data, content: updatedData.type === 'text' ? decryptText(response.data.data.content) : response.data.data.content };
     setInfos((prev) => prev.map((item) => (item._id === id ? updated : item)));
   };
 
@@ -159,9 +141,7 @@ const App = () => {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <CustomCursor />
-
       {shouldShowLoading && <LoadingScreen darkMode={darkMode} />}
-
       <Router>
         <AppContent
           infos={filteredInfos}
@@ -183,22 +163,12 @@ const App = () => {
 };
 
 function AppContent({
-  infos,
-  handleUpdate,
-  handleDelete,
-  handleCreate,
-  darkMode,
-  toggleDarkMode,
-  drawerOpen,
-  toggleDrawer,
-  error,
-  isLoading,
-  searchQuery,
-  setSearchQuery
+  infos, handleUpdate, handleDelete, handleCreate, darkMode,
+  toggleDarkMode, drawerOpen, toggleDrawer, error, isLoading,
+  searchQuery, setSearchQuery
 }) {
   const location = useLocation();
   const { isSignedIn, isLoaded } = useUser();
-
   const hideNav = ['/login', '/signup'].includes(location.pathname) || !isLoaded || !isSignedIn;
 
   return (
@@ -209,58 +179,45 @@ function AppContent({
           <SideBar open={drawerOpen} toggleDrawer={toggleDrawer} />
         </>
       )}
-
-      <Routes>
-        <Route
-          path="/login"
-          element={
-            <SignedOut>
-              <Login />
-            </SignedOut>
-          }
-        />
-        <Route
-          path="/signup"
-          element={
-            <SignedOut>
-              <Signup />
-            </SignedOut>
-          }
-        />
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <InfoGrid
-                infos={infos}
-                onUpdate={handleUpdate}
-                onDelete={handleDelete}
-                error={error}
-                isLoading={isLoading}
-                searchQuery={searchQuery}
-                setSearchQuery={setSearchQuery}
-              />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/create"
-          element={
-            <ProtectedRoute>
-              <Create handleCreate={handleCreate} />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/update-profile"
-          element={
-            <ProtectedRoute>
-              <UpdateProf />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
+      <Suspense fallback={<LoadingScreen darkMode={darkMode} />}>
+        <Routes>
+          <Route path="/login" element={<SignedOut><Login /></SignedOut>} />
+          <Route path="/signup" element={<SignedOut><Signup /></SignedOut>} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <InfoGrid
+                  infos={infos}
+                  onUpdate={handleUpdate}
+                  onDelete={handleDelete}
+                  error={error}
+                  isLoading={isLoading}
+                  searchQuery={searchQuery}
+                  setSearchQuery={setSearchQuery}
+                />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/create"
+            element={
+              <ProtectedRoute>
+                <Create handleCreate={handleCreate} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/update-profile"
+            element={
+              <ProtectedRoute>
+                <UpdateProf />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </Suspense>
     </Box>
   );
 }
