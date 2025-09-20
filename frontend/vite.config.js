@@ -11,6 +11,21 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('@mui')) {
+              return 'vendor_mui';
+            }
+            if (id.includes('@supabase')) {
+              return 'vendor_supabase';
+            }
+            return 'vendor';
+          }
+        }
+      }
+    }
   },
   server: {
     port: 3000,

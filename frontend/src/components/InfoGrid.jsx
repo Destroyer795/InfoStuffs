@@ -28,6 +28,15 @@ import { Link as RouterLink } from 'react-router-dom';
 import { uploadToSupabase, deleteFromSupabase } from "../utils/supabaseUpload";
 import { useUser } from "@clerk/clerk-react";
 
+const TOTAL_PLACEHOLDERS = 15;
+const hashCode = (s) => s.split('').reduce((a, b) => (((a << 5) - a) + b.charCodeAt(0)) | 0, 0);
+
+const getPlaceholderImage = (id) => {
+  const imageIndex = (Math.abs(hashCode(id)) % TOTAL_PLACEHOLDERS) + 1;
+  return `/photos/${imageIndex}.jpg`;
+};
+
+
 const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) => {
   const [selectedInfo, setSelectedInfo] = useState(null);
   const [editInfo, setEditInfo] = useState(null);
@@ -282,7 +291,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
               <CardMedia
                 component="img"
                 height="150"
-                image={info?.imageURL || `https://api.dicebear.com/8.x/initials/svg?seed=${info.name}`}
+                image={info?.imageURL || getPlaceholderImage(info._id)}
                 alt={info?.name || 'Info Card'}
                 sx={{
                   objectFit: 'cover',
