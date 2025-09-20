@@ -13,7 +13,7 @@ InfoStuffs is a full-stack web application for securely storing and managing cat
 - **Authentication**: Clerk
 - **Image and File Storage**: Supabase Storage
 - **Text Encrpyption/Decryption**: Crypto-js
-- **Deployment**: Google Cloud Run (GCP) and Render
+- **Deployment**: Google Cloud Run (GCP) (also currently deployed via render as well)
 
 ---
 
@@ -42,5 +42,40 @@ InfoStuffs is a full-stack web application for securely storing and managing cat
 - Private Supabase Bucket with signed URLs for time-limited access
 - AES Text Encryption using crypto-js before saving to MongoDB
 - User-Scoped File Storage to ensure isolation between accounts
+
+---
+## Running Locally with Docker
+To run this project in a local containerized environment, ensure you have Docker Desktop installed and follow these steps:
+
+### Clone the repository:
+```
+git clone https://github.com/Destroyer795/InfoStuffs.git
+cd InfoStuffs
+```
+This will download the project files to your local machine.
+
+### Create Environment Files:
+You will need to create two `.env` files for the project to run.
+
+- Create a `.env` file in the root directory. You can use the `.env.example` file as a template.
+
+- Create a `.env` file in the `/frontend directory`. Use the `frontend/.env.example` file as a template.
+
+Populate both files with your own keys and secrets (e.g., MongoDB URI, Clerk keys, etc.).
+
+### Build and Run the Containers:
+From the root directory, run the following command. This will build the Docker images for both the frontend and backend and start them.
+
+```
+docker-compose up --build
+```
+The `--build` flag ensures that the images are built from the latest version of your code.
+
+### Access the Application:
+Once the containers are running, the application will be available at:
+
+Frontend: `http://localhost:8080`
+
+Backend API: `http://localhost:5000`
 
 ---
