@@ -21,7 +21,7 @@ function NavBar({ darkMode, toggleDarkMode, onMenuClick }) {
           <IconButton color="inherit" onClick={onMenuClick} sx={{ color: theme.palette.text.primary }}>
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" onClick={() => navigate('/')} sx={{ cursor: 'pointer', transition: 'transform 0.2s', color: theme.palette.text.primary , '&:hover': { transform: 'scale(1.05)' } }} className='cursor-hover-target'>Impostuffs</Typography>
+          <Typography variant="h6" onClick={() => navigate('/')} sx={{ cursor: 'pointer', transition: 'transform 0.2s', color: theme.palette.text.primary , '&:hover': { transform: 'scale(1.05)' } }} className='cursor-hover-target'>InfoStuffs</Typography>
         </Stack>
         <Stack direction="row" spacing={2} alignItems="center">
         <UserButton
