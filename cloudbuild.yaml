@@ -32,7 +32,7 @@ steps:
       - '--image'
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/infostuffs-frontend:$COMMIT_SHA'
       - '--region'
-      - 'us-central1' 
+      - 'us-central1'
 
 images:
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/infostuffs-frontend:$COMMIT_SHA'
