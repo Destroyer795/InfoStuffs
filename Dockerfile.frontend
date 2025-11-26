@@ -20,7 +20,6 @@ ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
 COPY frontend/ ./
 
-# 🔴 DEBUG: Print the key to the build logs to confirm it exists
 RUN echo "DEBUG: Clerk Key is [$VITE_CLERK_PUBLISHABLE_KEY]"
 
 RUN npm run build
