@@ -19,12 +19,15 @@ import {
   InputLabel,
   FormControl,
   Snackbar,
-  Alert
+  Alert,
+  Chip,
+  Stack
 } from '@mui/material';
 import EditSquareIcon from '@mui/icons-material/EditSquare';
 import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
 import { useTheme } from '@mui/material/styles';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { uploadToSupabase, deleteFromSupabase } from "../utils/supabaseUpload";
 import { useUser } from "@clerk/clerk-react";
 
@@ -36,11 +39,9 @@ const getPlaceholderImage = (id) => {
   return `/photos/${imageIndex}.jpg`;
 };
 
-
 const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) => {
   const [selectedInfo, setSelectedInfo] = useState(null);
   const [editInfo, setEditInfo] = useState(null);
-  const [justDeleted, setJustDeleted] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     category: '',
@@ -57,6 +58,8 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
 
   const { user } = useUser();
   const userId = user?.id;
+  const theme = useTheme();
+  const navigate = useNavigate();
 
   const [snack, setSnack] = React.useState({
     open: false,
@@ -70,25 +73,12 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
     setTimeout(() => setSnack((prev) => ({ ...prev, open: false })), 400);
   };
 
-
-  useEffect(() => {
-  if (justDeleted) {
-    const timer = setTimeout(() => {
-      setJustDeleted(false);
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }
-}, [justDeleted]);
-
   const handleOpen = (info) => setSelectedInfo(info);
   const handleClose = () => setSelectedInfo(null);
-  const theme = useTheme();
 
   const handleFileUpdate = (e) => {
     if (!e.target.files.length) return;
     const file = e.target.files[0];
-    
     if (formData.type === 'image') {
       setNewFileData(prev => ({ ...prev, imageFile: file }));
     } else if (formData.type === 'file') {
@@ -108,50 +98,27 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
     let newFileUrl = formData.file;
 
     try {
-
       if (editInfo?.type === 'image' && formData.type !== 'image') {
         const oldImagePath = getRelativePathFromUrl(editInfo.imageURL);
-        if (oldImagePath) {
-          await deleteFromSupabase(oldImagePath);
-        }
+        if (oldImagePath) await deleteFromSupabase(oldImagePath);
         newImageUrl = '';
       }
-
       if (editInfo?.type === 'file' && formData.type !== 'file') {
         const oldFilePath = getRelativePathFromUrl(editInfo.file);
-        if (oldFilePath) {
-          await deleteFromSupabase(oldFilePath);
-        }
+        if (oldFilePath) await deleteFromSupabase(oldFilePath);
         newFileUrl = ''; 
       }
 
-      if (formData.type === 'image') {
-        if (newFileData.imageFile) {
-          const oldImagePath = getRelativePathFromUrl(editInfo?.imageURL);
-          if (oldImagePath) {
-            await deleteFromSupabase(oldImagePath);
-          }
-
-          const uploadedImageUrl = await uploadToSupabase(newFileData.imageFile, userId, 'images');
-          if (uploadedImageUrl) {
-            newImageUrl = uploadedImageUrl;
-          }
-        }
-        newFileUrl = '';
+      if (formData.type === 'image' && newFileData.imageFile) {
+        const oldImagePath = getRelativePathFromUrl(editInfo?.imageURL);
+        if (oldImagePath) await deleteFromSupabase(oldImagePath);
+        newImageUrl = await uploadToSupabase(newFileData.imageFile, userId, 'images');
       }
 
-      if (formData.type === 'file') {
-        if (newFileData.docFile) {
-          const oldFilePath = getRelativePathFromUrl(editInfo?.file);
-          if (oldFilePath) {
-            await deleteFromSupabase(oldFilePath);
-          }
-          const uploadedFileUrl = await uploadToSupabase(newFileData.docFile, userId, 'documents');
-          if (uploadedFileUrl) {
-            newFileUrl = uploadedFileUrl;
-          }
-        }
-        newImageUrl = '';
+      if (formData.type === 'file' && newFileData.docFile) {
+        const oldFilePath = getRelativePathFromUrl(editInfo?.file);
+        if (oldFilePath) await deleteFromSupabase(oldFilePath);
+        newFileUrl = await uploadToSupabase(newFileData.docFile, userId, 'documents');
       }
 
       if (formData.type === 'text') {
@@ -177,18 +144,12 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
       imageURL: info.imageURL || '',
       file: info.file || ''
     });
-    setNewFileData({
-      imageFile: null,
-      docFile: null
-    });
+    setNewFileData({ imageFile: null, docFile: null });
   };
 
   const handleEditClose = () => {
     setEditInfo(null);
-    setNewFileData({
-      imageFile: null,
-      docFile: null
-    });
+    setNewFileData({ imageFile: null, docFile: null });
   };
 
   const handleEditTypeChange = (e) => {
@@ -203,30 +164,24 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
   const handleSave = async () => {
     if (!onUpdate || !editInfo) return;
 
-  const noChanges = 
-    formData.name !== (editInfo.name || "") ||
-    formData.category !== (editInfo.category || "") ||
-    formData.importance !== (editInfo.importance || "") ||
-    formData.content !== (editInfo.content || "") ||
-    formData.type !== (editInfo.type || "");
+    const noChanges = 
+      formData.name === editInfo.name &&
+      formData.category === editInfo.category &&
+      formData.importance === editInfo.importance &&
+      formData.content === editInfo.content &&
+      formData.type === editInfo.type;
+      
+    const hasNewFiles = newFileData.imageFile !== null || newFileData.docFile !== null;
     
-  const hasNewFiles = newFileData.imageFile !== null || newFileData.docFile !== null;
-  const AllChanges = !noChanges && !hasNewFiles;
-  if (AllChanges) {
-    showSnack("info", "Nothing modified");
-    handleEditClose();
-    return;
-  }
+    if (noChanges && !hasNewFiles) {
+      showSnack("info", "Nothing modified");
+      handleEditClose();
+      return;
+    }
 
     try {
       const { imageURL, file } = await handleFileSubmit();
-      
-      const updatedData = {
-        ...formData,
-        imageURL,
-        file,
-      };
-
+      const updatedData = { ...formData, imageURL, file };
       await onUpdate(editInfo._id, updatedData);
 
       if (selectedInfo && selectedInfo._id === editInfo._id) {
@@ -235,7 +190,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
       showSnack("success", "Card updated successfully")
       handleEditClose();
     } catch (error) {
-    showSnack("error", "Card update failed: " + error.message)
+      showSnack("error", "Card update failed: " + error.message)
     }
   };
   
@@ -249,145 +204,158 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
         </Grid>
       );
     }
-  
-    if (infos.length === 0) {
-      return (
-        <Grid container justifyContent="center" alignItems="center" sx={{ height: '50vh' }}>
-          <Typography variant="h4" color="text.secondary" sx={{ textAlign: 'center' }}>
-            No information available. Please add some! <br />
-            <Link component={RouterLink} to="/create">
-              Click here to create info
-            </Link>
-          </Typography>
-        </Grid>
-      );
-    }
+
+    const gridItemStyles = {
+      display: 'flex', 
+      justifyContent: 'center',
+      animation: 'fadeIn 0.5s ease-out forwards',
+      opacity: 0, 
+    };
+
+    const cardStyles = {
+      height: 340,
+      width: 300,
+      display: 'flex',
+      flexDirection: 'column',
+      transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease',
+      borderRadius: '12px',
+      '&:hover': {
+        transform: 'translate(-4px, -4px)',
+        boxShadow: theme.palette.mode === 'dark' 
+          ? `8px 8px 0px 0px ${theme.palette.primary.main}`
+          : `8px 8px 0px 0px #000`,
+        borderColor: theme.palette.primary.main,
+      }
+    };
 
     return (
-        <Grid container spacing={3} padding={2}>
-        {infos.map((info) => (
-          <Grid item xs={12} sm={6} md={4} lg={3} key={info._id} sx={{ display: 'flex', justifyContent: 'center' }}>
+      <Grid container spacing={3} padding={3}>
+        
+        <Grid item xs={12} sm={6} md={4} lg={3} sx={{ ...gridItemStyles, animationDelay: '0s' }}>
+          <Box
+            onClick={() => navigate('/create')}
+            className="cursor-hover-target"
+            sx={{
+              ...cardStyles,
+              border: `3px dashed ${theme.palette.text.secondary}`,
+              backgroundColor: 'transparent',
+              boxShadow: 'none',
+              cursor: 'pointer',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 2,
+              '&:hover': {
+                ...cardStyles['&:hover'],
+                border: `3px dashed ${theme.palette.primary.main}`,
+                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(41, 121, 255, 0.05)' : 'rgba(41, 121, 255, 0.05)',
+              }
+            }}
+          >
+            <Box 
+              sx={{ 
+                p: 2, 
+                borderRadius: '50%', 
+                border: `2px solid ${theme.palette.text.secondary}`,
+                display: 'flex',
+                transition: 'all 0.3s ease'
+              }}
+              className="add-icon-circle"
+            >
+              <AddIcon sx={{ fontSize: 40, color: theme.palette.text.secondary }} />
+            </Box>
+            <Typography variant="h6" color="text.secondary" fontWeight="bold">
+              Create New
+            </Typography>
+          </Box>
+        </Grid>
+
+        {infos.map((info, index) => (
+          <Grid 
+            item xs={12} sm={6} md={4} lg={3} 
+            key={info._id} 
+            sx={{ 
+              ...gridItemStyles,
+              animationDelay: `${(index + 1) * 0.05}s`,
+            }}
+          >
             <Card
               onClick={() => handleOpen(info)}
-              sx={{
-                height: 300,
-                width: 300,
-                maxWidth: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                borderRadius: '12px',
-                boxShadow: 3,
-                transition: 'transform 0.2s',
-                cursor: 'pointer',
-                '&:hover': {
-                  transform: 'scale(1.02)',
-                  boxShadow:
-                    theme.palette.mode === 'dark'
-                      ? '0px 4px 20px rgba(255, 255, 255, 0.2)'
-                      : theme.shadows[7]
-                }
-              }}
+              className="cursor-hover-target"
+              sx={cardStyles}
             >
-              <CardMedia
-                component="img"
-                height="150"
-                image={info?.imageURL || getPlaceholderImage(info._id)}
-                alt={info?.name || 'Info Card'}
-                sx={{
-                  objectFit: 'cover',
-                  flexShrink: 0
-                }}
-              />
+              <Box sx={{ position: 'relative' }}>
+                <CardMedia
+                  component="img"
+                  height="160"
+                  image={info?.imageURL || getPlaceholderImage(info._id)}
+                  alt={info?.name}
+                  sx={{
+                    objectFit: 'cover',
+                    borderBottom: `2px solid ${theme.palette.divider}`,
+                    borderTopLeftRadius: '10px',
+                    borderTopRightRadius: '10px',
+                  }}
+                />
+                <Chip 
+                  label={info.type.toUpperCase()} 
+                  size="small"
+                  sx={{ 
+                    position: 'absolute', 
+                    top: 10, 
+                    right: 10, 
+                    fontWeight: 'bold',
+                    backgroundColor: theme.palette.background.paper,
+                    border: `2px solid ${theme.palette.text.primary}`,
+                    color: theme.palette.text.primary
+                  }} 
+                />
+              </Box>
 
-              <CardContent
-                sx={{
-                  flexGrow: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  px: 2,
-                  py: 1.5,
-                  height: 'calc(100% - 150px - 35px)',
-                  overflow: 'hidden'
-                }}
-              >
-                <Box sx={{ height: '1.5em', overflow: 'hidden' }}>
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
+              <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 1, pt: 2 }}>
+                <Typography variant="h6" sx={{ lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                  {info.name}
+                </Typography>
+                
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
+                  <Chip label={info.category} size="small" variant="outlined" sx={{ borderRadius: '6px', fontWeight: 600 }} />
+                  <Chip 
+                    label={info.importance} 
+                    size="small" 
+                    sx={{ 
+                      borderRadius: '6px', 
                       fontWeight: 600,
-                      lineHeight: '1.5em',
-                      fontSize: '1.1rem'
-                    }}
-                  >
-                    {info.name}
-                  </Typography>
-                </Box>
-
-                <Box sx={{ mt: 1, height: '4em', overflow: 'hidden' }}>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      lineHeight: '1.25em'
-                    }}
-                  >
-                    Category: {info.category}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      lineHeight: '1.25em'
-                    }}
-                  >
-                    Importance: {info.importance}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      lineHeight: '1.25em'
-                    }}
-                  >
-                    Type: {info.type}
-                  </Typography>
+                      backgroundColor: info.importance === 'High' ? '#ffcdd2' : info.importance === 'Medium' ? '#fff9c4' : '#c8e6c9',
+                      color: '#000',
+                      border: '1px solid #000'
+                    }} 
+                  />
                 </Box>
               </CardContent>
 
               <Box
                 display="flex"
                 justifyContent="flex-end"
-                px={1}
-                pb={1}
-                sx={{
-                  height: '35px',
-                  alignItems: 'center',
-                  flexShrink: 0
+                p={1.5}
+                gap={1}
+                sx={{ 
+                  borderTop: `2px solid ${theme.palette.divider}`, 
+                  bgcolor: theme.palette.background.default,
+                  borderBottomLeftRadius: '10px', 
+                  borderBottomRightRadius: '10px'
                 }}
               >
                 <IconButton
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleEditOpen(info);
-                  }}
-                  color="primary"
+                  onClick={(e) => { e.stopPropagation(); handleEditOpen(info); }}
                   size="small"
-                  className="cursor-hover-target"
+                  sx={{ 
+                    border: '2px solid', 
+                    borderColor: 'primary.main', 
+                    color: 'primary.main',
+                    borderRadius: '8px',
+                    '&:hover': { bgcolor: 'primary.main', color: 'background.paper' }
+                  }}
                 >
-                  <EditSquareIcon />
+                  <EditSquareIcon fontSize="small" />
                 </IconButton>
                 <IconButton
                   onClick={async (e) => {
@@ -395,29 +363,28 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
                     try {
                       if (info.imageURL) {
                         const imagePath = getRelativePathFromUrl(info.imageURL);
-                        if (imagePath) {
-                          await deleteFromSupabase(imagePath);
-                        }
+                        if (imagePath) await deleteFromSupabase(imagePath);
                       }
                       if (info.file) {
                         const filePath = getRelativePathFromUrl(info.file);
-                        if (filePath) {
-                          await deleteFromSupabase(filePath);
-                        }
+                        if (filePath) await deleteFromSupabase(filePath);
                       }
                       onDelete?.(info._id);
-                      showSnack("success", "Card deleted successfully")
-                      setJustDeleted(true);
+                      showSnack("success", "Deleted")
                     } catch (error) {
-                      showSnack("error", "Card deletion failed: " + error.message)
+                      showSnack("error", "Delete failed")
                     }
-
                   }}
-                  color="error"
                   size="small"
-                  className="cursor-hover-target"
+                  sx={{ 
+                    border: '2px solid', 
+                    borderColor: 'error.main', 
+                    color: 'error.main',
+                    borderRadius: '8px',
+                    '&:hover': { bgcolor: 'error.main', color: '#fff' }
+                  }}
                 >
-                  <DeleteIcon />
+                  <DeleteIcon fontSize="small" />
                 </IconButton>
               </Box>
             </Card>
@@ -430,12 +397,19 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
 
   return (
     <>
-      <Box sx={{ p: 2, display: 'flex', justifyContent: 'center' }}>
+      <Box sx={{ p: 3, display: 'flex', justifyContent: 'center' }}>
         <TextField
-          label="Search by name or category"
+          placeholder="Search your collection..."
           variant="outlined"
           fullWidth
-          sx={{ maxWidth: '500px' }}
+          sx={{ 
+            maxWidth: '600px',
+            '& .MuiOutlinedInput-root': {
+              backgroundColor: theme.palette.background.paper,
+              borderRadius: '50px',
+              boxShadow: theme.shadows[1]
+            }
+          }}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -447,139 +421,129 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
         open={!!selectedInfo}
         onClose={handleClose}
         fullWidth
-        maxWidth="lg"
+        maxWidth="md"
         PaperProps={{
-          style: {
-            width: '75vw',
-            maxWidth: '75vw',
-            height: '75vh',
-            overflowY: 'auto',
-            borderRadius: '10px',
-            margin: 'auto',
-            overflowX: 'hidden'
-          }
+          sx: { borderRadius: '16px', border: `2px solid ${theme.palette.text.primary}` }
         }}
       >
-        <DialogTitle>{selectedInfo?.name}</DialogTitle>
-        <DialogContent dividers sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+        <DialogTitle sx={{ borderBottom: `2px solid ${theme.palette.divider}`, fontWeight: 800 }}>
+          {selectedInfo?.name}
+        </DialogTitle>
+        <DialogContent sx={{ p: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
           {selectedInfo?.type === 'text' && (
-            <Typography variant="body1" gutterBottom>
+            <Typography variant="body1" sx={{ fontSize: '1.1rem', lineHeight: 1.6 }}>
               {selectedInfo?.content}
             </Typography>
           )}
           {selectedInfo?.type === 'image' && selectedInfo.imageURL && (
-            <Box component="img" src={selectedInfo.imageURL} alt="Uploaded" sx={{ maxWidth: '100%', maxHeight: '60vh' }} />
+            <Box component="img" src={selectedInfo.imageURL} alt="Preview" sx={{ width: '100%', borderRadius: '8px', border: '2px solid #000' }} />
           )}
           {selectedInfo?.type === 'file' && selectedInfo.file && (
-            <Box>
-            <Typography variant="body1" gutterBottom>
-              Click on the button below to download the file.
-            </Typography>
-            <Button
-              variant="outlined"
-              href={selectedInfo.file}
-              target="_blank"
-              rel="noopener noreferrer"
-              sx={{ mt: 2 }}
-            >
-              Download File
-            </Button>
-          </Box>
+            <Box textAlign="center" py={4}>
+              <Typography variant="h6" gutterBottom>File Attachment Available</Typography>
+              <Button
+                variant="contained"
+                href={selectedInfo.file}
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={{ mt: 2 }}
+              >
+                Download Document
+              </Button>
+            </Box>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose} variant="contained">
+        <DialogActions sx={{ p: 2, borderTop: `2px solid ${theme.palette.divider}` }}>
+          <Button onClick={handleClose} variant="outlined" sx={{ borderWidth: '2px', '&:hover': { borderWidth: '2px' } }}>
             Close
           </Button>
         </DialogActions>
       </Dialog>
 
       <Dialog open={!!editInfo} onClose={handleEditClose} fullWidth maxWidth="sm">
-        <DialogTitle>Edit Info</DialogTitle>
-        <DialogContent dividers>
+        <DialogTitle sx={{ fontWeight: 800 }}>Edit Info</DialogTitle>
+        <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <TextField
-            margin="dense"
             label="Name"
             fullWidth
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
           />
           <TextField
-            margin="dense"
             label="Category"
             fullWidth
             value={formData.category}
             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
           />
           <TextField
-            margin="dense"
             label="Importance"
             fullWidth
             value={formData.importance}
             onChange={(e) => setFormData({ ...formData, importance: e.target.value })}
           />
-        <FormControl fullWidth margin="dense">
-          <InputLabel id="select-label">Content Type</InputLabel>
-          <Select
-            labelId="select-label"
-            id="content-type"
-            value={formData.type}
-            label="Content Type"
-            onChange={handleEditTypeChange}
-          >
-            <MenuItem value="text">Text</MenuItem>
-            <MenuItem value="image">Image</MenuItem>
-            <MenuItem value="file">File</MenuItem>
-          </Select>
-        </FormControl>
-      {formData.type === 'text' && (
-        <TextField
-          margin="dense"
-          label="Content"
-          multiline
-          rows={4}
-          fullWidth
-          value={formData.content}
-          onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-        />
-      )}
+          <FormControl fullWidth>
+            <InputLabel>Content Type</InputLabel>
+            <Select
+              value={formData.type}
+              label="Content Type"
+              onChange={handleEditTypeChange}
+            >
+              <MenuItem value="text">Text</MenuItem>
+              <MenuItem value="image">Image</MenuItem>
+              <MenuItem value="file">File</MenuItem>
+            </Select>
+          </FormControl>
+          
+          {formData.type === 'text' && (
+            <TextField
+              label="Content"
+              multiline
+              rows={6}
+              fullWidth
+              value={formData.content}
+              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+            />
+          )}
 
-      {(formData.type === 'image' || formData.type === 'file') && (
-        <TextField
-          margin="dense"
-          type="file"
-          fullWidth
-          inputProps={{
-            accept: formData.type === 'image' ? 'image/*' : '.pdf,.doc,.docx,.txt,.ppt,.pptx,.xlsx',
-          }}
-          onChange={handleFileUpdate}
-        />
-      )}
+          {(formData.type === 'image' || formData.type === 'file') && (
+            <Button
+              variant="outlined"
+              component="label"
+              fullWidth
+              sx={{ height: '56px', borderStyle: 'dashed' }}
+            >
+              {formData.type === 'image' ? (newFileData.imageFile ? newFileData.imageFile.name : "Upload New Image") : (newFileData.docFile ? newFileData.docFile.name : "Upload New File")}
+              <input
+                type="file"
+                hidden
+                accept={formData.type === 'image' ? 'image/*' : '.pdf,.doc,.docx,.txt,.ppt,.pptx,.xlsx'}
+                onChange={handleFileUpdate}
+              />
+            </Button>
+          )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => {
-            handleEditClose();
-            showSnack("info", "Card update cancelled");
-            }}>Cancel</Button>
-        <Button
-          variant="contained"
-          onClick={handleSave}
-        >
-          Save
-        </Button>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={handleEditClose} color="inherit">Cancel</Button>
+          <Button variant="contained" onClick={handleSave}>Save Changes</Button>
         </DialogActions>
       </Dialog>
+
       <Snackbar
         open={snack.open}
-        autoHideDuration={400}
+        autoHideDuration={2000}
         onClose={() => setSnack((prev) => ({ ...prev, open: false }))}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert
-          onClose={() => setSnack((prev) => ({ ...prev, open: false }))}
-          severity={snack.type}
+        <Alert 
+          onClose={() => setSnack((prev) => ({ ...prev, open: false }))} 
+          severity={snack.type} 
           variant="filled"
-          sx={{ width: '100%' }}
+          sx={{ 
+            width: '100%', 
+            border: '2px solid #000', 
+            boxShadow: '4px 4px 0px #000', 
+            fontWeight: 'bold' 
+          }}
         >
           {snack.message}
         </Alert>

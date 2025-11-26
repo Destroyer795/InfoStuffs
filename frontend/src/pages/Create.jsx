@@ -8,12 +8,15 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Alert
+  Alert,
+  Paper,
+  Stack
 } from "@mui/material";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { uploadToSupabase } from "../utils/supabaseUpload";
 import { useUser } from "@clerk/clerk-react";
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 
 export default function Create({ handleCreate }) {
   const [formData, setFormData] = useState({
@@ -31,15 +34,13 @@ export default function Create({ handleCreate }) {
 
   const navigate = useNavigate();
   const theme = useTheme();
-
   const { user } = useUser();
   const userId = user?.id;
 
   const handleTypeChange = (e) => {
-    const type = e.target.value;
     setFormData({
       ...formData,
-      type,
+      type: e.target.value,
       content: '',
       imageFile: null,
       docFile: null,
@@ -57,10 +58,7 @@ export default function Create({ handleCreate }) {
   };
 
   const handleSubmit = async () => {
-    if (!userId) {
-      alert("You must be signed in to upload.");
-      return;
-    }
+    if (!userId) return alert("You must be signed in.");
 
     const submission = {
       name: formData.name,
@@ -74,40 +72,21 @@ export default function Create({ handleCreate }) {
         alert("Please fill in all required fields.");
         return;
       }
+      
       if (formData.type === 'text') {
-        if (!formData.content.trim()) {
-          alert("Please provide text content.");
-          return;
-        }
+        if (!formData.content.trim()) return alert("Please provide text content.");
         submission.content = formData.content.trim();
-      }
-      if (formData.type === 'image') {
-        if (!formData.imageFile) {
-          alert("Please upload an image.");
-          return;
-        }
+      } else if (formData.type === 'image') {
+        if (!formData.imageFile) return alert("Please upload an image.");
         const url = await uploadToSupabase(formData.imageFile, userId, "images");
-        if (!url) {
-          alert("Image upload failed.");
-          return;
-        }
+        if (!url) return alert("Image upload failed.");
         submission.imageURL = url;
-      }
-
-      if (formData.type === 'file') {
-        if (!formData.docFile) {
-          alert("Please upload a file.");
-          return;
-        }
+      } else if (formData.type === 'file') {
+        if (!formData.docFile) return alert("Please upload a file.");
         const url = await uploadToSupabase(formData.docFile, userId, "documents");
-        if (!url) {
-          alert("File upload failed.");
-          return;
-        }
+        if (!url) return alert("File upload failed.");
         submission.file = url;
       }
-
-
 
       handleCreate(submission)
         .then(() => {
@@ -116,13 +95,13 @@ export default function Create({ handleCreate }) {
           setTimeout(() => navigate("/"), 2000);
         })
         .catch((err) => {
-          console.error("Creation failed in handleCreate:", err);
+          console.error(err);
           setSuccess(false);
           setHasSubmitted(true); 
         });
 
     } catch (err) {
-      console.error("An unexpected error occurred:", err);
+      console.error(err);
       setSuccess(false);
       setHasSubmitted(true);
     }
@@ -132,99 +111,128 @@ export default function Create({ handleCreate }) {
     <Box
       component="section"
       sx={{
-        p: 8,
-        minHeight: '100vh',
+        p: 4,
+        minHeight: '90vh',
         display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        backgroundColor: theme.palette.background.default,
-        color: theme.palette.text.primary,
+        justifyContent: 'center',
+        alignItems: 'flex-start',
+        pt: 8
       }}
     >
-      <Typography variant="h4" component="h1" gutterBottom>
-        Create New Information
-      </Typography>
+      <Paper 
+        elevation={0}
+        sx={{ 
+          p: 5, 
+          width: '100%', 
+          maxWidth: 600, 
+          borderRadius: 3,
+          border: `2px solid ${theme.palette.text.primary}`,
+          boxShadow: theme.palette.mode === 'dark' ? '8px 8px 0px #2979ff' : '8px 8px 0px #000'
+        }}
+      >
+        <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 800, mb: 3 }}>
+          New Entry
+        </Typography>
 
-      <TextField
-        margin="dense"
-        label="Name"
-        fullWidth
-        required
-        value={formData.name}
-        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-      />
-      <TextField
-        margin="dense"
-        label="Category"
-        fullWidth
-        required
-        value={formData.category}
-        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-      />
-      <TextField
-        margin="dense"
-        label="Importance"
-        fullWidth
-        required
-        value={formData.importance}
-        onChange={(e) => setFormData({ ...formData, importance: e.target.value })}
-      />
+        <Stack spacing={3}>
+          <TextField
+            label="Title"
+            fullWidth
+            required
+            variant="outlined"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          />
+          
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+            <TextField
+              label="Category"
+              fullWidth
+              required
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+            />
+            <TextField
+              label="Importance (Low, Medium, High)"
+              fullWidth
+              required
+              value={formData.importance}
+              onChange={(e) => setFormData({ ...formData, importance: e.target.value })}
+            />
+          </Stack>
 
-      <FormControl fullWidth margin="dense">
-        <InputLabel id="select-label">Content Type</InputLabel>
-        <Select
-          labelId="select-label"
-          id="content-type"
-          value={formData.type}
-          label="Content Type"
-          onChange={handleTypeChange}
-        >
-          <MenuItem value="text">Text</MenuItem>
-          <MenuItem value="image">Image</MenuItem>
-          <MenuItem value="file">File</MenuItem>
-        </Select>
-      </FormControl>
+          <FormControl fullWidth>
+            <InputLabel>Type</InputLabel>
+            <Select
+              value={formData.type}
+              label="Type"
+              onChange={handleTypeChange}
+            >
+              <MenuItem value="text">Text Note</MenuItem>
+              <MenuItem value="image">Image</MenuItem>
+              <MenuItem value="file">File Attachment</MenuItem>
+            </Select>
+          </FormControl>
 
-      {formData.type === 'text' && (
-        <TextField
-          margin="dense"
-          label="Content"
-          multiline
-          rows={4}
-          fullWidth
-          value={formData.content}
-          onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-        />
-      )}
+          {formData.type === 'text' && (
+            <TextField
+              label="Write your thoughts..."
+              multiline
+              rows={6}
+              fullWidth
+              value={formData.content}
+              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+            />
+          )}
 
-      {(formData.type === 'image' || formData.type === 'file') && (
-        <TextField
-          margin="dense"
-          type="file"
-          fullWidth
-          inputProps={{
-            accept: formData.type === 'image' ? 'image/*' : '.pdf,.doc,.docx,.txt,.ppt,.pptx,.xlsx',
-          }}
-          onChange={handleFileChange}
-        />
-      )}
+          {(formData.type === 'image' || formData.type === 'file') && (
+            <Button
+              component="label"
+              variant="outlined"
+              fullWidth
+              sx={{ 
+                height: 100, 
+                borderStyle: 'dashed', 
+                borderWidth: 2,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 1
+              }}
+            >
+              <CloudUploadIcon fontSize="large" />
+              <Typography variant="button">
+                {formData.type === 'image' 
+                  ? (formData.imageFile ? formData.imageFile.name : "Click to upload image") 
+                  : (formData.docFile ? formData.docFile.name : "Click to upload file")}
+              </Typography>
+              <input
+                type="file"
+                hidden
+                accept={formData.type === 'image' ? 'image/*' : '.pdf,.doc,.docx,.txt,.ppt,.pptx,.xlsx'}
+                onChange={handleFileChange}
+              />
+            </Button>
+          )}
 
-      <Box sx={{ mt: 2 }}>
-        <Button variant="contained" onClick={handleSubmit}>
-          Create
-        </Button>
-      </Box>
-      
-      {success && hasSubmitted && (
-        <Alert severity="success" sx={{ mt: 2 }}>
-          Created Successfully! Redirecting...
-        </Alert>
-      )}
-      {!success && hasSubmitted && (
-        <Alert severity="error" sx={{ mt: 2 }}>
-          Creation Failed! Please try again.
-        </Alert>
-      )}
+          <Button 
+            variant="contained" 
+            size="large" 
+            onClick={handleSubmit}
+            sx={{ mt: 2, py: 1.5, fontSize: '1.1rem' }}
+          >
+            Create Info Card
+          </Button>
+        </Stack>
+        
+        {hasSubmitted && (
+          <Alert 
+            severity={success ? "success" : "error"} 
+            sx={{ mt: 3, border: '2px solid', fontWeight: 'bold' }}
+          >
+            {success ? "Created Successfully! Redirecting..." : "Creation Failed! Please try again."}
+          </Alert>
+        )}
+      </Paper>
     </Box>
   );
 }
