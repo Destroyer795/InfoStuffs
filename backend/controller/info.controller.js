@@ -52,15 +52,15 @@ export const updateInfo = async (req, res) => {
   }
 
   try {
-    const existingInfo = await Info.findOne({ _id: id, userId });
+    const updatedInfo = await Info.findOneAndUpdate(
+      { _id: id, userId },
+      updates,
+      { new: true, runValidators: true }
+    );
 
-    if (!existingInfo) {
-      return res.status(403).json({ success: false, message: 'Unauthorized or info not found' });
+    if (!updatedInfo) {
+      return res.status(404).json({ success: false, message: 'Info not found or you do not have permission to update it' });
     }
-    const updatedInfo = await Info.findByIdAndUpdate(id, updates, {
-      new: true,
-      runValidators: true,
-    });
 
     res.status(200).json({ success: true, data: updatedInfo });
   } catch (error) {
@@ -78,13 +78,11 @@ export const deleteInfo = async (req, res) => {
   }
 
   try {
-    const existingInfo = await Info.findOne({ _id: id, userId });
+    const deletedInfo = await Info.findOneAndDelete({ _id: id, userId });
 
-    if (!existingInfo) {
-      return res.status(403).json({ success: false, message: 'Unauthorized or info not found' });
+    if (!deletedInfo) {
+      return res.status(404).json({ success: false, message: 'Info not found or you do not have permission to delete it' });
     }
-
-    await Info.findByIdAndDelete(id);
 
     res.status(200).json({ success: true, message: 'Info deleted successfully' });
   } catch (error) {

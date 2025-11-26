@@ -117,8 +117,13 @@ const App = () => {
   const handleCreate = async (newData) => {
     const headers = await getAuthHeaders();
     const encryptedData = { ...newData, content: newData.type === 'text' ? encryptText(newData.content) : newData.content };
-    await axios.post(`${API_BASE_URL}/api/info`, encryptedData, { headers });
-    await fetchInfos();
+    const res = await axios.post(`${API_BASE_URL}/api/info`, encryptedData, { headers });
+    const newInfo = res.data.data;
+    const decryptedNewInfo = {
+      ...newInfo,
+      content: newInfo.type === 'text' ? decryptText(newInfo.content) : newInfo.content
+    };
+    setInfos((prev) => [decryptedNewInfo, ...prev]);
   };
 
   const handleUpdate = async (id, updatedData) => {
