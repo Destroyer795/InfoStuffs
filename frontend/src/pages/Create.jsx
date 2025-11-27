@@ -10,7 +10,8 @@ import {
   InputLabel,
   Alert,
   Paper,
-  Stack
+  Stack,
+  Snackbar
 } from "@mui/material";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -29,6 +30,11 @@ export default function Create({ handleCreate }) {
     docFile: null,
   });
 
+  const [snack, setSnack] = useState({
+    open: false,
+    type: 'info',
+    message: ''
+  });
   const [success, setSuccess] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
@@ -36,6 +42,10 @@ export default function Create({ handleCreate }) {
   const theme = useTheme();
   const { user } = useUser();
   const userId = user?.id;
+
+  const showSnack = (type, message) => {
+    setSnack({ open: true, type, message });
+  };
 
   const handleTypeChange = (e) => {
     setFormData({
@@ -58,7 +68,7 @@ export default function Create({ handleCreate }) {
   };
 
   const handleSubmit = async () => {
-    if (!userId) return alert("You must be signed in.");
+    if (!userId) return showSnack("error", "You must be signed in.");
 
     const submission = {
       name: formData.name,
@@ -69,22 +79,22 @@ export default function Create({ handleCreate }) {
 
     try {
       if (!formData.name.trim() || !formData.category.trim() || !formData.importance.trim()) {
-        alert("Please fill in all required fields.");
+        showSnack("error", "Please fill in all required fields.");
         return;
       }
       
       if (formData.type === 'text') {
-        if (!formData.content.trim()) return alert("Please provide text content.");
+        if (!formData.content.trim()) return showSnack("error", "Please provide text content.");
         submission.content = formData.content.trim();
       } else if (formData.type === 'image') {
-        if (!formData.imageFile) return alert("Please upload an image.");
+        if (!formData.imageFile) return showSnack("error", "Please upload an image.");
         const url = await uploadToSupabase(formData.imageFile, userId, "images");
-        if (!url) return alert("Image upload failed.");
+        if (!url) return showSnack("error", "Image upload failed.");
         submission.imageURL = url;
       } else if (formData.type === 'file') {
-        if (!formData.docFile) return alert("Please upload a file.");
+        if (!formData.docFile) return showSnack("error", "Please upload a file.");
         const url = await uploadToSupabase(formData.docFile, userId, "documents");
-        if (!url) return alert("File upload failed.");
+        if (!url) return showSnack("error", "File upload failed.");
         submission.file = url;
       }
 
@@ -233,6 +243,26 @@ export default function Create({ handleCreate }) {
           </Alert>
         )}
       </Paper>
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={4000}
+        onClose={() => setSnack(prev => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setSnack(prev => ({ ...prev, open: false }))} 
+          severity={snack.type} 
+          variant="filled"
+          sx={{ 
+            width: '100%', 
+            border: '2px solid #000', 
+            boxShadow: '4px 4px 0px #000', 
+            fontWeight: 'bold' 
+          }}
+        >
+          {snack.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
