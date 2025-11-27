@@ -1,4 +1,3 @@
-import React from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { Navigate, useLocation } from 'react-router-dom';
 

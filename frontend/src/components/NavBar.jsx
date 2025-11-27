@@ -1,4 +1,3 @@
-import React from 'react';
 import { AppBar, Toolbar, Typography, IconButton, Stack, Box } from '@mui/material';
 import { Brightness4, Brightness7, Menu as MenuIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';

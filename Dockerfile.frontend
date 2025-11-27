@@ -20,8 +20,6 @@ ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
 COPY frontend/ ./
 
-RUN echo "DEBUG: Clerk Key is [$VITE_CLERK_PUBLISHABLE_KEY]"
-
 RUN npm run build
 
 FROM nginx:stable-alpine

@@ -13,7 +13,7 @@ import {
   Stack,
   Snackbar
 } from "@mui/material";
-import React, { useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { uploadToSupabase } from "../utils/supabaseUpload";
 import { useUser } from "@clerk/clerk-react";
