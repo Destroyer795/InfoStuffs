@@ -152,6 +152,7 @@ export default function Create({ handleCreate }) {
             variant="outlined"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            className="cursor-hover-target"
           />
           
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
@@ -161,6 +162,7 @@ export default function Create({ handleCreate }) {
               required
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              className="cursor-hover-target"
             />
             <TextField
               label="Importance (Low, Medium, High)"
@@ -168,19 +170,20 @@ export default function Create({ handleCreate }) {
               required
               value={formData.importance}
               onChange={(e) => setFormData({ ...formData, importance: e.target.value })}
+              className="cursor-hover-target"
             />
           </Stack>
 
-          <FormControl fullWidth>
+          <FormControl fullWidth className="cursor-hover-target">
             <InputLabel>Type</InputLabel>
             <Select
               value={formData.type}
               label="Type"
               onChange={handleTypeChange}
             >
-              <MenuItem value="text">Text Note</MenuItem>
-              <MenuItem value="image">Image</MenuItem>
-              <MenuItem value="file">File Attachment</MenuItem>
+              <MenuItem value="text" className="cursor-hover-target">Text Note</MenuItem>
+              <MenuItem value="image" className="cursor-hover-target">Image</MenuItem>
+              <MenuItem value="file" className="cursor-hover-target">File Attachment</MenuItem>
             </Select>
           </FormControl>
 
@@ -192,6 +195,7 @@ export default function Create({ handleCreate }) {
               fullWidth
               value={formData.content}
               onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+              className="cursor-hover-target"
             />
           )}
 
@@ -200,6 +204,7 @@ export default function Create({ handleCreate }) {
               component="label"
               variant="outlined"
               fullWidth
+              className="cursor-hover-target"
               sx={{ 
                 height: 100, 
                 borderStyle: 'dashed', 
@@ -228,6 +233,7 @@ export default function Create({ handleCreate }) {
             variant="contained" 
             size="large" 
             onClick={handleSubmit}
+            className="cursor-hover-target"
             sx={{ mt: 2, py: 1.5, fontSize: '1.1rem' }}
           >
             Create Info Card
@@ -252,7 +258,7 @@ export default function Create({ handleCreate }) {
         <Alert 
           onClose={() => setSnack(prev => ({ ...prev, open: false }))} 
           severity={snack.type} 
-          variant="filled"
+          variant="filled" 
           sx={{ 
             width: '100%', 
             border: '2px solid #000', 

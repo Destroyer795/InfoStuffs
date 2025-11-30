@@ -481,16 +481,16 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
             value={formData.importance}
             onChange={(e) => setFormData({ ...formData, importance: e.target.value })}
           />
-          <FormControl fullWidth>
+          <FormControl fullWidth className="cursor-hover-target">
             <InputLabel>Content Type</InputLabel>
             <Select
               value={formData.type}
               label="Content Type"
               onChange={handleEditTypeChange}
             >
-              <MenuItem value="text">Text</MenuItem>
-              <MenuItem value="image">Image</MenuItem>
-              <MenuItem value="file">File</MenuItem>
+              <MenuItem value="text" className="cursor-hover-target">Text</MenuItem>
+              <MenuItem value="image" className="cursor-hover-target">Image</MenuItem>
+              <MenuItem value="file" className="cursor-hover-target">File</MenuItem>
             </Select>
           </FormControl>
           
