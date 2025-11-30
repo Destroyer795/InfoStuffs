@@ -311,22 +311,43 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
                 />
               </Box>
 
-              <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 1, pt: 2 }}>
-                <Typography variant="h6" sx={{ lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+              <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 1, pt: 2, overflow: 'hidden' }}>
+                <Typography 
+                  variant="h6" 
+                  sx={{ 
+                    lineHeight: 1.2, 
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                  title={info.name}
+                >
                   {info.name}
                 </Typography>
                 
                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
-                  <Chip label={info.category} size="small" variant="outlined" sx={{ borderRadius: '6px', fontWeight: 600 }} />
+                  <Chip 
+                    label={info.category} 
+                    size="small" 
+                    variant="outlined" 
+                    title={info.category}
+                    sx={{ 
+                      borderRadius: '6px', 
+                      fontWeight: 600,
+                      maxWidth: 'calc(50% - 4px)',
+                    }} 
+                  />
                   <Chip 
                     label={info.importance} 
                     size="small" 
+                    title={info.importance}
                     sx={{ 
                       borderRadius: '6px', 
                       fontWeight: 600,
                       backgroundColor: info.importance === 'High' ? '#ffcdd2' : info.importance === 'Medium' ? '#fff9c4' : '#c8e6c9',
                       color: '#000',
-                      border: '1px solid #000'
+                      border: '1px solid #000',
+                      maxWidth: 'calc(50% - 4px)',
                     }} 
                   />
                 </Box>
