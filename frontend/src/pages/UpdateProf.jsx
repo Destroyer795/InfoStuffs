@@ -134,11 +134,32 @@ export const UpdateProf = () => {
       />
 
     <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mt: 1, mb: 2 }}>
-    <Button component="label" variant="contained">
+    <Button 
+      component="label" 
+      variant="outlined"
+      className="cursor-hover-target"
+      sx={{
+        borderWidth: '2px',
+        '&:hover': {
+          borderWidth: '2px',
+        }
+      }}
+    >
         Change Image
         <input hidden accept="image/*" type="file" name="image" onChange={handleChange} />
     </Button>
-    <Button variant="outlined" color="error" onClick={clearImage}>
+    <Button 
+      variant="outlined" 
+      color="error" 
+      onClick={clearImage}
+      className="cursor-hover-target"
+      sx={{
+        borderWidth: '2px',
+        '&:hover': {
+          borderWidth: '2px',
+        }
+      }}
+    >
         Delete Image
     </Button>
     </Box>
@@ -189,7 +210,17 @@ export const UpdateProf = () => {
       </Stack>
 
       <Stack direction="row" spacing={2} sx={{ mt: 4 }}>
-        <Button variant="contained" onClick={handleSubmit}>
+        <Button 
+          onClick={handleSubmit}
+          variant="outlined"
+          className="cursor-hover-target"
+          sx={{
+            borderWidth: '2px',
+            '&:hover': {
+              borderWidth: '2px',
+            }
+          }}
+        >
           Update Profile
         </Button>
         <Button
@@ -204,6 +235,14 @@ export const UpdateProf = () => {
               confirmPassword: '',
             })
           }
+          className="cursor-hover-target"
+          color="error" 
+          sx={{
+            borderWidth: '2px',
+            '&:hover': {
+              borderWidth: '2px',
+            }
+          }}
         >
           Cancel
         </Button>

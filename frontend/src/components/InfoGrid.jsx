@@ -544,8 +544,20 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
           )}
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={handleEditClose} color="inherit">Cancel</Button>
-          <Button variant="contained" onClick={handleSave}>Save Changes</Button>
+          <Button onClick={handleEditClose} color="error" className="cursor-hover-target">Cancel</Button>
+          <Button 
+            variant="outlined" 
+            onClick={handleSave}
+            className="cursor-hover-target"
+            sx={{
+              borderWidth: '2px',
+              '&:hover': {
+                borderWidth: '2px',
+              }
+            }}
+          >
+            Save Changes
+          </Button>
         </DialogActions>
       </Dialog>
 

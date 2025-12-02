@@ -230,11 +230,19 @@ export default function Create({ handleCreate }) {
           )}
 
           <Button 
-            variant="contained" 
+            variant="outlined" 
             size="large" 
             onClick={handleSubmit}
             className="cursor-hover-target"
-            sx={{ mt: 2, py: 1.5, fontSize: '1.1rem' }}
+            sx={{ 
+              mt: 2, 
+              py: 1.5, 
+              fontSize: '1.1rem',
+              borderWidth: '2px',
+              '&:hover': {
+                borderWidth: '2px',
+              }
+            }}
           >
             Create Info Card
           </Button>
