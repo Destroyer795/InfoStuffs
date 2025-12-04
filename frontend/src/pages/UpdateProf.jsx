@@ -10,7 +10,7 @@ import {
 } from '@mui/material';
 import React from 'react';
 import { useTheme } from '@mui/material/styles';
-import { useUser } from '@clerk/clerk-react';
+import { useUser, useReverification } from '@clerk/clerk-react';
 
 export const UpdateProf = () => {
   const theme = useTheme();
@@ -33,60 +33,83 @@ export const UpdateProf = () => {
 
   const showSnack = (type, message) => {
     setSnack({ open: true, type, message });
-    setTimeout(() => setSnack({ ...snack, open: false }), 400);
   };
+
+  const handleCloseSnack = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setSnack((prev) => ({ ...prev, open: false }));
+  };
+
+  const performUpdate = async () => {
+    if (details.image) {
+      const file = await fetch(details.image)
+        .then((res) => res.blob())
+        .then((blob) => new File([blob], 'profile.png', { type: blob.type }));
+      await user.setProfileImage({ file });
+    }
+
+    if (details.username && details.username !== user.username) {
+      await user.update({ username: details.username });
+    }
+
+    if (details.email && details.email !== user.primaryEmailAddress?.emailAddress) {
+      const newEmail = await user.createEmailAddress({ email: details.email });
+      await newEmail.prepareVerification({ strategy: 'email_code' });
+
+      const code = prompt('Enter the verification code sent to your new email:');
+      if (code) {
+        await newEmail.attemptVerification({ code });
+      } else {
+        await newEmail.destroy();
+        throw new Error('Email verification cancelled');
+      }
+    }
+
+    if (details.newPassword && details.confirmPassword) {
+      if (details.newPassword !== details.confirmPassword) {
+        throw new Error('New password and confirmation do not match');
+      }
+
+      if (!user.passwordEnabled) {
+        await user.updatePassword({ newPassword: details.newPassword });
+      } else {
+        if (!details.oldPassword) {
+          throw new Error('Please enter your current password');
+        }
+        await user.updatePassword({
+          currentPassword: details.oldPassword,
+          newPassword: details.newPassword,
+        });
+      }
+    }
+  };
+
+  const updateWithReverification = useReverification(performUpdate);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    const hasImageChange = !!details.image;
+    const hasUsernameChange = details.username && details.username !== user.username;
+    const hasEmailChange = details.email && details.email !== user.primaryEmailAddress?.emailAddress;
+    const hasPasswordChange = !!details.newPassword;
+
+    if (!hasImageChange && !hasUsernameChange && !hasEmailChange && !hasPasswordChange) {
+      showSnack('info', 'No changes detected');
+      return;
+    }
+
     try {
-      if (details.image) {
-        const file = await fetch(details.image)
-          .then((res) => res.blob())
-          .then((blob) => new File([blob], 'profile.png', { type: blob.type }));
-        await user.setProfileImage({ file });
-      }
-
-      if (details.username && details.username !== user.username) {
-        await user.update({ username: details.username });
-      }
-
-      if (details.email && details.email !== user.primaryEmailAddress?.emailAddress) {
-        const newEmail = await user.createEmailAddress({ email: details.email });
-        await newEmail.prepareVerification({ strategy: 'email_code' });
-
-        const code = prompt('Enter the verification code sent to your new email:');
-        if (code) {
-          await newEmail.attemptVerification({ code });
-        } else {
-          await newEmail.destroy();
-        }
-      }
-
-      if (details.newPassword && details.confirmPassword) {
-        if (details.newPassword !== details.confirmPassword) {
-          showSnack('error', 'New password and confirmation do not match');
-          return;
-        }
-
-        if (!user.passwordEnabled) {
-          await user.updatePassword({ newPassword: details.newPassword });
-        } else {
-          if (!details.oldPassword) {
-            showSnack('error', 'Please enter your current password');
-            return;
-          }
-
-          await user.updatePassword({
-            currentPassword: details.oldPassword,
-            newPassword: details.newPassword,
-          });
-        }
-      }
-
+      await updateWithReverification();
       showSnack('success', 'Profile updated successfully');
     } catch (err) {
       console.error(err);
+      if (err.code === 'reverification_cancelled') {
+        showSnack('info', 'Update cancelled');
+        return;
+      }
       showSnack('error', err.message || 'An error occurred while updating your profile');
     }
   };
@@ -133,36 +156,32 @@ export const UpdateProf = () => {
         sx={{ width: 100, height: 100, mb: 2 }}
       />
 
-    <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mt: 1, mb: 2 }}>
-    <Button 
-      component="label" 
-      variant="outlined"
-      className="cursor-hover-target"
-      sx={{
-        borderWidth: '2px',
-        '&:hover': {
-          borderWidth: '2px',
-        }
-      }}
-    >
-        Change Image
-        <input hidden accept="image/*" type="file" name="image" onChange={handleChange} />
-    </Button>
-    <Button 
-      variant="outlined" 
-      color="error" 
-      onClick={clearImage}
-      className="cursor-hover-target"
-      sx={{
-        borderWidth: '2px',
-        '&:hover': {
-          borderWidth: '2px',
-        }
-      }}
-    >
-        Delete Image
-    </Button>
-    </Box>
+      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mt: 1, mb: 2 }}>
+        <Button 
+          component="label" 
+          variant="outlined"
+          className="cursor-hover-target"
+          sx={{
+            borderWidth: '2px',
+            '&:hover': { borderWidth: '2px' }
+          }}
+        >
+          Change Image
+          <input hidden accept="image/*" type="file" name="image" onChange={handleChange} />
+        </Button>
+        <Button 
+          variant="outlined" 
+          color="error" 
+          onClick={clearImage}
+          className="cursor-hover-target"
+          sx={{
+            borderWidth: '2px',
+            '&:hover': { borderWidth: '2px' }
+          }}
+        >
+          Delete Image
+        </Button>
+      </Box>
 
       <TextField
         label="Username"
@@ -216,9 +235,7 @@ export const UpdateProf = () => {
           className="cursor-hover-target"
           sx={{
             borderWidth: '2px',
-            '&:hover': {
-              borderWidth: '2px',
-            }
+            '&:hover': { borderWidth: '2px' }
           }}
         >
           Update Profile
@@ -239,9 +256,7 @@ export const UpdateProf = () => {
           color="error" 
           sx={{
             borderWidth: '2px',
-            '&:hover': {
-              borderWidth: '2px',
-            }
+            '&:hover': { borderWidth: '2px' }
           }}
         >
           Cancel
@@ -250,12 +265,12 @@ export const UpdateProf = () => {
 
       <Snackbar
         open={snack.open}
-        autoHideDuration={400}
-        onClose={() => setSnack((prev) => ({ ...prev, open: false }))}
+        autoHideDuration={3000}
+        onClose={handleCloseSnack}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
         <Alert
-          onClose={() => setSnack((prev) => ({ ...prev, open: false }))}
+          onClose={handleCloseSnack}
           severity={snack.type}
           variant="filled"
           sx={{ width: '100%' }}
