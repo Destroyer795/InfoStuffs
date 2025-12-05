@@ -65,14 +65,14 @@ export default function ProfileMenu({ anchorEl, open, onClose }) {
   };
 
   const menuItemSx = {
-    borderRadius: 2,
+    borderRadius: 1,
     margin: '4px 10px',
     border: '2px solid transparent',
     transition: 'all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1)',
     '&:hover': {
       backgroundColor: theme.palette.background.paper,
       border: `2px solid ${theme.palette.primary.main}`,
-      boxShadow: `3px 3px 0px ${theme.palette.primary.main}`,
+      boxShadow: `2px 2px 0px ${theme.palette.primary.main}`,
       transform: 'translate(-2px, -2px)',
       '& .MuiListItemIcon-root': {
         color: theme.palette.primary.main,
@@ -114,9 +114,9 @@ export default function ProfileMenu({ anchorEl, open, onClose }) {
     >
       <Paper sx={{
         mt: 1.5,
-        borderRadius: 3,
+        borderRadius: 2,
         border: `2px solid ${theme.palette.text.primary}`,
-        boxShadow: theme.palette.mode === 'dark' ? '4px 4px 0px #2979ff' : '4px 4px 0px #000',
+        boxShadow: theme.palette.mode === 'dark' ? '3px 3px 0px #2979ff' : '3px 3px 0px #000',
         padding: '4px 0',
         backgroundColor: theme.palette.background.paper, 
       }}>
@@ -149,7 +149,7 @@ export default function ProfileMenu({ anchorEl, open, onClose }) {
             '&:hover': {
               ...menuItemSx['&:hover'],
               borderColor: theme.palette.error.main,
-              boxShadow: `4px 4px 0px ${theme.palette.error.main}`,
+              boxShadow: `3px 3px 0px ${theme.palette.error.main}`,
               '& .MuiListItemIcon-root': { color: theme.palette.error.main },
               '& .MuiListItemText-primary': { color: theme.palette.error.main }
             }
