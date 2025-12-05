@@ -18,7 +18,6 @@ import {
 } from 'react-router-dom';
 
 import NavBar from './components/NavBar.jsx';
-import SideBar from './components/SideBar.jsx';
 import CustomCursor from './components/Cursor.jsx';
 import Login from './pages/Login.jsx';
 import Signup from './pages/Signup.jsx';
@@ -55,7 +54,6 @@ const LoadingScreen = ({ darkMode }) => (
 const App = () => {
   const [infos, setInfos] = useState([]);
   const [darkMode, setDarkMode] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -67,7 +65,6 @@ const App = () => {
   const theme = useMemo(() => (darkMode ? darkTheme : lightTheme), [darkMode]);
 
   const toggleDarkMode = () => setDarkMode((prev) => !prev);
-  const toggleDrawer = () => setDrawerOpen((prev) => !prev);
 
   const filteredInfos = useMemo(() => {
     if (!searchQuery) {
@@ -155,8 +152,6 @@ const App = () => {
           handleCreate={handleCreate}
           darkMode={darkMode}
           toggleDarkMode={toggleDarkMode}
-          drawerOpen={drawerOpen}
-          toggleDrawer={toggleDrawer}
           error={error}
           isLoading={isLoading}
           searchQuery={searchQuery}
@@ -169,7 +164,7 @@ const App = () => {
 
 function AppContent({
   infos, handleUpdate, handleDelete, handleCreate, darkMode,
-  toggleDarkMode, drawerOpen, toggleDrawer, error, isLoading,
+  toggleDarkMode, error, isLoading,
   searchQuery, setSearchQuery
 }) {
   const location = useLocation();
@@ -180,8 +175,7 @@ function AppContent({
     <Box>
       {!hideNav && (
         <>
-          <NavBar darkMode={darkMode} toggleDarkMode={toggleDarkMode} onMenuClick={toggleDrawer} />
-          <SideBar open={drawerOpen} toggleDrawer={toggleDrawer} />
+          <NavBar darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
         </>
       )}
       <Suspense fallback={<LoadingScreen darkMode={darkMode} />}>
