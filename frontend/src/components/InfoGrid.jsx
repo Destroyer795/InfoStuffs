@@ -12,7 +12,6 @@ import {
   DialogActions,
   IconButton,
   TextField,
-  Link,
   Box,
   MenuItem,
   Select,
@@ -27,7 +26,7 @@ import EditSquareIcon from '@mui/icons-material/EditSquare';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import { useTheme } from '@mui/material/styles';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { uploadToSupabase, deleteFromSupabase } from "../utils/supabaseUpload";
 import { useUser } from "@clerk/clerk-react";
 
@@ -426,7 +425,6 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
           sx={{ 
             maxWidth: '600px',
             '& .MuiOutlinedInput-root': {
-              backgroundColor: theme.palette.background.paper,
               borderRadius: '50px',
               boxShadow: theme.shadows[1]
             }

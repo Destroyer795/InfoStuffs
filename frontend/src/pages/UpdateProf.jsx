@@ -142,8 +142,6 @@ export const UpdateProf = () => {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        backgroundColor: theme.palette.background.default,
-        color: theme.palette.text.primary,
       }}
     >
       <Typography variant="h4" gutterBottom>
