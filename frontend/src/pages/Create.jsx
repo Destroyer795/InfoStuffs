@@ -37,6 +37,7 @@ export default function Create({ handleCreate }) {
   });
   const [success, setSuccess] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const navigate = useNavigate();
   const theme = useTheme();
@@ -68,7 +69,14 @@ export default function Create({ handleCreate }) {
   };
 
   const handleSubmit = async () => {
-    if (!userId) return showSnack("error", "You must be signed in.");
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
+    if (!userId) {
+      showSnack("error", "You must be signed in.");
+      setIsSubmitting(false);
+      return;
+    }
 
     const submission = {
       name: formData.name,
@@ -80,21 +88,42 @@ export default function Create({ handleCreate }) {
     try {
       if (!formData.name.trim() || !formData.category.trim() || !formData.importance.trim()) {
         showSnack("error", "Please fill in all required fields.");
+        setIsSubmitting(false);
         return;
       }
       
       if (formData.type === 'text') {
-        if (!formData.content.trim()) return showSnack("error", "Please provide text content.");
+        if (!formData.content.trim()) {
+          showSnack("error", "Please provide text content.");
+          setIsSubmitting(false);
+          return;
+        }
         submission.content = formData.content.trim();
       } else if (formData.type === 'image') {
-        if (!formData.imageFile) return showSnack("error", "Please upload an image.");
+        if (!formData.imageFile) {
+          showSnack("error", "Please upload an image.");
+          setIsSubmitting(false);
+          return;
+        }
         const url = await uploadToSupabase(formData.imageFile, userId, "images");
-        if (!url) return showSnack("error", "Image upload failed.");
+        if (!url) {
+          showSnack("error", "Image upload failed.");
+          setIsSubmitting(false);
+          return;
+        }
         submission.imageURL = url;
       } else if (formData.type === 'file') {
-        if (!formData.docFile) return showSnack("error", "Please upload a file.");
+        if (!formData.docFile) {
+          showSnack("error", "Please upload a file.");
+          setIsSubmitting(false);
+          return;
+        }
         const url = await uploadToSupabase(formData.docFile, userId, "documents");
-        if (!url) return showSnack("error", "File upload failed.");
+        if (!url) {
+          showSnack("error", "File upload failed.");
+          setIsSubmitting(false);
+          return;
+        }
         submission.file = url;
       }
 
@@ -107,13 +136,15 @@ export default function Create({ handleCreate }) {
         .catch((err) => {
           console.error(err);
           setSuccess(false);
-          setHasSubmitted(true); 
+          setHasSubmitted(true);
+          setIsSubmitting(false);
         });
 
     } catch (err) {
       console.error(err);
       setSuccess(false);
       setHasSubmitted(true);
+      setIsSubmitting(false);
     }
   };
 
@@ -229,54 +260,62 @@ export default function Create({ handleCreate }) {
             </Button>
           )}
 
-          <Button 
-            variant="outlined" 
-            size="large" 
+          <Button
+            variant="outlined"
+            color="primary"
             onClick={handleSubmit}
+            disabled={isSubmitting}
             className="cursor-hover-target"
-            sx={{ 
-              mt: 2, 
-              py: 1.5, 
-              fontSize: '1.1rem',
-              borderWidth: '2px',
+            sx={{
+              mt: 4,
+              py: 1.5,
+              fontWeight: 'bold',
+              fontSize: '1rem',
+              borderWidth: 2,
+              borderRadius: 1,
+              borderColor: isSubmitting ? theme.palette.action.disabled : theme.palette.primary.main,
+              boxShadow: isSubmitting ? 'none' : `4px 4px 0px ${theme.palette.primary.main}`,
+              transition: 'all 0.2s ease-in-out',
               '&:hover': {
-                borderWidth: '2px',
+                transform: isSubmitting ? 'none' : 'translate(-2px, -2px)',
+                boxShadow: isSubmitting ? 'none' : `6px 6px 0px ${theme.palette.primary.main}`,
+                borderWidth: 2,
+              },
+              '&:active': {
+                transform: isSubmitting ? 'none' : 'translate(0, 0)',
+                boxShadow: isSubmitting ? 'none' : `2px 2px 0px ${theme.palette.primary.main}`,
+              },
+              '&.Mui-disabled': {
+                borderWidth: 2,
+                borderColor: theme.palette.action.disabled,
               }
             }}
           >
-            Create Info Card
+            {isSubmitting ? 'Creating...' : 'Create Info Card'}
           </Button>
         </Stack>
-        
-        {hasSubmitted && (
-          <Alert 
-            severity={success ? "success" : "error"} 
-            sx={{ mt: 3, border: '2px solid', fontWeight: 'bold' }}
-          >
-            {success ? "Created Successfully! Redirecting..." : "Creation Failed! Please try again."}
-          </Alert>
-        )}
-      </Paper>
-      <Snackbar
-        open={snack.open}
-        autoHideDuration={4000}
-        onClose={() => setSnack(prev => ({ ...prev, open: false }))}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert 
-          onClose={() => setSnack(prev => ({ ...prev, open: false }))} 
-          severity={snack.type} 
-          variant="filled" 
-          sx={{ 
-            width: '100%', 
-            border: '2px solid #000', 
-            boxShadow: '4px 4px 0px #000', 
-            fontWeight: 'bold' 
-          }}
+
+        <Snackbar
+          open={snack.open}
+          autoHideDuration={4000}
+          onClose={() => setSnack(prev => ({ ...prev, open: false }))}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         >
-          {snack.message}
-        </Alert>
-      </Snackbar>
+          <Alert 
+            onClose={() => setSnack(prev => ({ ...prev, open: false }))} 
+            severity={snack.type} 
+            variant="filled" 
+            sx={{ 
+              width: '100%', 
+              border: '2px solid #000', 
+              boxShadow: '4px 4px 0px #000', 
+              fontWeight: 'bold' 
+            }}
+          >
+            {snack.message}
+          </Alert>
+        </Snackbar>
+      </Paper>
     </Box>
   );
 }
