@@ -25,6 +25,7 @@ import ProtectedRoute from './components/ProtectedRoute.jsx';
 
 import { encryptText, decryptText } from './utils/encryption';
 import { lightTheme, darkTheme } from './theme';
+import config from './config';
 
 const InfoGrid = lazy(() => import('./components/InfoGrid.jsx'));
 const Create = lazy(() => import('./pages/Create.jsx'));
@@ -58,7 +59,9 @@ const App = () => {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  // swapped from const API_BASE_URL = import.meta.env.VITE_API_BASE_URL; 
+  const API_BASE_URL = config.API_BASE_URL; 
+
   const { getToken, isLoaded: authLoaded } = useAuth();
   const { isSignedIn, isLoaded: userLoaded } = useUser();
 
