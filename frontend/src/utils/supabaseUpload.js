@@ -16,18 +16,29 @@ export const uploadToSupabase = async (file, userId, folder = "uploads") => {
       console.error("Supabase upload error:", error);
       return null;
     }
-    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-      .from("infostuffsende")
-      .createSignedUrl(filePath, 60 * 60 * 24 * 365);
+    
+    return filePath; 
+  } catch (err) {
+    console.error("Upload failed:", err);
+    return null;
+  }
+};
 
-    if (signedUrlError) {
-      console.error("Signed URL generation failed:", signedUrlError);
+export const getSignedUrl = async (path) => {
+  if (!path) return null;
+  try {
+    const { data, error } = await supabase.storage
+      .from("infostuffsende")
+      .createSignedUrl(path, 60 * 60);
+
+    if (error) {
+      console.error("Error signing URL:", error);
       return null;
     }
 
-    return signedUrlData?.signedUrl || null;
-  } catch (err) {
-    console.error("Upload failed:", err);
+    return data?.signedUrl || null;
+  } catch (error) {
+    console.error("Error signing URL:", error);
     return null;
   }
 };

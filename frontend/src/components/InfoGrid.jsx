@@ -19,8 +19,7 @@ import {
   FormControl,
   Snackbar,
   Alert,
-  Chip,
-  Stack
+  Chip
 } from '@mui/material';
 import EditSquareIcon from '@mui/icons-material/EditSquare';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -181,6 +180,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
     try {
       const { imageURL, file } = await handleFileSubmit();
       const updatedData = { ...formData, imageURL, file };
+      // App.jsx will handle encryption before sending to API
       await onUpdate(editInfo._id, updatedData);
 
       if (selectedInfo && selectedInfo._id === editInfo._id) {
@@ -414,7 +414,6 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
     );
   };
   
-
   return (
     <>
       <Box sx={{ p: 3, display: 'flex', justifyContent: 'center' }}>

@@ -90,3 +90,18 @@ export const deleteInfo = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+
+// --- NEW FUNCTION: The "Nuclear Option" ---
+export const deleteAllInfos = async (req, res) => {
+  const userId = req.auth.userId;
+
+  try {
+    // Delete ALL entries belonging to this specific user
+    await Info.deleteMany({ userId: userId });
+    
+    res.status(200).json({ success: true, message: "Vault reset successfully." });
+  } catch (error) {
+    console.error("Error resetting vault:", error.message);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};

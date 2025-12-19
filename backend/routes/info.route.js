@@ -1,5 +1,5 @@
 import express from 'express';
-import { createInfo, deleteInfo, getInfos, updateInfo } from '../controller/info.controller.js';
+import { createInfo, deleteInfo, getInfos, updateInfo, deleteAllInfos } from '../controller/info.controller.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 
 const router = express.Router(); //create a new router instance    
@@ -11,6 +11,7 @@ router.use(requireAuth); //apply authentication middleware to all routes in this
 
 router.get('/', getInfos); //route to get all infos
 router.post('/', createInfo); //route to create a new info
+router.delete('/nuke', requireAuth, deleteAllInfos); //route to delete all infos if forgot vault
 router.patch('/:id', updateInfo); //route to update an existing info by ID
 router.delete('/:id', deleteInfo); //route to delete an info by ID
 
