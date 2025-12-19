@@ -77,14 +77,6 @@ This project implements a strict Zero-Trust model to address data privacy in clo
 > The application was initially containerized and deployed on Google Cloud Run to validate production readiness and CI/CD workflows. It was later migrated to Vercel and Render for cost-efficient hosting while retaining the same architecture and security guarantees.
 
 ---
-## CI/CD Pipeline
-The project utilizes a fully automated **Continuous Integration and Continuous Deployment (CI/CD)** pipeline powered by **Google Cloud Build**.
-- **Automated Builds**: Every push to the `main` branch on GitHub automatically triggers a new build sequence.
-- **Microservices Architecture**: Separate build triggers are configured for the `frontend` and `backend` services, allowing them to update independently.
-- **Secure Secrets Management**: API keys and sensitive environment variables (like Clerk keys and Database URIs) are securely injected into the build process via Cloud Build substitutions.
-- **Automatic Deployment**: After the Docker images are built, they’re automatically pushed to **Google Cloud Run**, validating production deployments during the initial Cloud Run hosting phase without any manual work.
-
----
 ## Running Locally with Docker
 To run this project in a local containerized environment, ensure you have Docker Desktop installed and follow these steps:
 
