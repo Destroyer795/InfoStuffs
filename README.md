@@ -5,6 +5,12 @@ InfoStuffs is a privacy-first, zero-trust information management system. Unlike 
 
 The application employs client-side AES-256 encryption with user-derived keys, ensuring that the backend database and file storage providers never see the actual content, metadata, or file paths.
 
+**Technical Write-up / Case Study:**  
+Designing a Zero-Trust Personal Information Manager with Client-Side Encryption  
+→ [Read the full case study](https://dev.to/pranav_kishan_f81e2fc8327/designing-a-zero-trust-personal-information-manager-with-client-side-encryption-4pb5)
+
+*Explains the security model, architectural decisions, and deployment tradeoffs in detail.*
+
 ---
 
 ## Tech Stack
