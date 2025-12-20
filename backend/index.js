@@ -1,6 +1,6 @@
 import express from "express";
-import dotenv from "dotenv";
 import cors from "cors";
+import dotenv from "dotenv";
 import { connectDB } from "./config/db.js";
 import infoRoutes from "./routes/info.route.js";
 
@@ -8,57 +8,50 @@ dotenv.config();
 
 const app = express();
 
-// Define Allowed Origins
 const allowedOrigins = [
   "http://localhost:5173",
-  "http://localhost:5000",
   "https://info-stuffs.vercel.app",
-  process.env.FRONTEND_URL,
 ].filter(Boolean);
 
-// CORS Policy
 app.use(cors({
-  origin: allowedOrigins,
+  origin: (origin, cb) => {
+    // Allow server-to-server & same-origin
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    return cb(new Error("CORS not allowed"), false);
+  },
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 }));
 
-// Handle Preflight Requests Explicitly (Good move for Vercel!)
-app.options("*", cors({
-  origin: allowedOrigins,
-  credentials: true,
-}));
+app.options("*", cors());
 
 app.use(express.json());
 
-// Database Middleware
-// We trust connectDB() to handle caching internally (as per db.js)
+let isConnected = false;
+
 app.use(async (req, res, next) => {
   try {
-    await connectDB();
+    if (!isConnected) {
+      await connectDB();
+      isConnected = true;
+    }
     next();
   } catch (err) {
-    console.error("DB connection failed:", err);
-    res.status(500).json({ message: "Database connection error" });
+    console.error("DB connection error:", err);
+    res.status(500).json({ message: "Database connection failed" });
   }
 });
 
-// Routes
-app.get("/health", (req, res) => {
-  res.status(200).json({ status: "ok" });
-});
 
-app.get("/", (req, res) => {
-  res.send("API is running...");
+app.get("/api/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
 });
 
 app.use("/api/info", infoRoutes);
 
-if (process.env.NODE_ENV !== 'production') {
-  const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => {
-    console.log(`Server started at http://localhost:${PORT}`);
+if (process.env.NODE_ENV !== "production") {
+  app.listen(5000, () => {
+    console.log("Server running locally");
   });
 }
-
 export default app;
