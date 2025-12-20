@@ -21,7 +21,7 @@ The application employs client-side AES-256 encryption with user-derived keys, e
 
 **Cryptography:** crypto-js (AES-256 + PBKDF2)  
 
-**DevOps:** Docker, Google Cloud Platform (Cloud Run & Build), Vercel/Render (Hybrid Architecture)
+**DevOps:** Docker, Google Cloud Platform (Cloud Run & Build), Vercel (Serverless Monolith Deployment)
 
 ---
 
@@ -72,9 +72,9 @@ This project implements a strict Zero-Trust model to address data privacy in clo
 
 **Current Hosting Setup:**  
 - **Frontend:** Vercel  
-- **Backend:** Render  
+- **Backend:** Vercel  
 
-> The application was initially containerized and deployed on Google Cloud Run to validate production readiness and CI/CD workflows. It was later migrated to Vercel and Render for cost-efficient hosting while retaining the same architecture and security guarantees.
+> The application was initially containerized and deployed on Google Cloud Run to validate production readiness and CI/CD workflows. It was later migrated to Vercel for cost-efficient hosting while retaining the same architecture and security guarantees.
 
 ---
 ## Running Locally with Docker
