@@ -12,36 +12,43 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5000",
   process.env.FRONTEND_URL 
-];
+].filter(Boolean);
 
+// Array method (It's robust & handles credentials automatically)
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1 && process.env.FRONTEND_URL !== '*') {
-       return callback(null, true); 
-    }
-    return callback(null, true);
-  },
-  credentials: true
+  origin: allowedOrigins,
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
 }));
 
 app.use(express.json());
 
 app.use(async (req, res, next) => {
-  await connectDB();
-  next();
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    console.error('Database connection failed:', error);
+    // Return a JSON error so the frontend knows what happened
+    res.status(500).json({ message: 'Database connection error' });
+  }
 });
 
-app.use('/api/info', infoRoutes);
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 app.get('/', (req, res) => {
     res.send("API is running...");
 });
 
+// API Routes
+app.use('/api/info', infoRoutes);
+
 if (process.env.NODE_ENV !== 'production') {
-  const PORTT = process.env.PORT || 5000;
-  app.listen(PORTT, () => {
-      console.log(`Server started at http://localhost:${PORTT}`);
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+      console.log(`Server started at http://localhost:${PORT}`);
   });
 }
 
