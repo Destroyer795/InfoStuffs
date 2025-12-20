@@ -2,7 +2,6 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import { connectDB } from './config/db.js';
-import path from 'path';
 import infoRoutes from './routes/info.route.js';
 
 dotenv.config();
@@ -18,7 +17,6 @@ const allowedOrigins = [
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-
     if (allowedOrigins.indexOf(origin) === -1 && process.env.FRONTEND_URL !== '*') {
        return callback(null, true); 
     }
@@ -28,7 +26,11 @@ app.use(cors({
 }));
 
 app.use(express.json());
-const PORTT = process.env.PORT || 5000;
+
+app.use(async (req, res, next) => {
+  await connectDB();
+  next();
+});
 
 app.use('/api/info', infoRoutes);
 
@@ -36,7 +38,11 @@ app.get('/', (req, res) => {
     res.send("API is running...");
 });
 
-app.listen(PORTT, () => {
-    connectDB();
-    console.log(`Server started at http://localhost:${PORTT}`);
-});
+if (process.env.NODE_ENV !== 'production') {
+  const PORTT = process.env.PORT || 5000;
+  app.listen(PORTT, () => {
+      console.log(`Server started at http://localhost:${PORTT}`);
+  });
+}
+
+export default app;
