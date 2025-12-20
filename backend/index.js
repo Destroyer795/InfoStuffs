@@ -1,54 +1,63 @@
-import express from 'express';
-import dotenv from 'dotenv';
-import cors from 'cors';
-import { connectDB } from './config/db.js';
-import infoRoutes from './routes/info.route.js';
+import express from "express";
+import dotenv from "dotenv";
+import cors from "cors";
+import { connectDB } from "./config/db.js";
+import infoRoutes from "./routes/info.route.js";
 
 dotenv.config();
 
 const app = express();
 
+// Define Allowed Origins
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5000",
-  process.env.FRONTEND_URL 
+  "https://info-stuffs.vercel.app",
+  process.env.FRONTEND_URL,
 ].filter(Boolean);
 
-// Array method (It's robust & handles credentials automatically)
+// CORS Policy
 app.use(cors({
   origin: allowedOrigins,
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+}));
+
+// Handle Preflight Requests Explicitly (Good move for Vercel!)
+app.options("*", cors({
+  origin: allowedOrigins,
+  credentials: true,
 }));
 
 app.use(express.json());
 
+// Database Middleware
+// We trust connectDB() to handle caching internally (as per db.js)
 app.use(async (req, res, next) => {
   try {
     await connectDB();
     next();
-  } catch (error) {
-    console.error('Database connection failed:', error);
-    // Return a JSON error so the frontend knows what happened
-    res.status(500).json({ message: 'Database connection error' });
+  } catch (err) {
+    console.error("DB connection failed:", err);
+    res.status(500).json({ message: "Database connection error" });
   }
 });
 
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+// Routes
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
 });
 
-app.get('/', (req, res) => {
-    res.send("API is running...");
+app.get("/", (req, res) => {
+  res.send("API is running...");
 });
 
-// API Routes
-app.use('/api/info', infoRoutes);
+app.use("/api/info", infoRoutes);
 
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {
-      console.log(`Server started at http://localhost:${PORT}`);
+    console.log(`Server started at http://localhost:${PORT}`);
   });
 }
 
