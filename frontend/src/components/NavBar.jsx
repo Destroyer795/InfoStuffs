@@ -36,16 +36,26 @@ function NavBar({ darkMode, toggleDarkMode }) {
             }}
             className='cursor-hover-target'
           >
-            <Typography 
-              variant="h5" 
-              sx={{ 
-                fontWeight: 800, 
-                letterSpacing: '-1px',
-                userSelect: 'none'
+            <Box
+              component="img"
+              src={darkMode ? "/logo_name_dark.png" : "/logo_name.png"}
+              alt="InfoStuffs"
+              sx={{
+                height: 45,
+                objectFit: 'contain',
+                display: { xs: 'none', sm: 'block' }
               }}
-            >
-              Info<span style={{ color: theme.palette.secondary.main }}>Stuffs</span>
-            </Typography>
+            />
+            <Box
+              component="img"
+              src={darkMode ? "/logo_dark.png" : "/logo.png"}
+              alt="InfoStuffs"
+              sx={{
+                height: 40,
+                objectFit: 'contain',
+                display: { xs: 'block', sm: 'none' }
+              }}
+            />
           </Box>
         </Stack>
 

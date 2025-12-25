@@ -4,9 +4,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "cross-env NODE_ENV=development nodemon backend/index.js",
+    "dev": "cross-env NODE_ENV=development nodemon backend/api/info.js",
     "build": "npm install && npm install --prefix frontend && npm run build --prefix frontend",
-    "start": "cross-env NODE_ENV=production node backend/index.js"
+    "start": "cross-env NODE_ENV=production node backend/api/info.js"
   },
   "type": "module",
   "keywords": [],

@@ -454,19 +454,42 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
             </Typography>
           )}
           {selectedInfo?.type === 'image' && selectedInfo.imageURL && (
-            <Box component="img" src={selectedInfo.imageURL} alt="Preview" sx={{ width: '100%', borderRadius: '8px', border: '2px solid #000' }} />
+            <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
+              <Box component="img" src={selectedInfo.imageURL} alt="Preview" sx={{ width: '100%', borderRadius: '8px', border: '2px solid #000' }} />
+              <Button
+                variant="outlined"
+                href={selectedInfo.imageURL}
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={{ borderWidth: '2px', '&:hover': { borderWidth: '2px' } }}
+              >
+                Download Image
+              </Button>
+            </Box>
           )}
           {selectedInfo?.type === 'file' && selectedInfo.file && (
-            <Box textAlign="center" py={4}>
-              <Typography variant="h6" gutterBottom>File Attachment Available</Typography>
+            <Box textAlign="center" py={2} display="flex" flexDirection="column" gap={2}>
+              {selectedInfo.file.toLowerCase().includes('.pdf') ? (
+                <Box sx={{ width: '100%', height: '500px', border: '2px solid #000', borderRadius: '8px', overflow: 'hidden' }}>
+                  <iframe 
+                    src={selectedInfo.file} 
+                    width="100%" 
+                    height="100%" 
+                    title="PDF Preview" 
+                    style={{ border: 'none' }} 
+                  />
+                </Box>
+              ) : (
+                <Typography variant="h6" gutterBottom>File Attachment Available</Typography>
+              )}
               <Button
-                variant="contained"
+                variant="outlined"
                 href={selectedInfo.file}
                 target="_blank"
                 rel="noopener noreferrer"
-                sx={{ mt: 2 }}
+                sx={{ alignSelf: 'center', borderWidth: '2px', '&:hover': { borderWidth: '2px' } }}
               >
-                Download Document
+                Download {selectedInfo.file.toLowerCase().includes('.pdf') ? 'PDF' : 'Document'}
               </Button>
             </Box>
           )}

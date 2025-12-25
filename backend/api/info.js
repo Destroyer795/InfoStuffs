@@ -10,7 +10,7 @@ const app = express();
 
 // CORS CONFIGURATION
 app.use(cors({
-  origin: "https://info-stuffs.vercel.app",
+  origin: process.env.NODE_ENV === 'development' ? "*" : "https://info-stuffs.vercel.app",
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   credentials: true
 }));
@@ -36,6 +36,16 @@ app.use(async (req, res, next) => {
   }
 });
 
+import { fileURLToPath } from 'url';
+
 app.use("/api/info", infoRoutes);
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    connectDB();
+    console.log(`Server running on port ${PORT}`);
+  });
+}
 
 export default app;
