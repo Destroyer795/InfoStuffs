@@ -1,5 +1,10 @@
 import { useEffect, useState, useMemo, lazy, Suspense } from 'react';
-import { useAuth, useUser, SignedOut } from '@clerk/clerk-react';
+import { 
+  useAuth, 
+  useUser, 
+  SignedOut, 
+  AuthenticateWithRedirectCallback
+} from '@clerk/clerk-react';
 import axios from 'axios';
 import {
   Box,
@@ -32,7 +37,6 @@ import Signup from './pages/Signup.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 
 import { encryptText, decryptText, generateKeyFromPassword } from './utils/encryption';
-// IMPORT THE NEW HELPER
 import { getSignedUrl } from './utils/supabaseUpload'; 
 import { lightTheme, darkTheme } from './theme';
 import config from './config';
@@ -252,7 +256,6 @@ const App = () => {
       const headers = await getAuthHeaders();
       const res = await axios.get(`${API_BASE_URL}/api/info`, { headers });
       
-      // Using Promise.all to handle async Signed URL generation for each item
       const decryptedPromises = (res.data.data || []).map(async (item) => {
         const decryptedName = decryptText(item.name, encryptionKey);
         const decryptedCategory = decryptText(item.category, encryptionKey);
@@ -261,7 +264,6 @@ const App = () => {
           ? decryptText(item.content, encryptionKey) 
           : item.content;
 
-        // Decrypt Images and Files
         let realImageUrl = item.imageURL;
         let realFileUrl = item.file;
 
@@ -311,7 +313,6 @@ const App = () => {
     if (!encryptionKey) return;
     const headers = await getAuthHeaders();
     
-    // Encrypting Paths before sending to DB
     const encryptedData = { 
       ...newData, 
       name: encryptText(newData.name, encryptionKey),
@@ -324,7 +325,6 @@ const App = () => {
     const res = await axios.post(`${API_BASE_URL}/api/info`, encryptedData, { headers });
     const newInfo = res.data.data;
     
-    // Getting Signed URLs for displaying immediately
     const signedImg = newData.imageURL ? await getSignedUrl(newData.imageURL) : '';
     const signedFile = newData.file ? await getSignedUrl(newData.file) : '';
 
@@ -348,14 +348,12 @@ const App = () => {
       name: encryptText(updatedData.name, encryptionKey),
       category: encryptText(updatedData.category, encryptionKey),
       content: updatedData.type === 'text' ? encryptText(updatedData.content, encryptionKey) : updatedData.content,
-      // Encrypting the raw paths
       imageURL: updatedData.imageURL ? encryptText(updatedData.imageURL, encryptionKey) : '',
       file: updatedData.file ? encryptText(updatedData.file, encryptionKey) : ''
     };
     
     const response = await axios.patch(`${API_BASE_URL}/api/info/${id}`, encryptedData, { headers });
     
-    // Getting Signed URLs for displaying to the user on demand
     const signedImg = updatedData.imageURL ? await getSignedUrl(updatedData.imageURL) : '';
     const signedFile = updatedData.file ? await getSignedUrl(updatedData.file) : '';
 
@@ -438,6 +436,11 @@ function AppContent({
       )}
       <Suspense fallback={<LoadingScreen darkMode={darkMode} />}>
         <Routes>
+          <Route 
+             path="/sso-callback" 
+             element={<AuthenticateWithRedirectCallback signInForceRedirectUrl="/dashboard" signUpForceRedirectUrl="/dashboard" />} 
+          />
+          
           <Route path="/login" element={<SignedOut><Login /></SignedOut>} />
           <Route path="/signup" element={<SignedOut><Signup /></SignedOut>} />
           
