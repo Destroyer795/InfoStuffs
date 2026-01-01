@@ -420,19 +420,6 @@ const App = () => {
   );
 };
 
-const AuthRedirect = () => {
-  const { isSignedIn, isLoaded } = useUser();
-
-  if (!isLoaded) {
-    return <LoadingScreen darkMode={false} />;
-  }
-
-  return isSignedIn
-    ? <Navigate to="/dashboard" replace />
-    : <Navigate to="/login" replace />;
-};
-
-
 function AppContent({
   infos, handleUpdate, handleDelete, handleCreate, darkMode,
   toggleDarkMode, error, isLoading,
@@ -489,7 +476,6 @@ function AppContent({
             }
           />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="*" element={<AuthRedirect />} />
         </Routes>
       </Suspense>
     </Box>

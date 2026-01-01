@@ -1,18 +1,24 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { ClerkProvider } from '@clerk/clerk-react'
 import App from './App.jsx'
-import { ClerkProvider } from '@clerk/clerk-react'  
 
-const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
 if (!clerkKey) {
-  throw new Error('Clerk not configured: KEY is missing in .env file');
+  throw new Error('Missing Clerk publishable key')
 }
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <ClerkProvider publishableKey={clerkKey}>
+    <ClerkProvider
+      publishableKey={clerkKey}
+      signInUrl="/login"
+      signUpUrl="/signup"
+      afterSignInUrl="/dashboard"
+      afterSignUpUrl="/dashboard"
+    >
       <App />
     </ClerkProvider>
-  </StrictMode>,
+  </StrictMode>
 )
