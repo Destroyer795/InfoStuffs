@@ -438,7 +438,15 @@ function AppContent({
         <Routes>
           <Route 
              path="/sso-callback" 
-             element={<AuthenticateWithRedirectCallback signInForceRedirectUrl="/dashboard" signUpForceRedirectUrl="/dashboard" />} 
+             element={
+               <>
+                 <LoadingScreen darkMode={darkMode} />
+                 <AuthenticateWithRedirectCallback 
+                   signInForceRedirectUrl="/dashboard" 
+                   signUpForceRedirectUrl="/dashboard" 
+                 />
+               </>
+             } 
           />
           
           <Route path="/login" element={<SignedOut><Login /></SignedOut>} />
