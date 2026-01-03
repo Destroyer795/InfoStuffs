@@ -168,7 +168,7 @@ export default function Create({ handleCreate }) {
           maxWidth: 600, 
           borderRadius: 3,
           border: `2px solid ${theme.palette.text.primary}`,
-          boxShadow: theme.palette.mode === 'dark' ? '8px 8px 0px #2979ff' : '8px 8px 0px #000'
+          boxShadow: theme.palette.mode === 'dark' ? '8px 8px 0px #E6E6E6' : '8px 8px 0px #000'
         }}
       >
         <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 800, mb: 3 }}>

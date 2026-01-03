@@ -116,7 +116,7 @@ export default function ProfileMenu({ anchorEl, open, onClose }) {
         mt: 1.5,
         borderRadius: 2,
         border: `2px solid ${theme.palette.text.primary}`,
-        boxShadow: theme.palette.mode === 'dark' ? '3px 3px 0px #2979ff' : '3px 3px 0px #000',
+        boxShadow: theme.palette.mode === 'dark' ? '3px 3px 0px #E6E6E6' : '3px 3px 0px #111111',
         padding: '4px 0',
         backgroundColor: theme.palette.background.paper, 
       }}>

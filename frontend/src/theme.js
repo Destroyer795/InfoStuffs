@@ -5,12 +5,14 @@ const getHoverShadow = (color) => `6px 6px 0px 0px ${color}`;
 
 const getDesignTokens = (mode) => {
   const isDark = mode === 'dark';
-  const primaryColor = isDark ? '#2979ff' : '#000000'; 
-  const secondaryColor = isDark ? '#2979ff' : '#2979ff'; 
-  const borderColor = isDark ? '#2979ff' : '#000000';
-  const shadowColor = isDark ? '#2979ff' : '#000000';
+  const primaryColor = isDark ? '#E6E6E6' : '#111111';
+  const secondaryColor = primaryColor;
+  const borderColor = primaryColor;
+  const shadowColor = primaryColor;
   const bgColor = isDark ? '#121212' : '#f4f4f0';
   const paperColor = isDark ? '#1E1E1E' : '#ffffff';
+  const cursorColor = isDark ? '#E6E6E6' : '#111111';
+  const cursorRgb = isDark ? '230, 230, 230' : '17, 17, 17';
 
   return {
     palette: {
@@ -51,6 +53,10 @@ const getDesignTokens = (mode) => {
       MuiCssBaseline: {
         styleOverrides: `
           @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+          :root {
+            --cursor-color: ${cursorColor};
+            --cursor-rgb: ${cursorRgb};
+          }
           body {
             background-color: ${bgColor};
             transition: background-color 0.3s ease;
@@ -73,7 +79,7 @@ const getDesignTokens = (mode) => {
             transition: 'all 0.1s cubic-bezier(0.25, 0.8, 0.25, 1)',
             transform: 'translate(0, 0)',
             '&:hover': {
-              backgroundColor: isDark ? 'rgba(41, 121, 255, 0.1)' : '#e3f2fd',
+              backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
               boxShadow: getHoverShadow(shadowColor),
               transform: 'translate(-2px, -2px)',
             },
@@ -85,13 +91,13 @@ const getDesignTokens = (mode) => {
 
           contained: {
             '&:hover': {
-              backgroundColor: isDark ? '#2979ff' : '#000000',
-              color: '#fff',
+              backgroundColor: isDark ? '#E6E6E6' : '#111111',
+              color: isDark ? '#000' : '#fff',
             }
           },
           outlined: {
             '&:hover': {
-              backgroundColor: isDark ? 'rgba(41, 121, 255, 0.1)' : 'rgba(0,0,0,0.05)',
+              backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
             }
           }
         },

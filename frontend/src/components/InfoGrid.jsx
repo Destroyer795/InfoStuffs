@@ -224,6 +224,12 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
           ? `8px 8px 0px 0px ${theme.palette.primary.main}`
           : `8px 8px 0px 0px #000`,
         borderColor: theme.palette.primary.main,
+      },
+      '&:active': {
+        transform: 'translate(0px, 0px)',
+        boxShadow: theme.palette.mode === 'dark' 
+          ? `2px 2px 0px 0px ${theme.palette.primary.main}`
+          : `2px 2px 0px 0px #000`,
       }
     };
 
@@ -246,7 +252,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
               '&:hover': {
                 ...cardStyles['&:hover'],
                 border: `3px dashed ${theme.palette.primary.main}`,
-                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(41, 121, 255, 0.05)' : 'rgba(41, 121, 255, 0.05)',
+                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
               }
             }}
           >
