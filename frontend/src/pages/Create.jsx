@@ -18,6 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { uploadToSupabase } from "../utils/supabaseUpload";
 import { useUser } from "@clerk/clerk-react";
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import MarkdownInput from "../components/MarkdownInput"; // Import added
 
 export default function Create({ handleCreate }) {
   const [formData, setFormData] = useState({
@@ -165,7 +166,7 @@ export default function Create({ handleCreate }) {
         sx={{ 
           p: 5, 
           width: '100%', 
-          maxWidth: 600, 
+          maxWidth: 800, // Increased width for better editor experience
           borderRadius: 3,
           border: `2px solid ${theme.palette.text.primary}`,
           boxShadow: theme.palette.mode === 'dark' ? '8px 8px 0px #E6E6E6' : '8px 8px 0px #000'
@@ -212,21 +213,17 @@ export default function Create({ handleCreate }) {
               label="Type"
               onChange={handleTypeChange}
             >
-              <MenuItem value="text" className="cursor-hover-target">Text Note</MenuItem>
+              <MenuItem value="text" className="cursor-hover-target">Text Note (Markdown)</MenuItem>
               <MenuItem value="image" className="cursor-hover-target">Image</MenuItem>
               <MenuItem value="file" className="cursor-hover-target">File Attachment</MenuItem>
             </Select>
           </FormControl>
 
           {formData.type === 'text' && (
-            <TextField
-              label="Write your thoughts..."
-              multiline
-              rows={6}
-              fullWidth
+            <MarkdownInput
               value={formData.content}
-              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-              className="cursor-hover-target"
+              onChange={(val) => setFormData({ ...formData, content: val })}
+              placeholder="Write your note in Markdown..."
             />
           )}
 

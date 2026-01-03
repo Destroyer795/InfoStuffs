@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY frontend/package.json frontend/package-lock.json ./
 
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 ARG VITE_CLERK_PUBLISHABLE_KEY
 ARG VITE_SUPABASE_KEY

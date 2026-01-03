@@ -28,6 +28,8 @@ import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import { uploadToSupabase, deleteFromSupabase } from "../utils/supabaseUpload";
 import { useUser } from "@clerk/clerk-react";
+import ReactMarkdown from 'react-markdown';
+import MarkdownInput from './MarkdownInput';
 
 const TOTAL_PLACEHOLDERS = 15;
 const hashCode = (s) => s.split('').reduce((a, b) => (((a << 5) - a) + b.charCodeAt(0)) | 0, 0);
@@ -180,7 +182,6 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
     try {
       const { imageURL, file } = await handleFileSubmit();
       const updatedData = { ...formData, imageURL, file };
-      // App.jsx will handle encryption before sending to API
       await onUpdate(editInfo._id, updatedData);
 
       if (selectedInfo && selectedInfo._id === editInfo._id) {
@@ -453,11 +454,43 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
         <DialogTitle sx={{ borderBottom: `2px solid ${theme.palette.divider}`, fontWeight: 800 }}>
           {selectedInfo?.name}
         </DialogTitle>
-        <DialogContent sx={{ p: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+        <DialogContent sx={{ p: 4, wordBreak: 'break-word' }}>
           {selectedInfo?.type === 'text' && (
-            <Typography variant="body1" sx={{ fontSize: '1.1rem', lineHeight: 1.6 }}>
-              {selectedInfo?.content}
-            </Typography>
+             <Box sx={{ 
+               fontSize: '1.1rem', 
+               lineHeight: 1.6, 
+               '& img': { maxWidth: '100%' },
+               
+               '& pre': {
+                 backgroundColor: theme.palette.mode === 'dark' ? '#111' : '#f5f5f5',
+                 padding: '12px',
+                 borderRadius: '0px',
+                 border: `1px solid ${theme.palette.divider}`,
+                 overflowX: 'auto',
+               },
+               '& code': {
+                 backgroundColor: theme.palette.mode === 'dark' ? '#111' : '#f5f5f5',
+                 padding: '2px 4px',
+                 borderRadius: '2px',
+                 fontFamily: 'monospace',
+                 fontSize: '0.9em'
+               },
+               '& pre code': {
+                 backgroundColor: 'transparent', 
+                 padding: 0
+               },
+
+               '& blockquote': {
+                 borderLeft: `6px solid ${theme.palette.text.primary}`,
+                 backgroundColor: theme.palette.mode === 'dark' ? '#111' : '#f5f5f5',
+                 margin: '1.5em 0',
+                 padding: '16px 24px',
+                 fontStyle: 'italic',
+                 color: theme.palette.text.primary
+               }
+             }}>
+                <ReactMarkdown>{selectedInfo?.content}</ReactMarkdown>
+             </Box>
           )}
           {selectedInfo?.type === 'image' && selectedInfo.imageURL && (
             <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
@@ -507,7 +540,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
         </DialogActions>
       </Dialog>
 
-      <Dialog open={!!editInfo} onClose={handleEditClose} fullWidth maxWidth="sm">
+      <Dialog open={!!editInfo} onClose={handleEditClose} fullWidth maxWidth="md">
         <DialogTitle sx={{ fontWeight: 800 }}>Edit Info</DialogTitle>
         <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <TextField
@@ -542,13 +575,10 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
           </FormControl>
           
           {formData.type === 'text' && (
-            <TextField
-              label="Content"
-              multiline
-              rows={6}
-              fullWidth
+            <MarkdownInput
               value={formData.content}
-              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+              onChange={(val) => setFormData({ ...formData, content: val })}
+              placeholder="Edit your content..."
             />
           )}
 
