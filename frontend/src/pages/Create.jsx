@@ -213,7 +213,7 @@ export default function Create({ handleCreate }) {
               label="Type"
               onChange={handleTypeChange}
             >
-              <MenuItem value="text" className="cursor-hover-target">Text Note (Markdown)</MenuItem>
+              <MenuItem value="text" className="cursor-hover-target">Text Note</MenuItem>
               <MenuItem value="image" className="cursor-hover-target">Image</MenuItem>
               <MenuItem value="file" className="cursor-hover-target">File Attachment</MenuItem>
             </Select>
