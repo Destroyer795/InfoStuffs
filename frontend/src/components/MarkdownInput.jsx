@@ -21,7 +21,7 @@ const MarkdownInput = ({ value, onChange, placeholder }) => {
   return (
     <div className="cursor-hover-target" style={{ 
       border: `2px solid ${borderColor}`, 
-      borderRadius: '0px', 
+      borderRadius: `${theme.shape.borderRadius}px`, 
       overflow: 'hidden',
       marginTop: '8px'
     }}>
@@ -49,11 +49,13 @@ const MarkdownInput = ({ value, onChange, placeholder }) => {
         /* Input area */
         .rc-md-editor .editor-container .section {
           background-color: ${bgColor} !important;
+          cursor: none !important;
         }
         .rc-md-editor .editor-container .input {
           background-color: ${bgColor} !important;
           color: ${textColor} !important;
           font-family: "Inter", sans-serif !important;
+          cursor: none !important;
         }
 
         /* Preview text */
@@ -103,6 +105,26 @@ const MarkdownInput = ({ value, onChange, placeholder }) => {
           z-index: 9999 !important;
           margin: 0 !important;
           border: none !important;
+        }
+
+        /* Custom Scrollbar */
+        .rc-md-editor ::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+          cursor: none !important;
+        }
+        .rc-md-editor ::-webkit-scrollbar-track {
+          background: transparent;
+          cursor: none !important;
+        }
+        .rc-md-editor ::-webkit-scrollbar-thumb {
+          background-color: ${borderColor};
+          border-radius: 4px;
+          cursor: none !important;
+        }
+        .rc-md-editor ::-webkit-scrollbar-thumb:hover {
+          background-color: ${textColor};
+          cursor: none !important;
         }
       `}</style>
 
