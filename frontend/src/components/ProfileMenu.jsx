@@ -113,7 +113,7 @@ export default function ProfileMenu({ anchorEl, open, onClose }) {
       anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
     >
       <Paper sx={{
-        mt: 1.5,
+        mt: 2.5,
         borderRadius: 2,
         border: `2px solid ${theme.palette.text.primary}`,
         boxShadow: theme.palette.mode === 'dark' ? '3px 3px 0px #E6E6E6' : '3px 3px 0px #111111',
