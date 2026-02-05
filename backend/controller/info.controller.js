@@ -91,7 +91,7 @@ export const deleteInfo = async (req, res) => {
   }
 };
 
-// --- NEW FUNCTION: The "Nuclear Option" ---
+// The "Nuclear Option"
 export const deleteAllInfos = async (req, res) => {
   const userId = req.auth.userId;
 

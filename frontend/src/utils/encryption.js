@@ -1,16 +1,13 @@
 import CryptoJS from 'crypto-js';
 
-// const SECRET_KEY = import.meta.env.VITE_SECRET_KEY is very insecure
-// as it exposes a static key in the frontend codebase.
-
 // Generates a 256-bit key from the user's password + salt which is unique per user and secure
 export const generateKeyFromPassword = (password, salt) => {
   if (!password || !salt) return null;
   
-  // PBKDF2 with 1000 iterations makes brute-forcing expensive
+  // PBKDF2 with 300000 iterations makes brute-forcing expensive
   return CryptoJS.PBKDF2(password, salt, {
     keySize: 256 / 32, // 256-bit key
-    iterations: 1000
+    iterations: 300000
   }).toString();
 };
 
