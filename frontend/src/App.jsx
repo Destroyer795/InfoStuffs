@@ -191,7 +191,15 @@ const VaultModal = ({ open, onUnlock, onReset, darkMode }) => {
 
 const App = () => {
   const [infos, setInfos] = useState([]);
-  const [darkMode, setDarkMode] = useState(false);
+  // 1. Initialize from LocalStorage (or check system preference)
+  const [darkMode, setDarkMode] = useState(() => {
+    const savedTheme = localStorage.getItem('appTheme');
+    if (savedTheme) {
+      return savedTheme === 'dark';
+    }
+    // Fallback: Check if the user's OS is set to Dark Mode
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -327,6 +335,10 @@ const App = () => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    localStorage.setItem('appTheme', darkMode ? 'dark' : 'light');
+  }, [darkMode]);
 
   useEffect(() => {
     if (authLoaded && userLoaded && isSignedIn && encryptionKey) {
