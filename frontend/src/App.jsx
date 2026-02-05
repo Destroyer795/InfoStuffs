@@ -37,7 +37,8 @@ import Signup from './pages/Signup.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 
 import { encryptText, decryptText, generateKeyFromPassword } from './utils/encryption';
-import { getSignedUrl } from './utils/supabaseUpload'; 
+import { getSignedUrl } from './utils/supabaseUpload';
+import EncryptionWorker from './utils/worker?worker'; 
 import { lightTheme, darkTheme } from './theme';
 import config from './config';
 
@@ -196,6 +197,7 @@ const App = () => {
   const [searchQuery, setSearchQuery] = useState('');
   
   const [encryptionKey, setEncryptionKey] = useState(null);
+  const [isUnlocking, setIsUnlocking] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
 
   const API_BASE_URL = config.API_BASE_URL;
@@ -218,8 +220,34 @@ const App = () => {
 
   const handleUnlock = (password) => {
     if (user?.id) {
-      const derivedKey = generateKeyFromPassword(password, user.id);
-      setEncryptionKey(derivedKey);
+      setIsUnlocking(true); // Show loader immediately
+
+      // Spawn the worker
+      const worker = new EncryptionWorker();
+
+      // Send data to background thread
+      worker.postMessage({ password, salt: user.id });
+
+      // Listen for the result
+      worker.onmessage = (e) => {
+        const { success, key, error } = e.data;
+        
+        if (success) {
+          setEncryptionKey(key);
+        } else {
+          console.error("Encryption failed:", error);
+        }
+        
+        setIsUnlocking(false); // Hide loader
+        worker.terminate(); // Clean up the worker
+      };
+
+      // Handle worker errors
+      worker.onerror = (err) => {
+        console.error("Worker error:", err);
+        setIsUnlocking(false);
+        worker.terminate();
+      };
     }
   };
 
@@ -375,7 +403,7 @@ const App = () => {
   };
 
   const showVaultModal = isSignedIn && userLoaded && !encryptionKey;
-  const shouldShowLoading = !authLoaded || !userLoaded || (isSignedIn && isLoading && encryptionKey);
+  const shouldShowLoading = !authLoaded || !userLoaded || (isSignedIn && isLoading && encryptionKey) || isUnlocking;
 
   return (
     <ThemeProvider theme={theme}>
@@ -384,7 +412,7 @@ const App = () => {
       
       {shouldShowLoading && <LoadingScreen darkMode={darkMode} />}
       
-      {showVaultModal && (
+      {showVaultModal && !isUnlocking && (
         <VaultModal 
           open={true} 
           onUnlock={handleUnlock}
