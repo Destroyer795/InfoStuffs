@@ -293,23 +293,23 @@ const App = () => {
       const res = await axios.get(`${API_BASE_URL}/api/info`, { headers });
       
       const decryptedPromises = (res.data.data || []).map(async (item) => {
-        const decryptedName = decryptText(item.name, encryptionKey);
-        const decryptedCategory = decryptText(item.category, encryptionKey);
+        const decryptedName = await decryptText(item.name, encryptionKey);
+        const decryptedCategory = await decryptText(item.category, encryptionKey);
         
         const decryptedContent = item.type === 'text' 
-          ? decryptText(item.content, encryptionKey) 
+          ? await decryptText(item.content, encryptionKey) 
           : item.content;
 
         let realImageUrl = item.imageURL;
         let realFileUrl = item.file;
 
         if (item.type === 'image' && item.imageURL) {
-            const decryptedPath = decryptText(item.imageURL, encryptionKey);
+            const decryptedPath = await decryptText(item.imageURL, encryptionKey);
             realImageUrl = await getSignedUrl(decryptedPath); 
         }
 
         if (item.type === 'file' && item.file) {
-            const decryptedPath = decryptText(item.file, encryptionKey);
+            const decryptedPath = await decryptText(item.file, encryptionKey);
             realFileUrl = await getSignedUrl(decryptedPath);
         }
 
@@ -355,11 +355,11 @@ const App = () => {
     
     const encryptedData = { 
       ...newData, 
-      name: encryptText(newData.name, encryptionKey),
-      category: encryptText(newData.category, encryptionKey),
-      content: newData.type === 'text' ? encryptText(newData.content, encryptionKey) : newData.content,
-      imageURL: newData.imageURL ? encryptText(newData.imageURL, encryptionKey) : '',
-      file: newData.file ? encryptText(newData.file, encryptionKey) : ''
+      name: await encryptText(newData.name, encryptionKey),
+      category: await encryptText(newData.category, encryptionKey),
+      content: newData.type === 'text' ? await encryptText(newData.content, encryptionKey) : newData.content,
+      imageURL: newData.imageURL ? await encryptText(newData.imageURL, encryptionKey) : '',
+      file: newData.file ? await encryptText(newData.file, encryptionKey) : ''
     };
 
     const res = await axios.post(`${API_BASE_URL}/api/info`, encryptedData, { headers });
@@ -385,11 +385,11 @@ const App = () => {
 
     const encryptedData = { 
       ...updatedData, 
-      name: encryptText(updatedData.name, encryptionKey),
-      category: encryptText(updatedData.category, encryptionKey),
-      content: updatedData.type === 'text' ? encryptText(updatedData.content, encryptionKey) : updatedData.content,
-      imageURL: updatedData.imageURL ? encryptText(updatedData.imageURL, encryptionKey) : '',
-      file: updatedData.file ? encryptText(updatedData.file, encryptionKey) : ''
+      name: await encryptText(updatedData.name, encryptionKey),
+      category: await encryptText(updatedData.category, encryptionKey),
+      content: updatedData.type === 'text' ? await encryptText(updatedData.content, encryptionKey) : updatedData.content,
+      imageURL: updatedData.imageURL ? await encryptText(updatedData.imageURL, encryptionKey) : '',
+      file: updatedData.file ? await encryptText(updatedData.file, encryptionKey) : ''
     };
     
     const response = await axios.patch(`${API_BASE_URL}/api/info/${id}`, encryptedData, { headers });

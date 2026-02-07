@@ -17,7 +17,6 @@
     "@mui/material": "^7.1.0",
     "@supabase/supabase-js": "^2.51.0",
     "axios": "^1.9.0",
-    "crypto-js": "^4.2.0",
     "damn": "file:..",
     "firebase": "^11.10.0",
     "markdown-it": "^14.1.0",
