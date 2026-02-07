@@ -9,10 +9,10 @@ dotenv.config();
 
 const app = express();
 
-// Trust proxy for Vercel/Docker deployments
+// Trust proxy for Vercel deployments
 app.set('trust proxy', 1);
 
-// CORS Configuration - allows production, localhost, and Vercel previews
+// CORS - allows production, localhost, and Vercel previews
 const whitelist = [
   "https://info-stuffs.vercel.app",
   "http://localhost:5173",
@@ -21,14 +21,10 @@ const whitelist = [
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (Postman, mobile apps, curl)
     if (!origin) return callback(null, true);
-    
-    // Allow whitelisted origins and Vercel preview URLs
-    if (whitelist.indexOf(origin) !== -1 || origin.endsWith(".vercel.app")) {
+    if (whitelist.includes(origin) || origin.endsWith(".vercel.app")) {
       callback(null, true);
     } else {
-      console.log("CORS blocked:", origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -38,10 +34,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-
-// Handle preflight requests
 app.options("*", cors(corsOptions));
-
 app.use(express.json());
 
 // Database connection (cached for serverless)
@@ -59,11 +52,11 @@ app.use(async (req, res, next) => {
   }
 });
 
-// Mount routes at both paths for Vercel compatibility
+// Routes - mounted at both paths for Vercel compatibility
 app.use("/api/info", infoRoutes);
 app.use("/", infoRoutes);
 
-// Local server start
+// Local server
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {
