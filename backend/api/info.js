@@ -37,6 +37,11 @@ app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 app.use(express.json());
 
+// Health Check Route (Must be above DB connection)
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
 // Database connection (cached for serverless)
 let isConnected = false;
 app.use(async (req, res, next) => {

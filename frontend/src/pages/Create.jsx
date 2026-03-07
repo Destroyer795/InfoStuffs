@@ -11,7 +11,10 @@ import {
   Alert,
   Paper,
   Stack,
-  Snackbar
+  Snackbar,
+  FormControlLabel,
+  Switch,
+  Tooltip
 } from "@mui/material";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -29,6 +32,7 @@ export default function Create({ handleCreate }) {
     content: '',
     imageFile: null,
     docFile: null,
+    isTemporary: false,
   });
 
   const [snack, setSnack] = useState({
@@ -84,6 +88,7 @@ export default function Create({ handleCreate }) {
       category: formData.category,
       importance: formData.importance,
       type: formData.type,
+      isTemporary: formData.isTemporary,
     };
 
     try {
@@ -205,6 +210,20 @@ export default function Create({ handleCreate }) {
               className="cursor-hover-target"
             />
           </Stack>
+
+          <Tooltip title="Temporary notes are automatically deleted after 30 days" arrow placement="top">
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={formData.isTemporary}
+                  onChange={(e) => setFormData({ ...formData, isTemporary: e.target.checked })}
+                  color="warning"
+                />
+              }
+              label="Temporary (auto-deletes after 30 days)"
+              className="cursor-hover-target"
+            />
+          </Tooltip>
 
           <FormControl fullWidth className="cursor-hover-target">
             <InputLabel>Type</InputLabel>

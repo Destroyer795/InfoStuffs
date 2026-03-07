@@ -4,6 +4,16 @@
     {
       "src": "backend/api/info.js",
       "use": "@vercel/node"
+    },
+    {
+      "src": "backend/api/cron.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron",
+      "schedule": "0 0 * * *"
     }
   ],
   "headers": [
@@ -12,12 +22,16 @@
       "headers": [
         { "key": "Access-Control-Allow-Credentials", "value": "true" },
         { "key": "Access-Control-Allow-Origin", "value": "https://info-stuffs.vercel.app" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,PUT,DELETE,PATCH,OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, X-Requested-With" }
+        { "key": "Access-Control-Allow-Methods", "value": "GET,OPTIONS,PATCH,DELETE,POST,PUT" },
+        { "key": "Access-Control-Allow-Headers", "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization" }
       ]
     }
   ],
   "rewrites": [
+    {
+      "source": "/api/cron",
+      "destination": "/backend/api/cron.js"
+    },
     {
       "source": "/api/(.*)",
       "destination": "/backend/api/info.js"

@@ -19,7 +19,10 @@ import {
   FormControl,
   Snackbar,
   Alert,
-  Chip
+  Chip,
+  FormControlLabel,
+  Switch,
+  Tooltip
 } from '@mui/material';
 import EditSquareIcon from '@mui/icons-material/EditSquare';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -49,7 +52,8 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
     content: '',
     type: '',
     imageURL: '',
-    file: ''
+    file: '',
+    isTemporary: false
   });
   const [newFileData, setNewFileData] = useState({
     imageFile: null,
@@ -142,7 +146,8 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
       content: info.content || '',
       type: info.type,
       imageURL: info.imageURL || '',
-      file: info.file || ''
+      file: info.file || '',
+      isTemporary: info.isTemporary || false
     });
     setNewFileData({ imageFile: null, docFile: null });
   };
@@ -315,6 +320,21 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
                     color: theme.palette.text.primary
                   }} 
                 />
+                {info.isTemporary && (
+                  <Chip 
+                    label="TEMP" 
+                    size="small"
+                    sx={{ 
+                      position: 'absolute', 
+                      top: 10, 
+                      left: 10, 
+                      fontWeight: 'bold',
+                      backgroundColor: '#ff9800',
+                      border: '2px solid #000',
+                      color: '#000'
+                    }} 
+                  />
+                )}
               </Box>
 
               <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 1, pt: 2, overflow: 'hidden' }}>
@@ -561,6 +581,19 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
             value={formData.importance}
             onChange={(e) => setFormData({ ...formData, importance: e.target.value })}
           />
+          <Tooltip title="Temporary notes are automatically deleted after 30 days" arrow placement="top">
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={formData.isTemporary}
+                  onChange={(e) => setFormData({ ...formData, isTemporary: e.target.checked })}
+                  color="warning"
+                />
+              }
+              label="Temporary (auto-deletes after 30 days)"
+              className="cursor-hover-target"
+            />
+          </Tooltip>
           <FormControl fullWidth className="cursor-hover-target">
             <InputLabel>Content Type</InputLabel>
             <Select

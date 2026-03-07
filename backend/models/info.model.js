@@ -30,6 +30,10 @@ const infoSchema = new mongoose.Schema({
   },
   imageURL: {
     type: String, // for image URLs
+  },
+  isTemporary: {
+    type: Boolean,
+    default: false,
   }
 }, {
   timestamps: true,

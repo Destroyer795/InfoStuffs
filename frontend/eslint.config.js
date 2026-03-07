@@ -18,7 +18,7 @@ export default [
     },
     plugins: {
       'react-hooks': reactHooks,
-      'react-refresh': reactRefresh,
+      'react-refresh': reactRefresh, 
     },
     rules: {
       ...js.configs.recommended.rules,

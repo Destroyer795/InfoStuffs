@@ -359,7 +359,8 @@ const App = () => {
       category: await encryptText(newData.category, encryptionKey),
       content: newData.type === 'text' ? await encryptText(newData.content, encryptionKey) : newData.content,
       imageURL: newData.imageURL ? await encryptText(newData.imageURL, encryptionKey) : '',
-      file: newData.file ? await encryptText(newData.file, encryptionKey) : ''
+      file: newData.file ? await encryptText(newData.file, encryptionKey) : '',
+      isTemporary: newData.isTemporary || false
     };
 
     const res = await axios.post(`${API_BASE_URL}/api/info`, encryptedData, { headers });
@@ -389,7 +390,8 @@ const App = () => {
       category: await encryptText(updatedData.category, encryptionKey),
       content: updatedData.type === 'text' ? await encryptText(updatedData.content, encryptionKey) : updatedData.content,
       imageURL: updatedData.imageURL ? await encryptText(updatedData.imageURL, encryptionKey) : '',
-      file: updatedData.file ? await encryptText(updatedData.file, encryptionKey) : ''
+      file: updatedData.file ? await encryptText(updatedData.file, encryptionKey) : '',
+      isTemporary: updatedData.isTemporary || false
     };
     
     const response = await axios.patch(`${API_BASE_URL}/api/info/${id}`, encryptedData, { headers });
