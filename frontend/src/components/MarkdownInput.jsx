@@ -85,6 +85,23 @@ const MarkdownInput = ({ value, onChange, placeholder }) => {
           border: none !important;
         }
 
+        /* Tables */
+        .rc-md-editor .custom-html-style table {
+          border-collapse: collapse !important;
+          width: 100% !important;
+          margin: 1em 0 !important;
+        }
+        .rc-md-editor .custom-html-style th,
+        .rc-md-editor .custom-html-style td {
+          border: 1px solid ${borderColor} !important;
+          padding: 8px 12px !important;
+        }
+        .rc-md-editor .custom-html-style th {
+          background-color: ${theme.palette.mode === 'dark' ? '#e0e0e0' : '#f0f0f0'} !important;
+          color: #000 !important;
+          font-weight: 700 !important;
+        }
+
         /* Blockquotes */
         .rc-md-editor .custom-html-style blockquote {
           border-left: 6px solid ${borderColor} !important;
