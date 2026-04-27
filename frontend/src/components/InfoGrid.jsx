@@ -35,12 +35,12 @@ import { useUser } from "@clerk/clerk-react";
 import ReactMarkdown from 'react-markdown';
 import MarkdownInput from './MarkdownInput';
 
-const SecureImagePreview = ({ path, userKey, alt, sx, height, isPlaceholder, placeholderSrc, showDownload }) => {
-  const [url, setUrl] = useState(isPlaceholder ? placeholderSrc : null);
+const SecureImagePreview = ({ path, userKey, alt, sx, height, showDownload }) => {
+  const [url, setUrl] = useState(null);
 
   React.useEffect(() => {
-    if (isPlaceholder || !path || !userKey) {
-       setUrl(isPlaceholder ? placeholderSrc : null);
+    if (!path || !userKey) {
+       setUrl(null);
        return;
     }
     
@@ -58,20 +58,20 @@ const SecureImagePreview = ({ path, userKey, alt, sx, height, isPlaceholder, pla
       isMounted = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [path, userKey, isPlaceholder, placeholderSrc]);
+  }, [path, userKey]);
 
   if (!url) return <Box sx={{ ...sx, height, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'background.default' }}><CircularProgress size={24} /></Box>;
 
   return (
     <>
-      <Box
+      <CardMedia
         component="img"
         height={height}
-        src={url}
+        image={url}
         alt={alt}
         sx={sx}
       />
-      {showDownload && !isPlaceholder && (
+      {showDownload && (
         <Button
           variant="outlined"
           href={url}
@@ -398,21 +398,33 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
               sx={cardStyles}
             >
               <Box sx={{ position: 'relative' }}>
-                <SecureImagePreview
-                  height="160"
-                  path={info?.imageURL}
-                  userKey={userKey}
-                  alt={info?.name}
-                  isPlaceholder={!info?.imageURL}
-                  placeholderSrc={getPlaceholderImage(info._id)}
-                  sx={{
-                    objectFit: 'cover',
-                    borderBottom: `2px solid ${theme.palette.divider}`,
-                    borderTopLeftRadius: '10px',
-                    borderTopRightRadius: '10px',
-                    width: '100%'
-                  }}
-                />
+                {info?.imageURL ? (
+                  <SecureImagePreview
+                    height="160"
+                    path={info.imageURL}
+                    userKey={userKey}
+                    alt={info?.name}
+                    sx={{
+                      objectFit: 'cover',
+                      borderBottom: `2px solid ${theme.palette.divider}`,
+                      borderTopLeftRadius: '10px',
+                      borderTopRightRadius: '10px',
+                    }}
+                  />
+                ) : (
+                  <CardMedia
+                    component="img"
+                    height="160"
+                    image={getPlaceholderImage(info._id)}
+                    alt={info?.name}
+                    sx={{
+                      objectFit: 'cover',
+                      borderBottom: `2px solid ${theme.palette.divider}`,
+                      borderTopLeftRadius: '10px',
+                      borderTopRightRadius: '10px',
+                    }}
+                  />
+                )}
                 <Chip 
                   label={info.type.toUpperCase()} 
                   size="small"
@@ -623,7 +635,6 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
               <SecureImagePreview 
                  path={selectedInfo.imageURL} 
                  userKey={userKey} 
-                 isPlaceholder={false} 
                  showDownload={true}
                  sx={{ width: '100%', borderRadius: '8px', border: '2px solid #000' }} 
                  alt="Preview" 
