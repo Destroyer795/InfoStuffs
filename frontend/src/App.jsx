@@ -304,13 +304,11 @@ const App = () => {
         let realFileUrl = item.file;
 
         if (item.type === 'image' && item.imageURL) {
-            const decryptedPath = await decryptText(item.imageURL, encryptionKey);
-            realImageUrl = await getSignedUrl(decryptedPath); 
+            realImageUrl = await decryptText(item.imageURL, encryptionKey);
         }
 
         if (item.type === 'file' && item.file) {
-            const decryptedPath = await decryptText(item.file, encryptionKey);
-            realFileUrl = await getSignedUrl(decryptedPath);
+            realFileUrl = await decryptText(item.file, encryptionKey);
         }
 
         return {
@@ -366,16 +364,15 @@ const App = () => {
     const res = await axios.post(`${API_BASE_URL}/api/info`, encryptedData, { headers });
     const newInfo = res.data.data;
     
-    const signedImg = newData.imageURL ? await getSignedUrl(newData.imageURL) : '';
-    const signedFile = newData.file ? await getSignedUrl(newData.file) : '';
-
+    // the imageURL/file is already the unencrypted path here 
+    // so we can just pass them as the true paths.
     const decryptedNewInfo = {
       ...newInfo,
       name: newData.name,
       category: newData.category,
       content: newData.type === 'text' ? newData.content : '',
-      imageURL: signedImg,
-      file: signedFile
+      imageURL: newData.imageURL || '',
+      file: newData.file || ''
     };
     setInfos((prev) => [decryptedNewInfo, ...prev]);
   };
@@ -396,16 +393,13 @@ const App = () => {
     
     const response = await axios.patch(`${API_BASE_URL}/api/info/${id}`, encryptedData, { headers });
     
-    const signedImg = updatedData.imageURL ? await getSignedUrl(updatedData.imageURL) : '';
-    const signedFile = updatedData.file ? await getSignedUrl(updatedData.file) : '';
-
     const updated = { 
       ...response.data.data, 
       name: updatedData.name,
       category: updatedData.category,
       content: updatedData.type === 'text' ? updatedData.content : '',
-      imageURL: signedImg,
-      file: signedFile
+      imageURL: updatedData.imageURL || '',
+      file: updatedData.file || ''
     };
     setInfos((prev) => prev.map((item) => (item._id === id ? updated : item)));
   };
@@ -454,6 +448,7 @@ const App = () => {
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           isVaultUnlocked={!!encryptionKey} 
+          userKey={encryptionKey}
         />
       </Router>
     </ThemeProvider>
@@ -463,7 +458,7 @@ const App = () => {
 function AppContent({
   infos, handleUpdate, handleDelete, handleCreate, darkMode,
   toggleDarkMode, error, isLoading,
-  searchQuery, setSearchQuery, isVaultUnlocked
+  searchQuery, setSearchQuery, isVaultUnlocked, userKey
 }) {
   const location = useLocation();
   const { isSignedIn, isLoaded } = useUser();
@@ -507,6 +502,7 @@ function AppContent({
                     isLoading={isLoading}
                     searchQuery={searchQuery}
                     setSearchQuery={setSearchQuery}
+                    userKey={userKey}
                   />
                 )}
               </ProtectedRoute>
@@ -516,7 +512,7 @@ function AppContent({
             path="/create"
             element={
               <ProtectedRoute>
-                <Create handleCreate={handleCreate} />
+                <Create handleCreate={handleCreate} userKey={userKey} />
               </ProtectedRoute>
             }
           />

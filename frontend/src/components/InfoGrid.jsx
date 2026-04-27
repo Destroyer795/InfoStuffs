@@ -22,17 +22,120 @@ import {
   Chip,
   FormControlLabel,
   Switch,
-  Tooltip
+  Tooltip,
+  CircularProgress
 } from '@mui/material';
 import EditSquareIcon from '@mui/icons-material/EditSquare';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
-import { uploadToSupabase, deleteFromSupabase } from "../utils/supabaseUpload";
+import { uploadToSupabase, deleteFromSupabase, getDecryptedFileUrl } from "../utils/supabaseUpload";
 import { useUser } from "@clerk/clerk-react";
 import ReactMarkdown from 'react-markdown';
 import MarkdownInput from './MarkdownInput';
+
+const SecureImagePreview = ({ path, userKey, alt, sx, height, isPlaceholder, placeholderSrc, showDownload }) => {
+  const [url, setUrl] = useState(isPlaceholder ? placeholderSrc : null);
+
+  React.useEffect(() => {
+    if (isPlaceholder || !path || !userKey) {
+       setUrl(isPlaceholder ? placeholderSrc : null);
+       return;
+    }
+    
+    let objectUrl = null;
+    let isMounted = true;
+    
+    getDecryptedFileUrl(path, userKey, 'image/jpeg').then(blobUrl => {
+      if (isMounted && blobUrl) {
+        objectUrl = blobUrl;
+        setUrl(objectUrl);
+      }
+    });
+    
+    return () => {
+      isMounted = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [path, userKey, isPlaceholder, placeholderSrc]);
+
+  if (!url) return <Box sx={{ ...sx, height, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'background.default' }}><CircularProgress size={24} /></Box>;
+
+  return (
+    <>
+      <Box
+        component="img"
+        height={height}
+        src={url}
+        alt={alt}
+        sx={sx}
+      />
+      {showDownload && !isPlaceholder && (
+        <Button
+          variant="outlined"
+          href={url}
+          download={path.split('/').pop() || 'download'}
+          sx={{ mt: 2, borderWidth: '2px', '&:hover': { borderWidth: '2px' } }}
+        >
+          Download Image
+        </Button>
+      )}
+    </>
+  );
+};
+
+const SecureFilePreview = ({ path, userKey }) => {
+  const [url, setUrl] = useState(null);
+
+  React.useEffect(() => {
+    if (!path || !userKey) return;
+    
+    let objectUrl = null;
+    let isMounted = true;
+    
+    // Defaulting to application/pdf assuming the common case for previews
+    getDecryptedFileUrl(path, userKey, path.toLowerCase().includes('.pdf') ? 'application/pdf' : 'application/octet-stream').then(blobUrl => {
+      if (isMounted && blobUrl) {
+        objectUrl = blobUrl;
+        setUrl(objectUrl);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [path, userKey]);
+
+  if (!url) return <Box py={2} display="flex" justifyContent="center"><Typography>Decrypting file...</Typography></Box>;
+
+  return (
+    <Box textAlign="center" py={2} display="flex" flexDirection="column" gap={2}>
+      {path.toLowerCase().includes('.pdf') ? (
+        <Box sx={{ width: '100%', height: '500px', border: '2px solid #000', borderRadius: '8px', overflow: 'hidden' }}>
+          <iframe 
+            src={url} 
+            width="100%" 
+            height="100%" 
+            title="PDF Preview" 
+            style={{ border: 'none' }} 
+          />
+        </Box>
+      ) : (
+        <Typography variant="h6" gutterBottom>File Attachment Available</Typography>
+      )}
+      <Button
+        variant="outlined"
+        href={url}
+        download={path.split('/').pop() || 'download'}
+        sx={{ alignSelf: 'center', borderWidth: '2px', '&:hover': { borderWidth: '2px' } }}
+      >
+        Download {path.toLowerCase().includes('.pdf') ? 'PDF' : 'Document'}
+      </Button>
+    </Box>
+  );
+};
 
 const TOTAL_PLACEHOLDERS = 15;
 const hashCode = (s) => s.split('').reduce((a, b) => (((a << 5) - a) + b.charCodeAt(0)) | 0, 0);
@@ -42,7 +145,7 @@ const getPlaceholderImage = (id) => {
   return `/photos/${imageIndex}.jpg`;
 };
 
-const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) => {
+const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, userKey }) => {
   const [selectedInfo, setSelectedInfo] = useState(null);
   const [editInfo, setEditInfo] = useState(null);
   const [formData, setFormData] = useState({
@@ -116,13 +219,13 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
       if (formData.type === 'image' && newFileData.imageFile) {
         const oldImagePath = getRelativePathFromUrl(editInfo?.imageURL);
         if (oldImagePath) await deleteFromSupabase(oldImagePath);
-        newImageUrl = await uploadToSupabase(newFileData.imageFile, userId, 'images');
+        newImageUrl = await uploadToSupabase(newFileData.imageFile, userId, 'images', userKey);
       }
 
       if (formData.type === 'file' && newFileData.docFile) {
         const oldFilePath = getRelativePathFromUrl(editInfo?.file);
         if (oldFilePath) await deleteFromSupabase(oldFilePath);
-        newFileUrl = await uploadToSupabase(newFileData.docFile, userId, 'documents');
+        newFileUrl = await uploadToSupabase(newFileData.docFile, userId, 'documents', userKey);
       }
 
       if (formData.type === 'text') {
@@ -295,16 +398,19 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
               sx={cardStyles}
             >
               <Box sx={{ position: 'relative' }}>
-                <CardMedia
-                  component="img"
+                <SecureImagePreview
                   height="160"
-                  image={info?.imageURL || getPlaceholderImage(info._id)}
+                  path={info?.imageURL}
+                  userKey={userKey}
                   alt={info?.name}
+                  isPlaceholder={!info?.imageURL}
+                  placeholderSrc={getPlaceholderImage(info._id)}
                   sx={{
                     objectFit: 'cover',
                     borderBottom: `2px solid ${theme.palette.divider}`,
                     borderTopLeftRadius: '10px',
                     borderTopRightRadius: '10px',
+                    width: '100%'
                   }}
                 />
                 <Chip 
@@ -514,43 +620,18 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery }) =>
           )}
           {selectedInfo?.type === 'image' && selectedInfo.imageURL && (
             <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
-              <Box component="img" src={selectedInfo.imageURL} alt="Preview" sx={{ width: '100%', borderRadius: '8px', border: '2px solid #000' }} />
-              <Button
-                variant="outlined"
-                href={selectedInfo.imageURL}
-                target="_blank"
-                rel="noopener noreferrer"
-                sx={{ borderWidth: '2px', '&:hover': { borderWidth: '2px' } }}
-              >
-                Download Image
-              </Button>
+              <SecureImagePreview 
+                 path={selectedInfo.imageURL} 
+                 userKey={userKey} 
+                 isPlaceholder={false} 
+                 showDownload={true}
+                 sx={{ width: '100%', borderRadius: '8px', border: '2px solid #000' }} 
+                 alt="Preview" 
+              />
             </Box>
           )}
           {selectedInfo?.type === 'file' && selectedInfo.file && (
-            <Box textAlign="center" py={2} display="flex" flexDirection="column" gap={2}>
-              {selectedInfo.file.toLowerCase().includes('.pdf') ? (
-                <Box sx={{ width: '100%', height: '500px', border: '2px solid #000', borderRadius: '8px', overflow: 'hidden' }}>
-                  <iframe 
-                    src={selectedInfo.file} 
-                    width="100%" 
-                    height="100%" 
-                    title="PDF Preview" 
-                    style={{ border: 'none' }} 
-                  />
-                </Box>
-              ) : (
-                <Typography variant="h6" gutterBottom>File Attachment Available</Typography>
-              )}
-              <Button
-                variant="outlined"
-                href={selectedInfo.file}
-                target="_blank"
-                rel="noopener noreferrer"
-                sx={{ alignSelf: 'center', borderWidth: '2px', '&:hover': { borderWidth: '2px' } }}
-              >
-                Download {selectedInfo.file.toLowerCase().includes('.pdf') ? 'PDF' : 'Document'}
-              </Button>
-            </Box>
+             <SecureFilePreview path={selectedInfo.file} userKey={userKey} />
           )}
         </DialogContent>
         <DialogActions sx={{ p: 2, borderTop: `2px solid ${theme.palette.divider}` }}>

@@ -23,7 +23,7 @@ import { useUser } from "@clerk/clerk-react";
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import MarkdownInput from "../components/MarkdownInput"; // Import added
 
-export default function Create({ handleCreate }) {
+export default function Create({ handleCreate, userKey }) {
   const [formData, setFormData] = useState({
     name: '',
     category: '',
@@ -77,8 +77,8 @@ export default function Create({ handleCreate }) {
     if (isSubmitting) return;
     setIsSubmitting(true);
 
-    if (!userId) {
-      showSnack("error", "You must be signed in.");
+    if (!userId || !userKey) {
+      showSnack("error", "You must be signed in and vault unleashed.");
       setIsSubmitting(false);
       return;
     }
@@ -111,7 +111,7 @@ export default function Create({ handleCreate }) {
           setIsSubmitting(false);
           return;
         }
-        const url = await uploadToSupabase(formData.imageFile, userId, "images");
+        const url = await uploadToSupabase(formData.imageFile, userId, "images", userKey);
         if (!url) {
           showSnack("error", "Image upload failed.");
           setIsSubmitting(false);
@@ -124,7 +124,7 @@ export default function Create({ handleCreate }) {
           setIsSubmitting(false);
           return;
         }
-        const url = await uploadToSupabase(formData.docFile, userId, "documents");
+        const url = await uploadToSupabase(formData.docFile, userId, "documents", userKey);
         if (!url) {
           showSnack("error", "File upload failed.");
           setIsSubmitting(false);

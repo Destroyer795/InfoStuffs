@@ -87,3 +87,47 @@ export const decryptText = async (packedData, key) => {
     return ''; 
   }
 };
+
+// Encrypt File (Blob)
+export const encryptFile = async (fileBlob, key) => {
+  if (!fileBlob || !key) return null;
+
+  try {
+    const arrayBuffer = await fileBlob.arrayBuffer();
+    const iv = getCrypto().getRandomValues(new Uint8Array(12));
+
+    const encryptedContent = await subtle.encrypt(
+      { name: "AES-GCM", iv },
+      key,
+      arrayBuffer
+    );
+
+    // Combine IV and encrypted content
+    return new Blob([iv, encryptedContent], { type: "application/octet-stream" });
+  } catch (e) {
+    console.error("File encryption failed:", e);
+    return null;
+  }
+};
+
+// Decrypt File (Blob)
+export const decryptFile = async (encryptedBlob, key, mimeType = "application/octet-stream") => {
+  if (!encryptedBlob || !key) return null;
+
+  try {
+    const arrayBuffer = await encryptedBlob.arrayBuffer();
+    const iv = arrayBuffer.slice(0, 12);
+    const data = arrayBuffer.slice(12);
+
+    const decryptedContent = await subtle.decrypt(
+      { name: "AES-GCM", iv: new Uint8Array(iv) },
+      key,
+      data
+    );
+
+    return new Blob([decryptedContent], { type: mimeType });
+  } catch (e) {
+    console.error("File decryption failed:", e);
+    return null;
+  }
+};
