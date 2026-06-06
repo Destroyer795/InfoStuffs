@@ -105,7 +105,7 @@ export default function Signup() {
     maxWidth: 450,
     borderRadius: 2,
     border: `2px solid ${theme.palette.text.primary}`,
-    boxShadow: theme.palette.mode === 'dark' ? `6px 6px 0px #2979ff` : `6px 6px 0px #000`,
+    boxShadow: theme.palette.mode === 'dark' ? `6px 6px 0px ${theme.palette.primary.main}` : `6px 6px 0px #000`,
   };
 
   const buttonStyles = {
