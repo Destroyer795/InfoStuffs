@@ -25,7 +25,7 @@ Designing a Zero-Trust Personal Information Manager with Client-Side Encryption
 
 **Storage:** Supabase (Encrypted Paths + Ephemeral Signed URLs)  
 
-**Cryptography:** crypto-js (AES-256 + PBKDF2)  
+**Cryptography:** Web Crypto API (AES-GCM + PBKDF2) using Web Workers  
 
 **DevOps:** Docker, Google Cloud Platform (Cloud Run & Build), Vercel (Serverless Monolith Deployment)
 
@@ -38,8 +38,8 @@ This project implements a strict Zero-Trust model to address data privacy in clo
 ### 1. Client-Side Encryption (The Vault)
 
 - **No Static Keys:** The application does not store encryption keys on the server.  
-- **User-Derived Keys:** Upon login, users provide a Vault Password. This password is processed in the browser using PBKDF2 (Password-Based Key Derivation Function 2) to derive a temporary 256-bit AES key in memory.  
-- **Encryption:** This key encrypts text content, titles, categories, and file paths before any data leaves the client device.
+- **User-Derived Keys:** Upon login, users provide a Vault Password. This password is processed in the browser (using a dedicated Web Worker to maintain UI responsiveness) utilizing the native Web Crypto API and PBKDF2 (Password-Based Key Derivation Function 2) to derive a temporary 256-bit AES-GCM key in memory.  
+- **Encryption:** This key securely encrypts (and authenticates via GCM) text content, titles, categories, and file paths before any data leaves the client device.
 
 ### 2. Secure File Handling
 
