@@ -36,8 +36,28 @@ import MarkdownInput from './MarkdownInput';
 
 const SecureImagePreview = ({ path, userKey, alt, sx, height, showDownload }) => {
   const [url, setUrl] = useState(null);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  // Listen for network changes in real-time
+  React.useEffect(() => {
+    const handleOffline = () => setIsOffline(true);
+    const handleOnline = () => setIsOffline(false);
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, []);
 
   React.useEffect(() => {
+    // Halt decryption if offline to prevent network errors
+    if (isOffline) {
+      setUrl('offline');
+      return;
+    }
+
     if (!path || !userKey) {
        setUrl(null);
        return;
@@ -57,7 +77,16 @@ const SecureImagePreview = ({ path, userKey, alt, sx, height, showDownload }) =>
       isMounted = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [path, userKey]);
+  }, [path, userKey, isOffline]);
+
+  // Render a clean placeholder if offline
+  if (isOffline || url === 'offline') {
+    return (
+      <Box sx={{ ...sx, height, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'background.default', flexDirection: 'column', gap: 1 }}>
+        <Typography variant="caption">Image unavailable in Offline Mode</Typography>
+      </Box>
+    );
+  }
 
   if (!url) return <Box sx={{ ...sx, height, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'background.default' }}><CircularProgress size={24} /></Box>;
 
@@ -86,8 +115,28 @@ const SecureImagePreview = ({ path, userKey, alt, sx, height, showDownload }) =>
 
 const SecureFilePreview = ({ path, userKey }) => {
   const [url, setUrl] = useState(null);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  // Listen for network changes in real-time
+  React.useEffect(() => {
+    const handleOffline = () => setIsOffline(true);
+    const handleOnline = () => setIsOffline(false);
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, []);
 
   React.useEffect(() => {
+    // Halt decryption if offline to prevent network errors
+    if (isOffline) {
+      setUrl('offline');
+      return;
+    }
+
     if (!path || !userKey) return;
     
     let objectUrl = null;
@@ -105,7 +154,16 @@ const SecureFilePreview = ({ path, userKey }) => {
       isMounted = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [path, userKey]);
+  }, [path, userKey, isOffline]);
+
+  // Render offline placeholder
+  if (isOffline || url === 'offline') {
+    return (
+      <Box py={2} display="flex" justifyContent="center" flexDirection="column" alignItems="center" gap={1}>
+        <Typography>File unavailable in Offline Mode</Typography>
+      </Box>
+    );
+  }
 
   if (!url) return <Box py={2} display="flex" justifyContent="center"><Typography>Decrypting file...</Typography></Box>;
 

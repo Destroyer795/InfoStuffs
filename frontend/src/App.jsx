@@ -41,6 +41,7 @@ import { getSignedUrl } from './utils/supabaseUpload';
 import EncryptionWorker from './utils/worker?worker'; 
 import { lightTheme, darkTheme } from './theme';
 import config from './config';
+import { saveOfflineNotes, getOfflineNotes } from './utils/localStore';
 
 const InfoGrid = lazy(() => import('./components/InfoGrid.jsx'));
 const Create = lazy(() => import('./pages/Create.jsx'));
@@ -288,11 +289,66 @@ const App = () => {
 
     setIsLoading(true);
     setError(null);
+
+    // 1. OFFLINE BOOT: If no internet, read from IndexedDB
+    if (!navigator.onLine) {
+      console.log("Network offline: Booting from Zero-Knowledge Local Cache...");
+      try {
+        const cachedNotes = await getOfflineNotes();
+        
+        // Decrypt cached notes
+        const decryptedPromises = (cachedNotes || []).map(async (item) => {
+          const decryptedName = await decryptText(item.name, encryptionKey);
+          const decryptedCategory = await decryptText(item.category, encryptionKey);
+          
+          const decryptedContent = item.type === 'text' 
+            ? await decryptText(item.content, encryptionKey) 
+            : item.content;
+
+          let realImageUrl = item.imageURL;
+          let realFileUrl = item.file;
+
+          if (item.type === 'image' && item.imageURL) {
+              realImageUrl = await decryptText(item.imageURL, encryptionKey);
+          }
+
+          if (item.type === 'file' && item.file) {
+              realFileUrl = await decryptText(item.file, encryptionKey);
+          }
+
+          return {
+            ...item,
+            name: decryptedName,
+            category: decryptedCategory,
+            content: decryptedContent,
+            imageURL: realImageUrl,
+            file: realFileUrl
+          };
+        });
+
+        const decrypted = (await Promise.all(decryptedPromises))
+          .filter(item => item.name && item.name.length > 0);
+        
+        setInfos(decrypted);
+      } catch (err) {
+        console.error('Failed to retrieve offline notes:', err);
+        setInfos([]);
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // 2. ONLINE SYNC: Fetch from backend normally
     try {
       const headers = await getAuthHeaders();
       const res = await axios.get(`${API_BASE_URL}/api/info`, { headers });
+      const rawNotes = res.data.data || [];
       
-      const decryptedPromises = (res.data.data || []).map(async (item) => {
+      // 3. THE ZKA CACHE: Save the raw ciphertext BEFORE decryption
+      await saveOfflineNotes(rawNotes);
+      
+      const decryptedPromises = rawNotes.map(async (item) => {
         const decryptedName = await decryptText(item.name, encryptionKey);
         const decryptedCategory = await decryptText(item.category, encryptionKey);
         
@@ -326,9 +382,50 @@ const App = () => {
 
       setInfos(decrypted);
     } catch (err) {
-      console.error('Fetch failed:', err);
-      setError('Failed to load your content.');
-      setInfos([]);
+      console.error('Failed to fetch from backend', err);
+      
+      // Fallback in case Render is down but the device thinks it's online
+      try {
+        const cachedNotes = await getOfflineNotes();
+        
+        const decryptedPromises = (cachedNotes || []).map(async (item) => {
+          const decryptedName = await decryptText(item.name, encryptionKey);
+          const decryptedCategory = await decryptText(item.category, encryptionKey);
+          
+          const decryptedContent = item.type === 'text' 
+            ? await decryptText(item.content, encryptionKey) 
+            : item.content;
+
+          let realImageUrl = item.imageURL;
+          let realFileUrl = item.file;
+
+          if (item.type === 'image' && item.imageURL) {
+              realImageUrl = await decryptText(item.imageURL, encryptionKey);
+          }
+
+          if (item.type === 'file' && item.file) {
+              realFileUrl = await decryptText(item.file, encryptionKey);
+          }
+
+          return {
+            ...item,
+            name: decryptedName,
+            category: decryptedCategory,
+            content: decryptedContent,
+            imageURL: realImageUrl,
+            file: realFileUrl
+          };
+        });
+
+        const decrypted = (await Promise.all(decryptedPromises))
+          .filter(item => item.name && item.name.length > 0);
+        
+        setInfos(decrypted);
+      } catch (cacheErr) {
+        console.error('Failed to retrieve offline cache:', cacheErr);
+        setError('Failed to load your content.');
+        setInfos([]);
+      }
     } finally {
       setIsLoading(false);
     }
