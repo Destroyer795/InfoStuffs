@@ -114,7 +114,7 @@ export const deleteAllInfos = async (req, res) => {
     
     res.status(200).json({ success: true, message: "Vault reset successfully." });
   } catch (error) {
-    console.error("Error resetting vault:", error.message);
-    res.status(500).json({ success: false, message: "Server Error" });
+    console.error("Error resetting vault:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
