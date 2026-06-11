@@ -1,12 +1,19 @@
 import { supabase } from "../superbaseClient.js";
 import { encryptFile, decryptFile } from "./encryption.js";
 
-export const uploadToSupabase = async (file, userId, folder = "uploads", key) => {
-  if (!file || !userId || !key) return null;
+export const createOpaqueStoragePath = (file, folder = "uploads") => {
+  if (!file) return null;
 
-  const fileExt = file.name.split(".").pop();
-  const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-  const filePath = `${userId}/${folder}/${fileName}`;
+  const fileExt = file.name?.split(".").pop() || "bin";
+  const uniqueId = typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).substring(2)}`;
+
+  return `${folder}/${uniqueId}.${fileExt}`;
+};
+
+export const uploadToSupabase = async (file, storagePath, key) => {
+  if (!file || !storagePath || !key) return null;
 
   try {
     const encryptedBlob = await encryptFile(file, key);
@@ -14,14 +21,14 @@ export const uploadToSupabase = async (file, userId, folder = "uploads", key) =>
 
     const { error } = await supabase.storage
       .from("infostuffsende")
-      .upload(filePath, encryptedBlob);
+      .upload(storagePath, encryptedBlob);
 
     if (error) {
       console.error("Supabase upload error:", error);
       return null;
     }
     
-    return filePath; 
+    return storagePath; 
   } catch (err) {
     console.error("Upload failed:", err);
     return null;

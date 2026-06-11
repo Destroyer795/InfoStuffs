@@ -18,7 +18,7 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { uploadToSupabase } from "../utils/supabaseUpload";
+import { uploadToSupabase, createOpaqueStoragePath } from "../utils/supabaseUpload";
 import { useUser } from "@clerk/clerk-react";
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import MarkdownInput from "../components/MarkdownInput"; // Import added
@@ -40,8 +40,6 @@ export default function Create({ handleCreate, userKey }) {
     type: 'info',
     message: ''
   });
-  const [success, setSuccess] = useState(false);
-  const [hasSubmitted, setHasSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const navigate = useNavigate();
@@ -111,7 +109,8 @@ export default function Create({ handleCreate, userKey }) {
           setIsSubmitting(false);
           return;
         }
-        const url = await uploadToSupabase(formData.imageFile, userId, "images", userKey);
+        const storagePath = createOpaqueStoragePath(formData.imageFile, "images");
+        const url = await uploadToSupabase(formData.imageFile, storagePath, userKey);
         if (!url) {
           showSnack("error", "Image upload failed.");
           setIsSubmitting(false);
@@ -124,7 +123,8 @@ export default function Create({ handleCreate, userKey }) {
           setIsSubmitting(false);
           return;
         }
-        const url = await uploadToSupabase(formData.docFile, userId, "documents", userKey);
+        const storagePath = createOpaqueStoragePath(formData.docFile, "documents");
+        const url = await uploadToSupabase(formData.docFile, storagePath, userKey);
         if (!url) {
           showSnack("error", "File upload failed.");
           setIsSubmitting(false);
@@ -135,21 +135,15 @@ export default function Create({ handleCreate, userKey }) {
 
       handleCreate(submission)
         .then(() => {
-          setSuccess(true);
-          setHasSubmitted(true);
           setTimeout(() => navigate("/"), 2000);
         })
         .catch((err) => {
           console.error(err);
-          setSuccess(false);
-          setHasSubmitted(true);
           setIsSubmitting(false);
         });
 
     } catch (err) {
       console.error(err);
-      setSuccess(false);
-      setHasSubmitted(true);
       setIsSubmitting(false);
     }
   };

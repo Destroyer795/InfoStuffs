@@ -1,6 +1,16 @@
 import mongoose from 'mongoose';
 import Info from '../models/info.model.js';
 
+const pickAllowedInfoFields = (body) => {
+  const allowedFields = ['name', 'content', 'category', 'importance', 'type', 'file', 'imageURL', 'isTemporary'];
+  return allowedFields.reduce((accumulator, field) => {
+    if (body[field] !== undefined) {
+      accumulator[field] = body[field];
+    }
+    return accumulator;
+  }, {});
+};
+
 export const getInfos = async (req, res) => {
   try {
     const infos = await Info.find({userId: req.auth.userId}).sort({ createdAt: -1 }); //sorting by newest first
@@ -12,7 +22,10 @@ export const getInfos = async (req, res) => {
 };
 
 export const createInfo = async (req, res) => {
-  const info = { ...req.body, userId: req.auth.userId };
+  const info = {
+    ...pickAllowedInfoFields(req.body),
+    userId: req.auth.userId,
+  };
 
   // Basic required fields
   if (!info.name || !info.category || !info.importance || !info.type) {
@@ -44,7 +57,7 @@ export const createInfo = async (req, res) => {
 
 export const updateInfo = async (req, res) => {
   const { id } = req.params;
-  const updates = req.body;
+  const updates = pickAllowedInfoFields(req.body);
   const userId = req.auth.userId;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -65,7 +78,7 @@ export const updateInfo = async (req, res) => {
     res.status(200).json({ success: true, data: updatedInfo });
   } catch (error) {
     console.error('Error updating info:', error);
-    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 

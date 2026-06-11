@@ -30,8 +30,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
-import { uploadToSupabase, deleteFromSupabase, getDecryptedFileUrl } from "../utils/supabaseUpload";
-import { useUser } from "@clerk/clerk-react";
+import { uploadToSupabase, deleteFromSupabase, getDecryptedFileUrl, createOpaqueStoragePath } from "../utils/supabaseUpload";
 import ReactMarkdown from 'react-markdown';
 import MarkdownInput from './MarkdownInput';
 
@@ -163,8 +162,6 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
     docFile: null
   });
 
-  const { user } = useUser();
-  const userId = user?.id;
   const theme = useTheme();
   const navigate = useNavigate();
 
@@ -219,13 +216,15 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
       if (formData.type === 'image' && newFileData.imageFile) {
         const oldImagePath = getRelativePathFromUrl(editInfo?.imageURL);
         if (oldImagePath) await deleteFromSupabase(oldImagePath);
-        newImageUrl = await uploadToSupabase(newFileData.imageFile, userId, 'images', userKey);
+        const storagePath = createOpaqueStoragePath(newFileData.imageFile, 'images');
+        newImageUrl = await uploadToSupabase(newFileData.imageFile, storagePath, userKey);
       }
 
       if (formData.type === 'file' && newFileData.docFile) {
         const oldFilePath = getRelativePathFromUrl(editInfo?.file);
         if (oldFilePath) await deleteFromSupabase(oldFilePath);
-        newFileUrl = await uploadToSupabase(newFileData.docFile, userId, 'documents', userKey);
+        const storagePath = createOpaqueStoragePath(newFileData.docFile, 'documents');
+        newFileUrl = await uploadToSupabase(newFileData.docFile, storagePath, userKey);
       }
 
       if (formData.type === 'text') {
@@ -536,7 +535,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
                       }
                       onDelete?.(info._id);
                       showSnack("success", "Deleted")
-                    } catch (error) {
+                    } catch {
                       showSnack("error", "Delete failed")
                     }
                   }}
