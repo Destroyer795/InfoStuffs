@@ -26,9 +26,7 @@ export const saveOfflineNotes = async (notesArray) => {
     
     // Clear old cache and save fresh data
     await store.clear();
-    for (const note of notesArray) {
-      await store.put(note);
-    }
+    await Promise.all(notesArray.map(note => store.put(note)));
     
     await tx.done;
     console.log('Zero-Knowledge payload cached for offline use.');

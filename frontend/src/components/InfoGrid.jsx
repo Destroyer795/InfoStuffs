@@ -37,6 +37,8 @@ import MarkdownInput from './MarkdownInput';
 const SecureImagePreview = ({ path, userKey, alt, sx, height, showDownload }) => {
   const [url, setUrl] = useState(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [isVisible, setIsVisible] = useState(false);
+  const containerRef = React.useRef(null);
 
   // Listen for network changes in real-time
   React.useEffect(() => {
@@ -51,6 +53,24 @@ const SecureImagePreview = ({ path, userKey, alt, sx, height, showDownload }) =>
     };
   }, []);
 
+  // Intersection Observer to defer fetching and decrypting until visible
+  React.useEffect(() => {
+    if (!containerRef.current) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect(); // Stop observing after it becomes visible
+        }
+      },
+      { rootMargin: '120px' } // Pre-fetch slightly before it enters the viewport
+    );
+
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   React.useEffect(() => {
     // Halt decryption if offline to prevent network errors
     if (isOffline) {
@@ -58,8 +78,7 @@ const SecureImagePreview = ({ path, userKey, alt, sx, height, showDownload }) =>
       return;
     }
 
-    if (!path || !userKey) {
-       setUrl(null);
+    if (!isVisible || !path || !userKey) {
        return;
     }
     
@@ -77,7 +96,7 @@ const SecureImagePreview = ({ path, userKey, alt, sx, height, showDownload }) =>
       isMounted = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [path, userKey, isOffline]);
+  }, [path, userKey, isOffline, isVisible]);
 
   // Render a clean placeholder if offline
   if (isOffline || url === 'offline') {
@@ -88,7 +107,24 @@ const SecureImagePreview = ({ path, userKey, alt, sx, height, showDownload }) =>
     );
   }
 
-  if (!url) return <Box sx={{ ...sx, height, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'background.default' }}><CircularProgress size={24} /></Box>;
+  // Render loading skeleton or empty box while not visible or still loading
+  if (!isVisible || !url) {
+    return (
+      <Box 
+        ref={containerRef} 
+        sx={{ 
+          ...sx, 
+          height, 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          bgcolor: 'background.default' 
+        }}
+      >
+        {isVisible && <CircularProgress size={24} />}
+      </Box>
+    );
+  }
 
   return (
     <>

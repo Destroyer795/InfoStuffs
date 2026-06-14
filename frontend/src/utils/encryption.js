@@ -38,6 +38,27 @@ export const generateKeyFromPassword = async (password, salt) => {
   );
 };
 
+// Helper to convert Uint8Array to base64 safely and performantly
+const bytesToBase64 = (bytes) => {
+  let binString = "";
+  const len = bytes.length;
+  for (let i = 0; i < len; i++) {
+    binString += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binString);
+};
+
+// Helper to convert base64 to Uint8Array performantly
+const base64ToBytes = (base64) => {
+  const binString = atob(base64);
+  const len = binString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binString.charCodeAt(i);
+  }
+  return bytes;
+};
+
 // Encrypt Text
 export const encryptText = async (text, key) => {
   if (!text || !key) return '';
@@ -52,8 +73,8 @@ export const encryptText = async (text, key) => {
       enc.encode(text)
     );
 
-    const ivStr = btoa(String.fromCharCode(...iv));
-    const dataStr = btoa(String.fromCharCode(...new Uint8Array(encryptedContent)));
+    const ivStr = bytesToBase64(iv);
+    const dataStr = bytesToBase64(new Uint8Array(encryptedContent));
     
     return `${ivStr}:${dataStr}`;
   } catch (e) {
@@ -72,8 +93,8 @@ export const decryptText = async (packedData, key) => {
 
     const [ivStr, dataStr] = parts;
     
-    const iv = Uint8Array.from(atob(ivStr), c => c.charCodeAt(0));
-    const data = Uint8Array.from(atob(dataStr), c => c.charCodeAt(0));
+    const iv = base64ToBytes(ivStr);
+    const data = base64ToBytes(dataStr);
 
     const decryptedContent = await subtle.decrypt(
       { name: "AES-GCM", iv },

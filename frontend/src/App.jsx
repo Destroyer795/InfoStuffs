@@ -345,8 +345,8 @@ const App = () => {
       const res = await axios.get(`${API_BASE_URL}/api/info`, { headers });
       const rawNotes = res.data.data || [];
       
-      // 3. THE ZKA CACHE: Save the raw ciphertext BEFORE decryption
-      await saveOfflineNotes(rawNotes);
+      // 3. THE ZKA CACHE: Save the raw ciphertext BEFORE decryption (background process)
+      saveOfflineNotes(rawNotes).catch(err => console.error("Cache write failed:", err));
       
       const decryptedPromises = rawNotes.map(async (item) => {
         const decryptedName = await decryptText(item.name, encryptionKey);
