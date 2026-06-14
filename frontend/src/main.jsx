@@ -6,6 +6,8 @@ import { registerSW } from 'virtual:pwa-register'
 import { ThemeProvider, CssBaseline } from '@mui/material'
 import { darkTheme } from './theme'
 import OfflineVault from './pages/OfflineVault.jsx'
+import CustomCursor from './components/Cursor.jsx'
+
 
 // Register the service worker immediately for offline support
 registerSW({ immediate: true })
@@ -55,27 +57,41 @@ const InfoStuffsRoot = () => {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Timeout fallback: if after 10 seconds we're still in the online
-    // branch, probe for real connectivity. Catches edge cases where
-    // the rejection event is swallowed entirely.
-    let timeoutId;
+    // Fast connectivity probe: check immediately upon boot to bypass long browser
+    // DNS/TCP timeouts when Clerk is blocked by lack of internet.
+    let probeTimeoutId;
+    const abortController = new AbortController();
+
     if (navigator.onLine && !clerkLoadFailed) {
-      timeoutId = setTimeout(() => {
-        fetch('https://clients3.google.com/generate_204', {
-          mode: 'no-cors',
-          cache: 'no-store'
-        }).catch(() => {
-          console.warn('Lie-Fi detected via timeout probe. Forcing Offline Vault.');
+      probeTimeoutId = setTimeout(() => {
+        abortController.abort();
+        console.warn('Connectivity probe timed out. Forcing Offline Vault.');
+        setIsOffline(true);
+      }, 2500);
+
+      fetch('https://clients3.google.com/generate_204', {
+        mode: 'no-cors',
+        cache: 'no-store',
+        signal: abortController.signal
+      })
+      .then(() => {
+        clearTimeout(probeTimeoutId);
+      })
+      .catch((err) => {
+        clearTimeout(probeTimeoutId);
+        if (err.name !== 'AbortError') {
+          console.warn('Connectivity probe failed. Forcing Offline Vault.', err);
           setIsOffline(true);
-        });
-      }, 10000);
+        }
+      });
     }
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       clerkFailCallbacks.delete(handleClerkFail);
-      if (timeoutId) clearTimeout(timeoutId);
+      if (probeTimeoutId) clearTimeout(probeTimeoutId);
+      abortController.abort();
     };
   }, []);
 
@@ -84,6 +100,7 @@ const InfoStuffsRoot = () => {
     return (
       <ThemeProvider theme={darkTheme}>
         <CssBaseline />
+        <CustomCursor />
         <OfflineVault />
       </ThemeProvider>
     );
