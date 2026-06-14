@@ -16,8 +16,26 @@ if (!clerkKey) {
   throw new Error('Missing Clerk publishable key')
 }
 
+// ── Module-level Lie-Fi Detection ──────────────────────────────────
+// This MUST run before React renders. The old useEffect-based listener
+// lost the race: Clerk's rejection fired during the first render,
+// before useEffect had a chance to attach. Moving it here guarantees
+// the listener exists before ClerkProvider ever mounts.
+let clerkLoadFailed = false
+const clerkFailCallbacks = new Set()
+
+window.addEventListener('unhandledrejection', (event) => {
+  if (event.reason?.message === 'Clerk: Failed to load Clerk') {
+    console.warn('Clerk script failed to download due to DNS failure. Forcing Offline Vault.')
+    clerkLoadFailed = true
+    event.preventDefault()
+    // Notify the React component (if it has mounted)
+    clerkFailCallbacks.forEach(fn => fn())
+  }
+})
+
 const InfoStuffsRoot = () => {
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine || clerkLoadFailed);
 
   useEffect(() => {
     // If the user regains internet, reload the page so Clerk can safely boot up
@@ -27,27 +45,37 @@ const InfoStuffsRoot = () => {
     };
     const handleOffline = () => setIsOffline(true);
 
-    // The Lie-Fi Catch: Strictly intercept the network load failure
-    // navigator.onLine can be true even when DNS fails (connected to router, no internet).
-    // Clerk will throw this exact error when its SDK script fails to download.
-    const handleUnhandledRejection = (event) => {
-      if (event.reason && event.reason.message === 'Clerk: Failed to load Clerk') {
-        console.warn('Clerk script failed to download due to DNS failure. Forcing Offline Vault.');
-        setIsOffline(true); 
-        event.preventDefault(); 
-      }
-      // If it is any other Clerk error (like a bad API key or rate limit), 
-      // we DO NOT intercept it. We let it fail normally so you can debug it.
-    };
+    // Subscribe to module-level Clerk failure signal
+    const handleClerkFail = () => setIsOffline(true);
+    clerkFailCallbacks.add(handleClerkFail);
+
+    // Check if failure already happened before this effect ran
+    if (clerkLoadFailed) setIsOffline(true);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
+    // Timeout fallback: if after 10 seconds we're still in the online
+    // branch, probe for real connectivity. Catches edge cases where
+    // the rejection event is swallowed entirely.
+    let timeoutId;
+    if (navigator.onLine && !clerkLoadFailed) {
+      timeoutId = setTimeout(() => {
+        fetch('https://clients3.google.com/generate_204', {
+          mode: 'no-cors',
+          cache: 'no-store'
+        }).catch(() => {
+          console.warn('Lie-Fi detected via timeout probe. Forcing Offline Vault.');
+          setIsOffline(true);
+        });
+      }, 10000);
+    }
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+      clerkFailCallbacks.delete(handleClerkFail);
+      if (timeoutId) clearTimeout(timeoutId);
     };
   }, []);
 
