@@ -340,26 +340,41 @@ const OfflineVault = () => {
       ) : (
         <Grid container spacing={3}>
           {filteredNotes.map(note => (
-            <Grid item xs={12} sm={6} md={4} key={note._id}>
+            <Grid 
+              item 
+              xs={12} 
+              sm={6} 
+              md={4} 
+              key={note._id}
+              sx={{
+                display: 'flex',
+                justifyContent: 'center'
+              }}
+            >
               <Card 
                 onClick={() => setSelectedNote(note)}
                 sx={{ 
-                  height: '100%', 
+                  height: 340, 
+                  width: 300, 
                   display: 'flex', 
                   flexDirection: 'column',
                   cursor: 'pointer',
                   border: '2px solid #E6E6E6',
                   borderRadius: '12px',
                   bgcolor: '#1E1E1E',
-                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease',
                   '&:hover': {
-                    transform: 'translateY(-4px)',
-                    boxShadow: '0 8px 16px rgba(0,0,0,0.4)',
-                    border: '2px solid #ffffff'
+                    transform: 'translate(-4px, -4px)',
+                    boxShadow: '8px 8px 0px 0px #E6E6E6',
+                    borderColor: '#ffffff',
+                  },
+                  '&:active': {
+                    transform: 'translate(0px, 0px)',
+                    boxShadow: '2px 2px 0px 0px #E6E6E6',
                   }
                 }}
               >
-                <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 1.5, overflow: 'hidden' }}>
                   <Typography 
                     variant="h6" 
                     fontWeight="bold"
@@ -399,7 +414,7 @@ const OfflineVault = () => {
                       color="text.secondary"
                       sx={{
                         display: '-webkit-box',
-                        WebkitLineClamp: 3,
+                        WebkitLineClamp: 6,
                         WebkitBoxOrient: 'vertical',
                         overflow: 'hidden',
                         wordBreak: 'break-word',
@@ -409,14 +424,37 @@ const OfflineVault = () => {
                       {note.content}
                     </Typography>
                   ) : (
-                    <Typography 
-                      variant="body2" 
-                      color="text.secondary" 
-                      fontStyle="italic"
-                      sx={{ mt: 1 }}
+                    <Box 
+                      display="flex" 
+                      flexDirection="column" 
+                      alignItems="center" 
+                      justifyContent="center" 
+                      sx={{ 
+                        flexGrow: 1, 
+                        border: '2px dashed #444', 
+                        borderRadius: '8px', 
+                        p: 2,
+                        mt: 1,
+                        bgcolor: 'rgba(0,0,0,0.2)'
+                      }}
                     >
-                      {note.type === 'image' ? '🖼️ Image Attachment' : '📄 File Attachment'}
-                    </Typography>
+                      <Typography 
+                        variant="body2" 
+                        color="text.secondary" 
+                        fontStyle="italic"
+                        textAlign="center"
+                      >
+                        {note.type === 'image' ? '🖼️ Image Attachment' : '📄 File Attachment'}
+                      </Typography>
+                      <Typography 
+                        variant="caption" 
+                        color="text.disabled"
+                        textAlign="center"
+                        sx={{ mt: 1 }}
+                      >
+                        (Requires online mode)
+                      </Typography>
+                    </Box>
                   )}
                 </CardContent>
               </Card>
