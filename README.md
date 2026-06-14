@@ -23,9 +23,11 @@ Designing a Zero-Trust Personal Information Manager with Client-Side Encryption
 
 **Authentication:** Clerk  
 
-**Storage:** Supabase (Encrypted Paths + Ephemeral Signed URLs)  
+**Storage:** Supabase (Encrypted Paths + Ephemeral Signed URLs) & IndexedDB (`idb` for secure offline caching)  
 
-**Cryptography:** Web Crypto API (AES-GCM + PBKDF2) using Web Workers  
+**Cryptography:** Web Crypto API (AES-GCM + PBKDF2) using Web Workers
+
+**Offline Capabilities:** Progressive Web App (PWA) with Service Worker asset caching, automatic offline detection & Clerk auth bypass, offline cryptographic key derivation using cached user identifiers as PBKDF2 salt.
 
 **DevOps:** Docker, Google Cloud Platform (Cloud Run & Build), Vercel (Serverless Monolith Deployment)
 
@@ -52,6 +54,13 @@ This project implements a strict Zero-Trust model to address data privacy in clo
 - **Irrecoverable Keys:** Since the server cannot recover lost vault passwords, the application provides a Nuclear Reset option.  
 - **Data Wipe:** This allows users to permanently delete all encrypted and inaccessible data and reinitialize the vault with a new encryption key.
 
+### 4. Zero-Knowledge Offline Vault (PWA)
+
+- **Offline Caching:** During an online session, the raw encrypted ciphertexts of the user's notes are saved into IndexedDB. Plaintext content is never stored on disk.
+- **Immediate Offline Detection:** The application uses a module-level event interceptor, physical network state listeners, and a fast Google `clients3` connectivity probe (2.5-second abort timer) to detect offline states (or Lie-Fi conditions) instantly.
+- **Clerk Authentication Bypass:** If offline or if Clerk's script fails to load, the app skips Clerk initialization entirely and mounts a custom Offline Vault.
+- **Dynamic Local Key Derivation:** The user's offline password is derived with PBKDF2 using the Clerk User ID cached within the notes' `userId` field as the salt, regenerating the exact AES-GCM key without needing internet access.
+
 ---
 
 ## Features
@@ -62,6 +71,9 @@ This project implements a strict Zero-Trust model to address data privacy in clo
 - **Real-Time Decryption:** Data is decrypted on the client side for authenticated users.  
 - **Search and Filter:** Client-side searching and filtering on decrypted metadata.  
 - **Profile Management:** Secure identity and session management using Clerk.  
+- **Full Offline PWA Support:** Access and search your decrypted text vault completely offline.
+- **Intersection Observer Deferral:** Encrypted image attachments are only requested, downloaded, and decrypted when they scroll into the viewport, optimizing network usage and UI thread performance.
+- **High Performance Base64 Parser:** Custom loops replace slow native `Uint8Array.from()` callbacks to perform decryption with minimal CPU overhead.
 - **Responsive UI:** Clean, modern interface with dark mode support.
 
 ---
