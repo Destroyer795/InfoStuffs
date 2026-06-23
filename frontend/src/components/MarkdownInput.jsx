@@ -19,12 +19,20 @@ const MarkdownInput = ({ value, onChange, placeholder }) => {
   const codeBg = theme.palette.mode === 'dark' ? '#111' : '#f5f5f5';
 
   return (
-    <div className="cursor-hover-target" style={{ 
-      border: `2px solid ${borderColor}`, 
-      borderRadius: `${theme.shape.borderRadius}px`, 
-      overflow: 'hidden',
-      marginTop: '8px'
-    }}>
+    <div 
+      className="cursor-hover-target" 
+      onKeyDown={(e) => {
+        if (['PageDown', 'PageUp', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+          e.stopPropagation();
+        }
+      }}
+      style={{ 
+        border: `2px solid ${borderColor}`, 
+        borderRadius: `${theme.shape.borderRadius}px`, 
+        overflow: 'hidden',
+        marginTop: '8px'
+      }}
+    >
       {/* Editor styles */}
       <style>{`
         .rc-md-editor {
@@ -50,18 +58,21 @@ const MarkdownInput = ({ value, onChange, placeholder }) => {
         .rc-md-editor .editor-container .section {
           background-color: ${bgColor} !important;
           cursor: none !important;
+          overscroll-behavior: contain !important;
         }
         .rc-md-editor .editor-container .input {
           background-color: ${bgColor} !important;
           color: ${textColor} !important;
           font-family: "Inter", sans-serif !important;
           cursor: none !important;
+          padding-bottom: 80px !important;
         }
 
         /* Preview text */
         .rc-md-editor .custom-html-style {
           color: ${textColor} !important;
           font-family: "Inter", sans-serif !important;
+          padding-bottom: 80px !important;
         }
 
         /* Code blocks */
