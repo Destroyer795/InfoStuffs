@@ -168,12 +168,19 @@ const VaultModal = ({ open, onUnlock, onReset, darkMode }) => {
           />
         </form>
       </DialogContent>
-      <DialogActions sx={{ justifyContent: 'space-between', px: 3, pb: 3 }}>
+      <Box sx={{ 
+        display: 'grid', 
+        gridTemplateColumns: '1fr 1fr', 
+        gap: 1.5, 
+        px: 3, 
+        pb: 3, 
+        alignItems: 'stretch' 
+      }}>
         <Button 
           color="error" 
           variant="outlined"
           onClick={() => setShowConfirm(true)}
-          sx={btnStyle}
+          sx={{ ...btnStyle, height: '100%', m: 0 }}
         >
           Forgot Password?
         </Button>
@@ -181,11 +188,11 @@ const VaultModal = ({ open, onUnlock, onReset, darkMode }) => {
           onClick={handleSubmit} 
           disabled={!password} 
           variant="outlined"
-          sx={{ ...btnStyle, px: 4 }}
+          sx={{ ...btnStyle, height: '100%', m: 0 }}
         >
           Unlock
         </Button>
-      </DialogActions>
+      </Box>
     </Dialog>
   );
 };
