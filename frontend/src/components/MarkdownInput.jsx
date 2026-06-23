@@ -151,6 +151,7 @@ const MarkdownInput = ({ value, onChange, placeholder }) => {
         onChange={({ text }) => onChange(text)}
         value={value || ''}
         placeholder={placeholder}
+        syncScrollMode={[]}
         view={{ menu: true, md: true, html: false }}
         config={{
           view: {
