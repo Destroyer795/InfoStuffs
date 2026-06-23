@@ -29,7 +29,7 @@ const MarkdownInput = ({ value, onChange, placeholder }) => {
       style={{ 
         border: `2px solid ${borderColor}`, 
         borderRadius: `${theme.shape.borderRadius}px`, 
-        overflow: 'hidden',
+        overflow: 'clip',
         marginTop: '8px'
       }}
     >
@@ -45,6 +45,9 @@ const MarkdownInput = ({ value, onChange, placeholder }) => {
         .rc-md-navigation {
           background-color: ${toolbarBg} !important;
           border-bottom: 2px solid ${borderColor} !important;
+          position: sticky !important;
+          top: 0 !important;
+          z-index: 100 !important;
         }
         .rc-md-navigation .button-wrap:hover {
           background-color: ${hoverColor} !important;
@@ -59,20 +62,19 @@ const MarkdownInput = ({ value, onChange, placeholder }) => {
           background-color: ${bgColor} !important;
           cursor: none !important;
           overscroll-behavior: contain !important;
+          padding-bottom: 100px !important;
         }
         .rc-md-editor .editor-container .input {
           background-color: ${bgColor} !important;
           color: ${textColor} !important;
           font-family: "Inter", sans-serif !important;
           cursor: none !important;
-          padding-bottom: 80px !important;
         }
 
         /* Preview text */
         .rc-md-editor .custom-html-style {
           color: ${textColor} !important;
           font-family: "Inter", sans-serif !important;
-          padding-bottom: 80px !important;
         }
 
         /* Code blocks */
