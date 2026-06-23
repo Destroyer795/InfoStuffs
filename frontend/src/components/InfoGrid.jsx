@@ -32,6 +32,7 @@ import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import { uploadToSupabase, deleteFromSupabase, getDecryptedFileUrl, createOpaqueStoragePath } from "../utils/supabaseUpload";
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import MarkdownInput from './MarkdownInput';
 
 const SecureImagePreview = ({ path, userKey, alt, sx, height, showDownload }) => {
@@ -718,9 +719,22 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
                  padding: '16px 24px',
                  fontStyle: 'italic',
                  color: theme.palette.text.primary
+               },
+               '& table': {
+                 borderCollapse: 'collapse',
+                 width: '100%',
+                 margin: '1em 0',
+               },
+               '& th, & td': {
+                 border: `1px solid ${theme.palette.divider}`,
+                 padding: '8px 12px',
+               },
+               '& th': {
+                 backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
+                 fontWeight: 700,
                }
              }}>
-                <ReactMarkdown>{selectedInfo?.content}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedInfo?.content}</ReactMarkdown>
              </Box>
           )}
           {selectedInfo?.type === 'image' && selectedInfo.imageURL && (

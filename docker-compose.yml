@@ -7,6 +7,9 @@ services:
       dockerfile: Dockerfile.backend
     ports:
       - "5000:5000"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     environment:
       - MONGO_URI=${MONGO_URI}
       - PORT=${PORT}

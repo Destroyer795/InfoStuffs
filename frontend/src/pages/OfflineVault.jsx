@@ -26,6 +26,7 @@ import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import WifiOffIcon from '@mui/icons-material/WifiOff';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 import { getOfflineNotes } from '../utils/localStore';
 import { decryptText } from '../utils/encryption';
@@ -532,9 +533,22 @@ const OfflineVault = () => {
                 padding: '16px 24px',
                 fontStyle: 'italic',
                 color: '#ffffff'
+              },
+              '& table': {
+                borderCollapse: 'collapse',
+                width: '100%',
+                margin: '1em 0',
+              },
+              '& th, & td': {
+                border: '1px solid #444',
+                padding: '8px 12px',
+              },
+              '& th': {
+                backgroundColor: 'rgba(255,255,255,0.08)',
+                fontWeight: 700,
               }
             }}>
-              <ReactMarkdown>{selectedNote?.content}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedNote?.content}</ReactMarkdown>
             </Box>
           ) : (
             <Box sx={{ border: '2px dashed #444', p: 4, borderRadius: '8px', textAlign: 'center', my: 2 }}>
