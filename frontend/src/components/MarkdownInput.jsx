@@ -62,7 +62,7 @@ const MarkdownInput = ({ value, onChange, placeholder }) => {
           background-color: ${bgColor} !important;
           cursor: none !important;
           overscroll-behavior: contain !important;
-          padding-bottom: 100px !important;
+          padding-bottom: 24px !important;
         }
         .rc-md-editor .editor-container .input {
           background-color: ${bgColor} !important;
