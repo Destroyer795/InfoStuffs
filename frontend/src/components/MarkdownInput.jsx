@@ -68,13 +68,11 @@ const MarkdownInput = ({ value, onChange, placeholder }) => {
           color: ${textColor} !important;
           font-family: "Inter", sans-serif !important;
         }
-        @media (pointer: fine) {
-          .rc-md-editor .editor-container .section {
-            cursor: none !important;
-          }
-          .rc-md-editor .editor-container .input {
-            cursor: none !important;
-          }
+        body.has-fine-pointer .rc-md-editor .editor-container .section {
+          cursor: none !important;
+        }
+        body.has-fine-pointer .rc-md-editor .editor-container .input {
+          cursor: none !important;
         }
 
         /* Preview text */
@@ -158,19 +156,17 @@ const MarkdownInput = ({ value, onChange, placeholder }) => {
         .rc-md-editor ::-webkit-scrollbar-thumb:hover {
           background-color: ${textColor};
         }
-        @media (pointer: fine) {
-          .rc-md-editor ::-webkit-scrollbar {
-            cursor: none !important;
-          }
-          .rc-md-editor ::-webkit-scrollbar-track {
-            cursor: none !important;
-          }
-          .rc-md-editor ::-webkit-scrollbar-thumb {
-            cursor: none !important;
-          }
-          .rc-md-editor ::-webkit-scrollbar-thumb:hover {
-            cursor: none !important;
-          }
+        body.has-fine-pointer .rc-md-editor ::-webkit-scrollbar {
+          cursor: none !important;
+        }
+        body.has-fine-pointer .rc-md-editor ::-webkit-scrollbar-track {
+          cursor: none !important;
+        }
+        body.has-fine-pointer .rc-md-editor ::-webkit-scrollbar-thumb {
+          cursor: none !important;
+        }
+        body.has-fine-pointer .rc-md-editor ::-webkit-scrollbar-thumb:hover {
+          cursor: none !important;
         }
       `}</style>
 

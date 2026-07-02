@@ -13,29 +13,42 @@ const CustomCursor = () => {
   const [visible, setVisible] = useState(false);
   const [hasFinePointer, setHasFinePointer] = useState(() => {
     if (typeof window === 'undefined') return false;
-    return window.matchMedia('(pointer: fine)').matches;
+    
+    // Check if the device has touchscreen capabilities
+    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const isFine = window.matchMedia('(pointer: fine)').matches;
+    
+    // If it has touch capability, start as false until a mouse is explicitly moved/clicked
+    if (hasTouch) return false;
+    
+    return isFine;
   });
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(pointer: fine)');
-    const handleChange = (e) => {
-      setHasFinePointer(e.matches);
-    };
-
-    if (mediaQuery.addEventListener) {
-      mediaQuery.addEventListener('change', handleChange);
-    } else {
-      mediaQuery.addListener(handleChange);
-    }
-
-    return () => {
-      if (mediaQuery.removeEventListener) {
-        mediaQuery.removeEventListener('change', handleChange);
-      } else {
-        mediaQuery.removeListener(handleChange);
+    const handlePointer = (e) => {
+      if (e.pointerType === 'touch') {
+        setHasFinePointer(false);
+      } else if (e.pointerType === 'mouse' || e.pointerType === 'pen') {
+        setHasFinePointer(true);
       }
     };
+
+    window.addEventListener('pointerdown', handlePointer, { passive: true });
+    window.addEventListener('pointermove', handlePointer, { passive: true });
+
+    return () => {
+      window.removeEventListener('pointerdown', handlePointer);
+      window.removeEventListener('pointermove', handlePointer);
+    };
   }, []);
+
+  useEffect(() => {
+    if (hasFinePointer) {
+      document.body.classList.add('has-fine-pointer');
+    } else {
+      document.body.classList.remove('has-fine-pointer');
+    }
+  }, [hasFinePointer]);
 
   useEffect(() => {
     if (!hasFinePointer) return;

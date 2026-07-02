@@ -1,7 +1,5 @@
-@media (pointer: fine) {
-  * {
-    cursor: none !important;
-  }
+body.has-fine-pointer * {
+  cursor: none !important;
 }
 
 .cursor-inner {
