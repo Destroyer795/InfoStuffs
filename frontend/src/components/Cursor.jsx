@@ -11,8 +11,35 @@ const CustomCursor = () => {
   const trail2 = useRef({ x: 0, y: 0 });
 
   const [visible, setVisible] = useState(false);
+  const [hasFinePointer, setHasFinePointer] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(pointer: fine)').matches;
+  });
 
   useEffect(() => {
+    const mediaQuery = window.matchMedia('(pointer: fine)');
+    const handleChange = (e) => {
+      setHasFinePointer(e.matches);
+    };
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', handleChange);
+    } else {
+      mediaQuery.addListener(handleChange);
+    }
+
+    return () => {
+      if (mediaQuery.removeEventListener) {
+        mediaQuery.removeEventListener('change', handleChange);
+      } else {
+        mediaQuery.removeListener(handleChange);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hasFinePointer) return;
+
     const move = (e) => {
       mousePosition.current = { x: e.clientX, y: e.clientY };
       setVisible(true);
@@ -85,9 +112,10 @@ const CustomCursor = () => {
       window.removeEventListener('mousedown', handleMouseDown);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, []);
+  }, [hasFinePointer]);
 
   useEffect(() => {
+    if (!hasFinePointer) return;
     let animationFrameId;
 
     const followMouse = () => {
@@ -118,7 +146,9 @@ const CustomCursor = () => {
     animationFrameId = requestAnimationFrame(followMouse);
 
     return () => cancelAnimationFrame(animationFrameId);
-  }, [visible]);
+  }, [hasFinePointer, visible]);
+
+  if (!hasFinePointer) return null;
 
   return (
     <>
