@@ -767,26 +767,26 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
             label="Name"
             fullWidth
             value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
           />
           <TextField
             label="Category"
             fullWidth
             value={formData.category}
-            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+            onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
           />
           <TextField
             label="Importance"
             fullWidth
             value={formData.importance}
-            onChange={(e) => setFormData({ ...formData, importance: e.target.value })}
+            onChange={(e) => setFormData(prev => ({ ...prev, importance: e.target.value }))}
           />
           <Tooltip title="Temporary notes are automatically deleted after 30 days" arrow placement="top">
             <FormControlLabel
               control={
                 <Switch
                   checked={formData.isTemporary}
-                  onChange={(e) => setFormData({ ...formData, isTemporary: e.target.checked })}
+                  onChange={(e) => setFormData(prev => ({ ...prev, isTemporary: e.target.checked }))}
                   color="warning"
                 />
               }
@@ -810,7 +810,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
           {formData.type === 'text' && (
             <MarkdownInput
               value={formData.content}
-              onChange={(val) => setFormData({ ...formData, content: val })}
+              onChange={(val) => setFormData(prev => ({ ...prev, content: val }))}
               placeholder="Edit your content..."
             />
           )}
