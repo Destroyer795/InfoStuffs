@@ -372,7 +372,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
       formData.importance === editInfo.importance &&
       formData.content === editInfo.content &&
       formData.type === editInfo.type &&
-      formData.isTemporary === editInfo.isTemporary;
+      (formData.isTemporary || false) === (editInfo.isTemporary || false);
       
     const hasNewFiles = newFileData.imageFile !== null || newFileData.docFile !== null;
     
