@@ -105,32 +105,49 @@ To support server-side query routing, access control, and vault management, the 
 > The application was initially containerized and deployed on Google Cloud Run to validate production readiness and CI/CD workflows. It was later migrated to Vercel for cost-efficient hosting while retaining the same architecture and security guarantees.
 
 ---
-## Running Locally with Docker
-To run this project in a local containerized environment, ensure you have Docker Desktop installed and follow these steps:
+### Running Locally with Docker
 
-### Clone the repository:
-```
+To run this project locally in a fully containerized environment, ensure you have Docker Desktop installed:
+
+#### 1. Clone the repository:
+```bash
 git clone https://github.com/Destroyer795/InfoStuffs.git
 cd InfoStuffs
 ```
-This will download the project files to your local machine.
 
-### Create Environment Files:
-Create a `.env` file in the root directory. You can use the `.env.example` file as a template.
-
-Populate the file with your own keys and secrets (e.g., MongoDB URI, Clerk keys, etc.).
-
-### Build and Run the Containers:
-From the root directory, run the following command. This will build the Docker images for both the frontend and backend and start them.
-
+#### 2. Configure Environment Variables:
+Create a `.env` file in the root directory based on `.env.example`:
+```env
+VITE_API_BASE_URL=http://localhost:5000
+VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+VITE_SUPABASE_KEY=your_supabase_anon_key
+VITE_SUPABASE_URL=https://your_supabase_project_id.supabase.co
+MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/infostuffs?retryWrites=true&w=majority
+CLERK_SECRET_KEY=your_clerk_secret_key
+PORT=5000
+NODE_ENV=development
 ```
-docker-compose up --build
-```
-The `--build` flag ensures that the images are built from the latest version of your code.
 
-### Access the Application:
-Once the containers are running, the application will be available at:
-- Frontend: `http://localhost:8080`
-- Backend API: `http://localhost:5000`
+#### 3. Run with Docker Compose:
+To build and start all services in detached mode:
+```bash
+docker compose up -d --build
+```
+
+#### 4. Perform a Complete Clean Rebuild (Zero Cache):
+To rebuild all container layers completely from scratch without cache:
+```bash
+docker compose down -v && docker compose build --no-cache && docker compose up -d --force-recreate
+```
+
+#### 5. Monitor & Manage Containers:
+* **Check Health Status:** `docker compose ps`
+* **View Live Logs:** `docker compose logs -f`
+* **Stop Containers:** `docker compose down`
+
+#### 6. Application Endpoints:
+* **Frontend (Nginx Web Server):** `http://localhost:8080`
+* **Backend API (Express / Node.js):** `http://localhost:5000`
+* **Health Check API:** `http://localhost:5000/health` (Returns JSON status, uptime, & ISO timestamp)
 
 ---
