@@ -474,12 +474,28 @@ const OfflineVault = () => {
           sx: { 
             borderRadius: '16px', 
             border: '2px solid #E6E6E6',
-            bgcolor: '#1E1E1E'
+            bgcolor: '#1E1E1E',
+            overflowX: 'hidden'
           }
         }}
       >
-        <DialogTitle sx={{ borderBottom: '2px solid #E6E6E6', fontWeight: 800, pr: 6 }}>
-          {selectedNote?.name}
+        <DialogTitle sx={{ borderBottom: '2px solid #E6E6E6', p: 2.5, overflow: 'hidden' }}>
+          <Typography 
+            variant="h6" 
+            component="div"
+            title={selectedNote?.name}
+            sx={{ 
+              fontWeight: 800, 
+              whiteSpace: 'nowrap', 
+              overflow: 'hidden', 
+              textOverflow: 'ellipsis',
+              width: '100%',
+              display: 'block',
+              minWidth: 0
+            }}
+          >
+            {selectedNote?.name}
+          </Typography>
           <Box display="flex" gap={1} sx={{ mt: 1.5, flexWrap: 'wrap' }}>
             <Chip 
               label={selectedNote?.category} 

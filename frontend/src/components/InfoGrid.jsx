@@ -681,11 +681,36 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
         fullWidth
         maxWidth="md"
         PaperProps={{
-          sx: { borderRadius: '16px', border: `2px solid ${theme.palette.text.primary}` }
+          sx: { 
+            borderRadius: '16px', 
+            border: `2px solid ${theme.palette.text.primary}`,
+            overflowX: 'hidden'
+          }
         }}
       >
-        <DialogTitle sx={{ borderBottom: `2px solid ${theme.palette.divider}`, fontWeight: 800 }}>
-          {selectedInfo?.name}
+        <DialogTitle 
+          sx={{ 
+            borderBottom: `2px solid ${theme.palette.divider}`, 
+            p: 2.5,
+            overflow: 'hidden'
+          }}
+        >
+          <Typography
+            variant="h6"
+            component="div"
+            title={selectedInfo?.name}
+            sx={{
+              fontWeight: 800,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              width: '100%',
+              display: 'block',
+              minWidth: 0
+            }}
+          >
+            {selectedInfo?.name}
+          </Typography>
         </DialogTitle>
         <DialogContent sx={{ p: 4, wordBreak: 'break-word' }}>
           {selectedInfo?.type === 'text' && (
