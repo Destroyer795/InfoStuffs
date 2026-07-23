@@ -475,11 +475,22 @@ const OfflineVault = () => {
             borderRadius: '16px', 
             border: '2px solid #E6E6E6',
             bgcolor: '#1E1E1E',
-            overflowX: 'hidden'
+            overflowX: 'hidden',
+            maxWidth: 'calc(100vw - 32px)',
+            boxSizing: 'border-box'
           }
         }}
       >
-        <DialogTitle sx={{ borderBottom: '2px solid #E6E6E6', p: 2.5, overflow: 'hidden' }}>
+        <DialogTitle 
+          sx={{ 
+            borderBottom: '2px solid #E6E6E6', 
+            p: 2.5, 
+            overflow: 'hidden',
+            maxWidth: '100%',
+            minWidth: 0,
+            boxSizing: 'border-box'
+          }}
+        >
           <Typography 
             variant="h6" 
             component="div"
@@ -490,8 +501,11 @@ const OfflineVault = () => {
               overflow: 'hidden', 
               textOverflow: 'ellipsis',
               width: '100%',
+              maxWidth: '100%',
               display: 'block',
-              minWidth: 0
+              minWidth: 0,
+              wordBreak: 'break-all',
+              overflowWrap: 'anywhere'
             }}
           >
             {selectedNote?.name}

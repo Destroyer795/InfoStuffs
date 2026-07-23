@@ -684,7 +684,9 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
           sx: { 
             borderRadius: '16px', 
             border: `2px solid ${theme.palette.text.primary}`,
-            overflowX: 'hidden'
+            overflowX: 'hidden',
+            maxWidth: 'calc(100vw - 32px)',
+            boxSizing: 'border-box'
           }
         }}
       >
@@ -692,7 +694,10 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
           sx={{ 
             borderBottom: `2px solid ${theme.palette.divider}`, 
             p: 2.5,
-            overflow: 'hidden'
+            overflow: 'hidden',
+            maxWidth: '100%',
+            minWidth: 0,
+            boxSizing: 'border-box'
           }}
         >
           <Typography
@@ -705,8 +710,11 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               width: '100%',
+              maxWidth: '100%',
               display: 'block',
-              minWidth: 0
+              minWidth: 0,
+              wordBreak: 'break-all',
+              overflowWrap: 'anywhere'
             }}
           >
             {selectedInfo?.name}
