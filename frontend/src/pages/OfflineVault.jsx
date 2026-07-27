@@ -531,7 +531,7 @@ const OfflineVault = () => {
           </Box>
         </DialogTitle>
         
-        <DialogContent sx={{ p: 4, wordBreak: 'break-word', minHeight: '200px' }}>
+        <DialogContent sx={{ p: { xs: 2, sm: 4 }, wordBreak: 'break-word', minHeight: '200px' }}>
           {selectedNote?.type === 'text' ? (
             <Box sx={{ 
               fontSize: '1.1rem', 

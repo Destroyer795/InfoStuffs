@@ -207,7 +207,7 @@ const SecureFilePreview = ({ path, userKey }) => {
   return (
     <Box textAlign="center" py={2} display="flex" flexDirection="column" gap={2}>
       {path.toLowerCase().includes('.pdf') ? (
-        <Box sx={{ width: '100%', height: '500px', border: '2px solid #000', borderRadius: '8px', overflow: 'hidden' }}>
+        <Box sx={{ width: '100%', height: { xs: '350px', sm: '500px' }, border: '2px solid #000', borderRadius: '8px', overflow: 'hidden' }}>
           <iframe 
             src={url} 
             width="100%" 
@@ -720,7 +720,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
             {selectedInfo?.name}
           </Typography>
         </DialogTitle>
-        <DialogContent sx={{ p: 4, wordBreak: 'break-word' }}>
+        <DialogContent sx={{ p: { xs: 2, sm: 4 }, wordBreak: 'break-word' }}>
           {selectedInfo?.type === 'text' && (
              <Box sx={{ 
                fontSize: '1.1rem', 
