@@ -20,14 +20,24 @@ import {
   Switch,
   Snackbar,
   Alert,
-  CircularProgress
+  CircularProgress,
+  MenuItem,
+  Select,
+  InputLabel,
+  FormControl
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { generateCleanSnippet } from '../utils/snippet';
-import { getDecryptedFileUrl } from '../utils/supabaseUpload';
+import { 
+  uploadToSupabase, 
+  deleteFromSupabase, 
+  getDecryptedFileUrl, 
+  createOpaqueStoragePath 
+} from '../utils/supabaseUpload';
+import MarkdownInput from './MarkdownInput';
 
 // Icons
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
@@ -43,6 +53,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import OpenInFullIcon from '@mui/icons-material/OpenInFull';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
 
 const SecureImagePreview = ({ path, userKey, alt, sx }) => {
   const [url, setUrl] = useState(null);
@@ -295,8 +306,19 @@ export default function SplitPaneVault({
   // Selected Category filter
   const [selectedCategory, setSelectedCategory] = useState('All');
 
-  // Copy notification toast
-  const [copySnack, setCopySnack] = useState(false);
+  // Unified snackbar toast
+  const [snack, setSnack] = useState({
+    open: false,
+    type: 'success',
+    message: ''
+  });
+
+  const showSnack = (type, message) => {
+    setSnack({ open: false, type, message });
+    setTimeout(() => {
+      setSnack({ open: true, type, message });
+    }, 10);
+  };
 
   // Full popup preview modal state
   const [previewNote, setPreviewNote] = useState(null);
@@ -308,8 +330,16 @@ export default function SplitPaneVault({
     category: '',
     importance: 'Medium',
     content: '',
+    type: 'text',
+    imageURL: '',
+    file: '',
     isTemporary: false
   });
+  const [newFileData, setNewFileData] = useState({
+    imageFile: null,
+    docFile: null
+  });
+  const [isSaving, setIsSaving] = useState(false);
 
   // Categories list with counts (normalized casing so "knowledge" and "Knowledge" merge into "Knowledge")
   const categories = useMemo(() => {
@@ -343,10 +373,72 @@ export default function SplitPaneVault({
     return displayList.find(n => n._id === selectedId) || null;
   }, [displayList, selectedId]);
 
+  const getRelativePathFromUrl = (url) => {
+    if (typeof url !== 'string') return null;
+    if (!url.includes('http')) return url;
+    const mainUrlPart = url.split('?')[0]; 
+    const parts = mainUrlPart.split('/infostuffsende/');
+    return parts?.[1] || null;
+  };
+
+  const handleFileUpdate = (e) => {
+    if (!e.target.files.length) return;
+    const file = e.target.files[0];
+    if (editFormData.type === 'image') {
+      setNewFileData(prev => ({ ...prev, imageFile: file }));
+    } else if (editFormData.type === 'file') {
+      setNewFileData(prev => ({ ...prev, docFile: file }));
+    }
+  };
+
+  const handleFileSubmit = async () => {
+    let newImageUrl = editFormData.imageURL;
+    let newFileUrl = editFormData.file;
+
+    try {
+      if (editNote?.type === 'image' && editFormData.type !== 'image') {
+        const oldImagePath = getRelativePathFromUrl(editNote.imageURL);
+        if (oldImagePath) await deleteFromSupabase(oldImagePath);
+        newImageUrl = '';
+      }
+      if (editNote?.type === 'file' && editFormData.type !== 'file') {
+        const oldFilePath = getRelativePathFromUrl(editNote.file);
+        if (oldFilePath) await deleteFromSupabase(oldFilePath);
+        newFileUrl = ''; 
+      }
+
+      if (editFormData.type === 'image' && newFileData.imageFile) {
+        const oldImagePath = getRelativePathFromUrl(editNote?.imageURL);
+        if (oldImagePath) await deleteFromSupabase(oldImagePath);
+        const storagePath = createOpaqueStoragePath(newFileData.imageFile, 'images');
+        newImageUrl = await uploadToSupabase(newFileData.imageFile, storagePath, userKey);
+        if (!newImageUrl) throw new Error("Image encryption or upload failed");
+      }
+
+      if (editFormData.type === 'file' && newFileData.docFile) {
+        const oldFilePath = getRelativePathFromUrl(editNote?.file);
+        if (oldFilePath) await deleteFromSupabase(oldFilePath);
+        const storagePath = createOpaqueStoragePath(newFileData.docFile, 'documents');
+        newFileUrl = await uploadToSupabase(newFileData.docFile, storagePath, userKey);
+        if (!newFileUrl) throw new Error("Document encryption or upload failed");
+      }
+
+      if (editFormData.type === 'text') {
+        newImageUrl = '';
+        newFileUrl = '';
+      }
+
+      return { imageURL: newImageUrl, file: newFileUrl };
+    } catch (error) {
+      console.error('File upload failed:', error);
+      throw error;
+    }
+  };
+
   const handleCopyContent = () => {
     if (!activeNote?.content) return;
     navigator.clipboard.writeText(activeNote.content);
-    setCopySnack(true);
+    showSnack('success', 'Note content copied to clipboard!');
   };
 
   const handleOpenEdit = (note) => {
@@ -356,24 +448,89 @@ export default function SplitPaneVault({
       category: note.category || '',
       importance: note.importance || 'Medium',
       content: note.content || '',
+      type: note.type || 'text',
+      imageURL: note.imageURL || '',
+      file: note.file || '',
       isTemporary: !!note.isTemporary
     });
+    setNewFileData({ imageFile: null, docFile: null });
+  };
+
+  const handleEditClose = () => {
+    setEditNote(null);
+    setNewFileData({ imageFile: null, docFile: null });
+  };
+
+  const handleEditTypeChange = (e) => {
+    const newType = e.target.value;
+    setEditFormData(prev => ({
+      ...prev,
+      type: newType,
+      content: newType === 'text' ? prev.content : '',
+    }));
   };
 
   const handleSaveEdit = async () => {
-    if (!editNote) return;
-    if (onUpdate) {
-      await onUpdate(editNote._id, { ...editNote, ...editFormData });
+    if (!onUpdate || !editNote) return;
+
+    const noChanges = 
+      editFormData.name === editNote.name &&
+      editFormData.category === editNote.category &&
+      editFormData.importance === editNote.importance &&
+      editFormData.content === editNote.content &&
+      editFormData.type === editNote.type &&
+      (editFormData.isTemporary || false) === (editNote.isTemporary || false);
+      
+    const hasNewFiles = newFileData.imageFile !== null || newFileData.docFile !== null;
+    
+    if (noChanges && !hasNewFiles) {
+      showSnack("info", "Nothing modified");
+      handleEditClose();
+      return;
     }
-    setEditNote(null);
+
+    try {
+      setIsSaving(true);
+      const { imageURL, file } = await handleFileSubmit();
+      const updatedData = { ...editFormData, imageURL, file };
+      await onUpdate(editNote._id, updatedData);
+
+      if (previewNote && previewNote._id === editNote._id) {
+        setPreviewNote({ ...editNote, ...updatedData });
+      }
+      showSnack("success", "Card updated successfully");
+      handleEditClose();
+    } catch (error) {
+      showSnack("error", "Card update failed: " + (error?.message || 'Upload error'));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDeleteActive = async (id) => {
-    if (onDelete) {
-      await onDelete(id);
-    }
-    if (selectedId === id) {
-      setSelectedId(null);
+    const toDelete = displayList.find(n => n._id === id);
+    try {
+      if (toDelete?.imageURL) {
+        const imagePath = getRelativePathFromUrl(toDelete.imageURL);
+        if (imagePath) await deleteFromSupabase(imagePath);
+      }
+      if (toDelete?.file) {
+        const filePath = getRelativePathFromUrl(toDelete.file);
+        if (filePath) await deleteFromSupabase(filePath);
+      }
+      if (onDelete) {
+        await onDelete(id);
+      }
+      if (selectedId === id) {
+        setSelectedId(null);
+      }
+      if (previewNote?._id === id) {
+        setPreviewNote(null);
+      }
+      showSnack("success", "Deleted");
+    } catch (err) {
+      console.error("Delete failed:", err);
+      showSnack("error", "Delete failed");
     }
   };
 
@@ -1115,85 +1272,179 @@ export default function SplitPaneVault({
         </Box>
       </Box>
 
-      {/* Copy Toast */}
+      {/* Toast Notification */}
       <Snackbar
-        open={copySnack}
+        open={snack.open}
         autoHideDuration={2500}
-        onClose={() => setCopySnack(false)}
+        onClose={() => setSnack(prev => ({ ...prev, open: false }))}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert severity="success" variant="filled" sx={{ borderRadius: '8px', border: '2px solid #000' }}>
-          Note content copied to clipboard!
+        <Alert 
+          onClose={() => setSnack(prev => ({ ...prev, open: false }))} 
+          severity={snack.type} 
+          variant="filled"
+          sx={{ 
+            borderRadius: '8px', 
+            border: '2px solid #000', 
+            boxShadow: '4px 4px 0px #000', 
+            fontWeight: 'bold' 
+          }}
+        >
+          {snack.message}
         </Alert>
       </Snackbar>
 
-      {/* Quick Edit Dialog */}
+      {/* Edit Info Dialog */}
       <Dialog 
         open={!!editNote} 
-        onClose={() => setEditNote(null)} 
+        onClose={handleEditClose} 
         fullWidth 
-        maxWidth="sm"
+        maxWidth="md"
         PaperProps={{
           sx: {
-            borderRadius: '12px',
+            borderRadius: '16px',
             border: neoBorderStyle,
-            boxShadow: getNeoShadow(6)
+            boxShadow: getNeoShadow(6),
+            overflowX: 'hidden'
           }
         }}
       >
-        <DialogTitle sx={{ fontWeight: 800, borderBottom: `2px solid ${theme.palette.divider}` }}>
-          Edit Note (Draft UI)
+        <DialogTitle sx={{ fontWeight: 800, borderBottom: `2px solid ${theme.palette.divider}`, p: 2.5 }}>
+          Edit Info
         </DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 3 }}>
+        <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, p: { xs: 2, sm: 3 } }}>
           <TextField
-            label="Title"
+            label="Name"
             fullWidth
             value={editFormData.name}
             onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
           />
+
           <TextField
             label="Category"
             fullWidth
             value={editFormData.category}
             onChange={(e) => setEditFormData(prev => ({ ...prev, category: e.target.value }))}
           />
-          <TextField
-            label="Content (Markdown)"
-            fullWidth
-            multiline
-            rows={6}
-            value={editFormData.content}
-            onChange={(e) => setEditFormData(prev => ({ ...prev, content: e.target.value }))}
-          />
-          <FormControlLabel
-            control={
-              <Switch
-                checked={editFormData.isTemporary}
-                onChange={(e) => setEditFormData(prev => ({ ...prev, isTemporary: e.target.checked }))}
-              />
-            }
-            label="Temporary note (auto-expires in 30 days)"
-          />
+
+          <FormControl fullWidth>
+            <InputLabel id="edit-importance-label">Importance</InputLabel>
+            <Select
+              labelId="edit-importance-label"
+              value={['High', 'Medium', 'Low'].includes(editFormData.importance) ? editFormData.importance : (editFormData.importance || 'Medium')}
+              label="Importance"
+              onChange={(e) => setEditFormData(prev => ({ ...prev, importance: e.target.value }))}
+            >
+              <MenuItem value="Low">Low</MenuItem>
+              <MenuItem value="Medium">Medium</MenuItem>
+              <MenuItem value="High">High</MenuItem>
+              {editFormData.importance && !['High', 'Medium', 'Low'].includes(editFormData.importance) && (
+                <MenuItem value={editFormData.importance}>{editFormData.importance}</MenuItem>
+              )}
+            </Select>
+          </FormControl>
+
+          <Tooltip title="Temporary notes are automatically deleted after 30 days" arrow placement="top">
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={editFormData.isTemporary}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, isTemporary: e.target.checked }))}
+                  color="warning"
+                />
+              }
+              label="Temporary (auto-deletes after 30 days)"
+              className="cursor-hover-target"
+            />
+          </Tooltip>
+
+          <FormControl fullWidth className="cursor-hover-target">
+            <InputLabel id="edit-content-type-label">Content Type</InputLabel>
+            <Select
+              labelId="edit-content-type-label"
+              value={editFormData.type || 'text'}
+              label="Content Type"
+              onChange={handleEditTypeChange}
+            >
+              <MenuItem value="text" className="cursor-hover-target">Text</MenuItem>
+              <MenuItem value="image" className="cursor-hover-target">Image</MenuItem>
+              <MenuItem value="file" className="cursor-hover-target">File</MenuItem>
+            </Select>
+          </FormControl>
+          
+          {editFormData.type === 'text' && (
+            <MarkdownInput
+              value={editFormData.content}
+              onChange={(val) => setEditFormData(prev => ({ ...prev, content: val }))}
+              placeholder="Edit your content..."
+            />
+          )}
+
+          {(editFormData.type === 'image' || editFormData.type === 'file') && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Button
+                variant="outlined"
+                component="label"
+                fullWidth
+                startIcon={<UploadFileIcon />}
+                className="cursor-hover-target"
+                sx={{
+                  height: '60px',
+                  borderStyle: 'dashed',
+                  borderWidth: '2px',
+                  borderColor: theme.palette.divider,
+                  borderRadius: '10px',
+                  fontWeight: 700,
+                  fontSize: '0.95rem',
+                  '&:hover': {
+                    borderStyle: 'dashed',
+                    borderWidth: '2px',
+                    borderColor: theme.palette.primary.main,
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'
+                  }
+                }}
+              >
+                {editFormData.type === 'image'
+                  ? (newFileData.imageFile 
+                      ? `Selected: ${newFileData.imageFile.name}` 
+                      : (editFormData.imageURL ? "Replace Current Encrypted Image" : "Upload New Image"))
+                  : (newFileData.docFile 
+                      ? `Selected: ${newFileData.docFile.name}` 
+                      : (editFormData.file ? "Replace Current Encrypted Document" : "Upload New File"))}
+                <input
+                  type="file"
+                  hidden
+                  accept={editFormData.type === 'image' ? 'image/*' : '.pdf,.doc,.docx,.txt,.ppt,.pptx,.xlsx'}
+                  onChange={handleFileUpdate}
+                />
+              </Button>
+              {editFormData.type === 'image' && editFormData.imageURL && !newFileData.imageFile && (
+                <Typography variant="caption" color="text.secondary" sx={{ pl: 1 }}>
+                  Current image: {editFormData.imageURL.split('?')[0].split('/').pop()}
+                </Typography>
+              )}
+              {editFormData.type === 'file' && editFormData.file && !newFileData.docFile && (
+                <Typography variant="caption" color="text.secondary" sx={{ pl: 1 }}>
+                  Current attachment: {editFormData.file.split('?')[0].split('/').pop()}
+                </Typography>
+              )}
+            </Box>
+          )}
         </DialogContent>
         <DialogActions sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}`, gap: 1 }}>
           <Button 
-            variant="outlined" 
-            onClick={() => setEditNote(null)}
+            onClick={handleEditClose} 
+            color="error" 
             className="cursor-hover-target"
-            sx={{
-              borderRadius: '8px',
-              border: neoBorderStyle,
-              boxShadow: getNeoShadow(2),
-              transition: 'all 0.1s cubic-bezier(0.25, 0.8, 0.25, 1)',
-              '&:hover': { transform: 'translate(-2px, -2px)', boxShadow: getNeoShadow(3) },
-              '&:active': { transform: 'translate(1px, 1px)', boxShadow: 'none !important' }
-            }}
+            disabled={isSaving}
+            sx={{ fontWeight: 700 }}
           >
             Cancel
           </Button>
           <Button 
             variant="outlined" 
             onClick={handleSaveEdit}
+            disabled={isSaving}
             className="cursor-hover-target"
             sx={{
               borderRadius: '8px',
@@ -1202,16 +1453,24 @@ export default function SplitPaneVault({
               bgcolor: theme.palette.background.paper,
               color: theme.palette.text.primary,
               fontWeight: 700,
+              px: 2.5,
               transition: 'all 0.1s cubic-bezier(0.25, 0.8, 0.25, 1)',
-              '&:hover': { 
-                transform: 'translate(-2px, -2px)', 
-                boxShadow: getNeoShadow(3),
+              '&:hover': {
+                transform: isSaving ? 'none' : 'translate(-2px, -2px)',
+                boxShadow: isSaving ? 'none' : getNeoShadow(3),
                 bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'
               },
               '&:active': { transform: 'translate(1px, 1px)', boxShadow: 'none !important' }
             }}
           >
-            Save Changes
+            {isSaving ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CircularProgress size={18} color="inherit" />
+                <span>Saving...</span>
+              </Box>
+            ) : (
+              'Save Changes'
+            )}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1392,7 +1651,7 @@ export default function SplitPaneVault({
                 startIcon={<ContentCopyIcon fontSize="small" />}
                 onClick={() => {
                   navigator.clipboard.writeText(previewNote.content);
-                  setCopySnack(true);
+                  showSnack('success', 'Note content copied to clipboard!');
                 }}
                 className="cursor-hover-target"
                 sx={{
