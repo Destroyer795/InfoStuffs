@@ -284,16 +284,16 @@ export default function Create({ handleCreate, userKey }) {
               borderWidth: 2,
               borderRadius: 1,
               borderColor: isSubmitting ? theme.palette.action.disabled : theme.palette.primary.main,
-              boxShadow: isSubmitting ? 'none' : `4px 4px 0px ${theme.palette.primary.main}`,
-              transition: 'all 0.2s ease-in-out',
+              boxShadow: 'none',
+              transition: 'all 0.1s ease-in-out',
               '&:hover': {
-                transform: isSubmitting ? 'none' : 'translate(-2px, -2px)',
-                boxShadow: isSubmitting ? 'none' : `6px 6px 0px ${theme.palette.primary.main}`,
+                transform: isSubmitting ? 'none' : 'translate(-1px, -1px)',
+                boxShadow: isSubmitting ? 'none' : `2px 2px 0px ${theme.palette.primary.main}`,
                 borderWidth: 2,
               },
               '&:active': {
-                transform: isSubmitting ? 'none' : 'translate(0, 0)',
-                boxShadow: isSubmitting ? 'none' : `2px 2px 0px ${theme.palette.primary.main}`,
+                transform: isSubmitting ? 'none' : 'translate(1px, 1px) !important',
+                boxShadow: 'none !important',
               },
               '&.Mui-disabled': {
                 borderWidth: 2,

@@ -114,13 +114,17 @@ export default function Signup() {
     fontSize: '1rem',
     borderWidth: 2,
     borderRadius: 1,
-    boxShadow: `3px 3px 0px ${theme.palette.primary.main}`,
+    boxShadow: 'none',
     transition: 'all 0.1s ease-in-out',
     '&:hover': {
-      transform: 'translate(-2px, -2px)',
-      boxShadow: `5px 5px 0px ${theme.palette.primary.main}`,
+      transform: 'translate(-1px, -1px)',
+      boxShadow: `2px 2px 0px ${theme.palette.primary.main}`,
       borderWidth: 2,
     },
+    '&:active': {
+      transform: 'translate(1px, 1px) !important',
+      boxShadow: 'none !important',
+    }
   };
 
   const socialButtonStyles = {
