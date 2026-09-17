@@ -28,7 +28,7 @@ import WifiOffIcon from '@mui/icons-material/WifiOff';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-import { getOfflineNotes } from '../utils/localStore';
+import { getOfflineNotes, getOfflineSalt } from '../utils/localStore';
 import { decryptText } from '../utils/encryption';
 import EncryptionWorker from '../utils/worker?worker';
 
@@ -56,14 +56,25 @@ const OfflineVault = () => {
 
   const handleUnlock = async (e) => {
     e.preventDefault();
-    if (!password || cachedNotes.length === 0) return;
+    if (!password) return;
+    if (cachedNotes.length === 0) {
+      setError("No cached notes found in offline storage. Please connect online and unlock your vault once to sync notes locally.");
+      return;
+    }
 
     setIsUnlocking(true);
     setError('');
 
-    // Fetch the salt from the first note
+    // Fetch the salt from metadata store or fallback to first note
+    const storedSalt = await getOfflineSalt();
     const firstNote = cachedNotes[0];
-    const salt = firstNote.userId;
+    const salt = storedSalt || (firstNote && firstNote.userId) || null;
+
+    if (!salt) {
+      setError('No offline user salt found. Please connect online to synchronize your vault credentials.');
+      setIsUnlocking(false);
+      return;
+    }
 
     // Use Web Worker to derive the key
     const worker = new EncryptionWorker();
