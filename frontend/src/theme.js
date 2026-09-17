@@ -61,6 +61,26 @@ const getDesignTokens = (mode) => {
             background-color: ${bgColor};
             transition: background-color 0.3s ease;
           }
+          /* Seamless themed scrollbars across the application */
+          * {
+            scrollbar-width: thin;
+            scrollbar-color: ${isDark ? 'rgba(255, 255, 255, 0.2) transparent' : 'rgba(0, 0, 0, 0.2) transparent'};
+          }
+          *::-webkit-scrollbar {
+            width: 7px;
+            height: 7px;
+          }
+          *::-webkit-scrollbar-track {
+            background: transparent;
+          }
+          *::-webkit-scrollbar-thumb {
+            background-color: ${isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)'};
+            border-radius: 8px;
+            transition: background-color 0.2s ease;
+          }
+          *::-webkit-scrollbar-thumb:hover {
+            background-color: ${isDark ? 'rgba(255, 255, 255, 0.38)' : 'rgba(0, 0, 0, 0.38)'};
+          }
           @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }

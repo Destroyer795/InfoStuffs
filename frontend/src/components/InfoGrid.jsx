@@ -573,6 +573,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
                     sx={{ 
                       borderRadius: '6px', 
                       fontWeight: 600,
+                      textTransform: 'capitalize',
                       maxWidth: 'calc(50% - 4px)',
                     }} 
                   />

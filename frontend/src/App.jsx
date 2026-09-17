@@ -44,6 +44,7 @@ import config from './config';
 import { saveOfflineNotes, getOfflineNotes } from './utils/localStore';
 
 const InfoGrid = lazy(() => import('./components/InfoGrid.jsx'));
+const SplitPaneVault = lazy(() => import('./components/SplitPaneVault.jsx'));
 const Create = lazy(() => import('./pages/Create.jsx'));
 const UpdateProf = lazy(() => import('./pages/UpdateProf.jsx').then(module => ({ default: module.UpdateProf })));
 
@@ -541,7 +542,7 @@ const App = () => {
 
       <Router>
         <AppContent
-          infos={filteredInfos}
+          infos={infos}
           handleUpdate={handleUpdate}
           handleDelete={handleDelete}
           handleCreate={handleCreate}
@@ -598,15 +599,13 @@ function AppContent({
             element={
               <ProtectedRoute>
                 {isVaultUnlocked && (
-                  <InfoGrid
+                  <SplitPaneVault
                     infos={infos}
                     onUpdate={handleUpdate}
                     onDelete={handleDelete}
-                    error={error}
-                    isLoading={isLoading}
+                    userKey={userKey}
                     searchQuery={searchQuery}
                     setSearchQuery={setSearchQuery}
-                    userKey={userKey}
                   />
                 )}
               </ProtectedRoute>
