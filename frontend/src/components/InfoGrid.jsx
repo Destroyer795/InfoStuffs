@@ -23,7 +23,8 @@ import {
   FormControlLabel,
   Switch,
   Tooltip,
-  CircularProgress
+  CircularProgress,
+  Stack
 } from '@mui/material';
 import EditSquareIcon from '@mui/icons-material/EditSquare';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -34,6 +35,7 @@ import { uploadToSupabase, deleteFromSupabase, getDecryptedFileUrl, createOpaque
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import MarkdownInput from './MarkdownInput';
+import { formatExpirationLabel } from '../utils/snippet';
 
 const SecureImagePreview = ({ path, userKey, alt, sx, height, showDownload }) => {
   const [url, setUrl] = useState(null);
@@ -250,7 +252,8 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
     type: '',
     imageURL: '',
     file: '',
-    isTemporary: false
+    isTemporary: false,
+    retentionDays: 30
   });
   const [newFileData, setNewFileData] = useState({
     imageFile: null,
@@ -336,6 +339,14 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
 
   const handleEditOpen = (info) => {
     setEditInfo(info);
+    let initialRetentionDays = 30;
+    if (info.expiresAt) {
+      const diffDays = Math.round((new Date(info.expiresAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+      if (diffDays <= 2) initialRetentionDays = 1;
+      else if (diffDays <= 14) initialRetentionDays = 7;
+      else if (diffDays <= 45) initialRetentionDays = 30;
+      else initialRetentionDays = 90;
+    }
     setFormData({
       name: info.name,
       category: info.category,
@@ -344,7 +355,9 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
       type: info.type,
       imageURL: info.imageURL || '',
       file: info.file || '',
-      isTemporary: info.isTemporary || false
+      isTemporary: info.isTemporary || false,
+      retentionDays: initialRetentionDays,
+      _initialRetentionDays: initialRetentionDays
     });
     setNewFileData({ imageFile: null, docFile: null });
   };
@@ -366,13 +379,17 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
   const handleSave = async () => {
     if (!onUpdate || !editInfo) return;
 
+    const isTempChanged = (formData.isTemporary || false) !== (editInfo.isTemporary || false);
+    const isRetentionChanged = formData.isTemporary && (formData.retentionDays !== formData._initialRetentionDays);
+
     const noChanges = 
       formData.name === editInfo.name &&
       formData.category === editInfo.category &&
       formData.importance === editInfo.importance &&
       formData.content === editInfo.content &&
       formData.type === editInfo.type &&
-      (formData.isTemporary || false) === (editInfo.isTemporary || false);
+      !isTempChanged &&
+      !isRetentionChanged;
       
     const hasNewFiles = newFileData.imageFile !== null || newFileData.docFile !== null;
     
@@ -384,16 +401,27 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
 
     try {
       const { imageURL, file } = await handleFileSubmit();
-      const updatedData = { ...formData, imageURL, file };
+
+      let expiresAt = null;
+      if (formData.isTemporary) {
+        if (!isRetentionChanged && editInfo.expiresAt) {
+          expiresAt = editInfo.expiresAt;
+        } else {
+          expiresAt = new Date(Date.now() + (Number(formData.retentionDays) || 30) * 24 * 60 * 60 * 1000).toISOString();
+        }
+      }
+
+      const { _initialRetentionDays, ...cleanedFormData } = formData;
+      const updatedData = { ...cleanedFormData, imageURL, file, expiresAt };
       await onUpdate(editInfo._id, updatedData);
 
       if (selectedInfo && selectedInfo._id === editInfo._id) {
         setSelectedInfo({ ...editInfo, ...updatedData });
       }
-      showSnack("success", "Card updated successfully")
+      showSnack("success", "Card updated successfully");
       handleEditClose();
     } catch (error) {
-      showSnack("error", "Card update failed: " + error.message)
+      showSnack("error", "Card update failed: " + error.message);
     }
   };
   
@@ -534,19 +562,21 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
                   }} 
                 />
                 {info.isTemporary && (
-                  <Chip 
-                    label="TEMP" 
-                    size="small"
-                    sx={{ 
-                      position: 'absolute', 
-                      top: 10, 
-                      left: 10, 
-                      fontWeight: 'bold',
-                      backgroundColor: '#ff9800',
-                      border: '2px solid #000',
-                      color: '#000'
-                    }} 
-                  />
+                  <Tooltip title={formatExpirationLabel(info.expiresAt, info.createdAt)} arrow placement="top">
+                    <Chip 
+                      label={formatExpirationLabel(info.expiresAt, info.createdAt)} 
+                      size="small"
+                      sx={{ 
+                        position: 'absolute', 
+                        top: 10, 
+                        left: 10, 
+                        fontWeight: 'bold',
+                        backgroundColor: '#ff9800',
+                        border: '2px solid #000',
+                        color: '#000'
+                      }} 
+                    />
+                  </Tooltip>
                 )}
               </Box>
 
@@ -720,6 +750,22 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
           >
             {selectedInfo?.name}
           </Typography>
+          {selectedInfo?.isTemporary && (
+            <Box sx={{ mt: 1 }}>
+              <Tooltip title={formatExpirationLabel(selectedInfo?.expiresAt, selectedInfo?.createdAt)} arrow placement="top">
+                <Chip 
+                  label={formatExpirationLabel(selectedInfo?.expiresAt, selectedInfo?.createdAt)} 
+                  size="small"
+                  sx={{ 
+                    fontWeight: 800,
+                    backgroundColor: '#ff9800',
+                    border: '1px solid #000',
+                    color: '#000'
+                  }} 
+                />
+              </Tooltip>
+            </Box>
+          )}
         </DialogTitle>
         <DialogContent sx={{ p: { xs: 2, sm: 4 }, wordBreak: 'break-word' }}>
           {selectedInfo?.type === 'text' && (
@@ -815,7 +861,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
             value={formData.importance}
             onChange={(e) => setFormData(prev => ({ ...prev, importance: e.target.value }))}
           />
-          <Tooltip title="Temporary notes are automatically deleted after 30 days" arrow placement="top">
+          <Box sx={{ p: 1.5, borderRadius: '8px', border: `1px solid ${theme.palette.divider}`, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }}>
             <FormControlLabel
               control={
                 <Switch
@@ -824,10 +870,51 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
                   color="warning"
                 />
               }
-              label="Temporary (auto-deletes after 30 days)"
+              label={
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  Temporary Note (Auto-Deletes)
+                </Typography>
+              }
               className="cursor-hover-target"
             />
-          </Tooltip>
+            {formData.isTemporary && (
+              <Box sx={{ mt: 1.5, pl: 0.5 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 600 }}>
+                  Expires in:
+                </Typography>
+                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
+                  {[
+                    { label: '24 Hours', days: 1 },
+                    { label: '7 Days', days: 7 },
+                    { label: '30 Days', days: 30 },
+                    { label: '90 Days', days: 90 },
+                  ].map((opt) => {
+                    const isSelected = (formData.retentionDays || 30) === opt.days;
+                    return (
+                      <Chip
+                        key={opt.days}
+                        label={opt.label}
+                        onClick={() => setFormData(prev => ({ ...prev, retentionDays: opt.days }))}
+                        variant={isSelected ? "filled" : "outlined"}
+                        color={isSelected ? "warning" : "default"}
+                        className="cursor-hover-target"
+                        sx={{
+                          fontWeight: isSelected ? 700 : 500,
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          borderWidth: isSelected ? '2px' : '1px',
+                          transition: 'all 0.1s ease-in-out',
+                          '&:hover': {
+                            transform: 'translate(-1px, -1px)',
+                          }
+                        }}
+                      />
+                    );
+                  })}
+                </Stack>
+              </Box>
+            )}
+          </Box>
           <FormControl fullWidth className="cursor-hover-target">
             <InputLabel>Content Type</InputLabel>
             <Select

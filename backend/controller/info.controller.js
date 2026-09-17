@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import Info from '../models/info.model.js';
 
 const pickAllowedInfoFields = (body) => {
-  const allowedFields = ['name', 'content', 'category', 'importance', 'type', 'file', 'imageURL', 'isTemporary'];
+  const allowedFields = ['name', 'content', 'category', 'importance', 'type', 'file', 'imageURL', 'isTemporary', 'expiresAt'];
   return allowedFields.reduce((accumulator, field) => {
     if (body[field] !== undefined) {
       accumulator[field] = body[field];

@@ -33,6 +33,7 @@ export default function Create({ handleCreate, userKey }) {
     imageFile: null,
     docFile: null,
     isTemporary: false,
+    retentionDays: 30,
   });
 
   const [snack, setSnack] = useState({
@@ -76,7 +77,7 @@ export default function Create({ handleCreate, userKey }) {
     setIsSubmitting(true);
 
     if (!userId || !userKey) {
-      showSnack("error", "You must be signed in and vault unleashed.");
+      showSnack("error", "Encryption key or user session missing. Unlock vault first.");
       setIsSubmitting(false);
       return;
     }
@@ -87,6 +88,9 @@ export default function Create({ handleCreate, userKey }) {
       importance: formData.importance,
       type: formData.type,
       isTemporary: formData.isTemporary,
+      expiresAt: formData.isTemporary 
+        ? new Date(Date.now() + Number(formData.retentionDays || 30) * 24 * 60 * 60 * 1000).toISOString()
+        : null,
     };
 
     try {
@@ -205,7 +209,7 @@ export default function Create({ handleCreate, userKey }) {
             />
           </Stack>
 
-          <Tooltip title="Temporary notes are automatically deleted after 30 days" arrow placement="top">
+          <Box sx={{ p: 1.5, borderRadius: '8px', border: `1px solid ${theme.palette.divider}`, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }}>
             <FormControlLabel
               control={
                 <Switch
@@ -214,10 +218,51 @@ export default function Create({ handleCreate, userKey }) {
                   color="warning"
                 />
               }
-              label="Temporary (auto-deletes after 30 days)"
+              label={
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  Temporary Note (Auto-Deletes)
+                </Typography>
+              }
               className="cursor-hover-target"
             />
-          </Tooltip>
+            {formData.isTemporary && (
+              <Box sx={{ mt: 1.5, pl: 0.5 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 600 }}>
+                  Expires in:
+                </Typography>
+                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
+                  {[
+                    { label: '24 Hours', days: 1 },
+                    { label: '7 Days', days: 7 },
+                    { label: '30 Days', days: 30 },
+                    { label: '90 Days', days: 90 },
+                  ].map((opt) => {
+                    const isSelected = (formData.retentionDays || 30) === opt.days;
+                    return (
+                      <Chip
+                        key={opt.days}
+                        label={opt.label}
+                        onClick={() => setFormData(prev => ({ ...prev, retentionDays: opt.days }))}
+                        variant={isSelected ? "filled" : "outlined"}
+                        color={isSelected ? "warning" : "default"}
+                        className="cursor-hover-target"
+                        sx={{
+                          fontWeight: isSelected ? 700 : 500,
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          borderWidth: isSelected ? '2px' : '1px',
+                          transition: 'all 0.1s ease-in-out',
+                          '&:hover': {
+                            transform: 'translate(-1px, -1px)',
+                          }
+                        }}
+                      />
+                    );
+                  })}
+                </Stack>
+              </Box>
+            )}
+          </Box>
 
           <FormControl fullWidth className="cursor-hover-target">
             <InputLabel>Type</InputLabel>

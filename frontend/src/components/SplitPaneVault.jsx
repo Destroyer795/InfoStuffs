@@ -30,7 +30,7 @@ import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { generateCleanSnippet } from '../utils/snippet';
+import { generateCleanSnippet, formatExpirationLabel } from '../utils/snippet';
 import { 
   uploadToSupabase, 
   deleteFromSupabase, 
@@ -359,7 +359,8 @@ export default function SplitPaneVault({
     type: 'text',
     imageURL: '',
     file: '',
-    isTemporary: false
+    isTemporary: false,
+    retentionDays: 30
   });
   const [newFileData, setNewFileData] = useState({
     imageFile: null,
@@ -469,6 +470,14 @@ export default function SplitPaneVault({
 
   const handleOpenEdit = (note) => {
     setEditNote(note);
+    let initialRetentionDays = 30;
+    if (note.expiresAt) {
+      const diffDays = Math.round((new Date(note.expiresAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+      if (diffDays <= 2) initialRetentionDays = 1;
+      else if (diffDays <= 14) initialRetentionDays = 7;
+      else if (diffDays <= 45) initialRetentionDays = 30;
+      else initialRetentionDays = 90;
+    }
     setEditFormData({
       name: note.name || '',
       category: note.category || '',
@@ -477,7 +486,9 @@ export default function SplitPaneVault({
       type: note.type || 'text',
       imageURL: note.imageURL || '',
       file: note.file || '',
-      isTemporary: !!note.isTemporary
+      isTemporary: !!note.isTemporary,
+      retentionDays: initialRetentionDays,
+      _initialRetentionDays: initialRetentionDays
     });
     setNewFileData({ imageFile: null, docFile: null });
   };
@@ -499,13 +510,17 @@ export default function SplitPaneVault({
   const handleSaveEdit = async () => {
     if (!onUpdate || !editNote) return;
 
+    const isTempChanged = (editFormData.isTemporary || false) !== (editNote.isTemporary || false);
+    const isRetentionChanged = editFormData.isTemporary && (editFormData.retentionDays !== editFormData._initialRetentionDays);
+
     const noChanges = 
       editFormData.name === editNote.name &&
       editFormData.category === editNote.category &&
       editFormData.importance === editNote.importance &&
       editFormData.content === editNote.content &&
       editFormData.type === editNote.type &&
-      (editFormData.isTemporary || false) === (editNote.isTemporary || false);
+      !isTempChanged &&
+      !isRetentionChanged;
       
     const hasNewFiles = newFileData.imageFile !== null || newFileData.docFile !== null;
     
@@ -518,7 +533,18 @@ export default function SplitPaneVault({
     try {
       setIsSaving(true);
       const { imageURL, file } = await handleFileSubmit();
-      const updatedData = { ...editFormData, imageURL, file };
+      
+      let expiresAt = null;
+      if (editFormData.isTemporary) {
+        if (!isRetentionChanged && editNote.expiresAt) {
+          expiresAt = editNote.expiresAt;
+        } else {
+          expiresAt = new Date(Date.now() + (Number(editFormData.retentionDays) || 30) * 24 * 60 * 60 * 1000).toISOString();
+        }
+      }
+
+      const { _initialRetentionDays, ...cleanedFormData } = editFormData;
+      const updatedData = { ...cleanedFormData, imageURL, file, expiresAt };
       await onUpdate(editNote._id, updatedData);
 
       if (previewNote && previewNote._id === editNote._id) {
@@ -899,19 +925,21 @@ export default function SplitPaneVault({
                         }}
                       />
                       {note.isTemporary && (
-                        <Chip
-                          label="TEMP"
-                          size="small"
-                          sx={{
-                            height: '20px',
-                            fontSize: '0.65rem',
-                            fontWeight: 800,
-                            borderRadius: '4px',
-                            bgcolor: '#ff9800',
-                            color: '#000',
-                            border: '1px solid #000'
-                          }}
-                        />
+                        <Tooltip title={formatExpirationLabel(note.expiresAt, note.createdAt)} arrow placement="top">
+                          <Chip
+                            label={formatExpirationLabel(note.expiresAt, note.createdAt)}
+                            size="small"
+                            sx={{
+                              height: '20px',
+                              fontSize: '0.65rem',
+                              fontWeight: 800,
+                              borderRadius: '4px',
+                              bgcolor: '#ff9800',
+                              color: '#000',
+                              border: '1px solid #000'
+                            }}
+                          />
+                        </Tooltip>
                       )}
                     </Box>
                   </Paper>
@@ -1015,6 +1043,22 @@ export default function SplitPaneVault({
                           ...getImportanceColor(activeNote.importance, theme)
                         }} 
                       />
+                      {activeNote.isTemporary && (
+                        <Tooltip title={formatExpirationLabel(activeNote.expiresAt, activeNote.createdAt)} arrow placement="top">
+                          <Chip 
+                            label={formatExpirationLabel(activeNote.expiresAt, activeNote.createdAt)} 
+                            size="small" 
+                            sx={{ 
+                              height: 22, 
+                              fontWeight: 800, 
+                              borderRadius: '4px',
+                              bgcolor: '#ff9800',
+                              color: '#000',
+                              border: '1px solid #000'
+                            }} 
+                          />
+                        </Tooltip>
+                      )}
                       <Tooltip title={formatFullDateTime(activeNote.updatedAt || activeNote.createdAt)} arrow placement="top">
                         <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, cursor: 'default' }}>
                           <AccessTimeIcon sx={{ fontSize: 13 }} />
@@ -1376,7 +1420,7 @@ export default function SplitPaneVault({
             </Select>
           </FormControl>
 
-          <Tooltip title="Temporary notes are automatically deleted after 30 days" arrow placement="top">
+          <Box sx={{ p: 1.5, borderRadius: '8px', border: `1px solid ${theme.palette.divider}`, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }}>
             <FormControlLabel
               control={
                 <Switch
@@ -1385,10 +1429,51 @@ export default function SplitPaneVault({
                   color="warning"
                 />
               }
-              label="Temporary (auto-deletes after 30 days)"
+              label={
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  Temporary Note (Auto-Deletes)
+                </Typography>
+              }
               className="cursor-hover-target"
             />
-          </Tooltip>
+            {editFormData.isTemporary && (
+              <Box sx={{ mt: 1.5, pl: 0.5 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 600 }}>
+                  Expires in:
+                </Typography>
+                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
+                  {[
+                    { label: '24 Hours', days: 1 },
+                    { label: '7 Days', days: 7 },
+                    { label: '30 Days', days: 30 },
+                    { label: '90 Days', days: 90 },
+                  ].map((opt) => {
+                    const isSelected = (editFormData.retentionDays || 30) === opt.days;
+                    return (
+                      <Chip
+                        key={opt.days}
+                        label={opt.label}
+                        onClick={() => setEditFormData(prev => ({ ...prev, retentionDays: opt.days }))}
+                        variant={isSelected ? "filled" : "outlined"}
+                        color={isSelected ? "warning" : "default"}
+                        className="cursor-hover-target"
+                        sx={{
+                          fontWeight: isSelected ? 700 : 500,
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          borderWidth: isSelected ? '2px' : '1px',
+                          transition: 'all 0.1s ease-in-out',
+                          '&:hover': {
+                            transform: 'translate(-1px, -1px)',
+                          }
+                        }}
+                      />
+                    );
+                  })}
+                </Stack>
+              </Box>
+            )}
+          </Box>
 
           <FormControl fullWidth className="cursor-hover-target">
             <InputLabel id="edit-content-type-label">Content Type</InputLabel>
@@ -1580,19 +1665,21 @@ export default function SplitPaneVault({
                 }}
               />
               {previewNote?.isTemporary && (
-                <Chip
-                  label="TEMP"
-                  size="small"
-                  sx={{
-                    height: 22,
-                    fontSize: '0.65rem',
-                    fontWeight: 800,
-                    borderRadius: '4px',
-                    bgcolor: '#ff9800',
-                    color: '#000',
-                    border: '1px solid #000'
-                  }}
-                />
+                <Tooltip title={formatExpirationLabel(previewNote?.expiresAt, previewNote?.createdAt)} arrow placement="top">
+                  <Chip
+                    label={formatExpirationLabel(previewNote?.expiresAt, previewNote?.createdAt)}
+                    size="small"
+                    sx={{
+                      height: 22,
+                      fontSize: '0.65rem',
+                      fontWeight: 800,
+                      borderRadius: '4px',
+                      bgcolor: '#ff9800',
+                      color: '#000',
+                      border: '1px solid #000'
+                    }}
+                  />
+                </Tooltip>
               )}
               <Tooltip title={formatFullDateTime(previewNote?.updatedAt || previewNote?.createdAt)} arrow placement="top">
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, cursor: 'default' }}>

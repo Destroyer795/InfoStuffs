@@ -29,11 +29,14 @@ export default async function handler(req, res) {
   try {
     await connectDB();
     
-    // Logic: Delete notes older than 30 days marked as temporary
+    // Logic: Delete expired notes and legacy temporary notes older than 30 days
+    const now = new Date();
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const result = await Info.deleteMany({ 
-      createdAt: { $lt: thirtyDaysAgo },
-      isTemporary: true 
+    const result = await Info.deleteMany({
+      $or: [
+        { expiresAt: { $ne: null, $lte: now } },
+        { isTemporary: true, expiresAt: null, createdAt: { $lt: thirtyDaysAgo } }
+      ]
     });
 
     console.log(`Cron execution successful. Scrubbed ${result.deletedCount} records.`);

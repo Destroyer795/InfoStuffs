@@ -34,10 +34,17 @@ const infoSchema = new mongoose.Schema({
   isTemporary: {
     type: Boolean,
     default: false,
+  },
+  expiresAt: {
+    type: Date,
+    default: null,
   }
 }, {
   timestamps: true,
 });
+
+// MongoDB TTL Index: automatically purge documents when expiresAt timestamp is reached
+infoSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 const Info = mongoose.model('Info', infoSchema);
 export default Info;

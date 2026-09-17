@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import mongoose from "mongoose";
 import rateLimit from "express-rate-limit";
 import { connectDB } from "../config/db.js";
+import Info from "../models/info.model.js";
 import infoRoutes from "../routes/info.route.js";
 import { fileURLToPath } from 'url';
 
@@ -102,12 +103,42 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Automated Expired Note Cleanup (scrubs user-expired and legacy 30d temporary notes)
+export const runNoteCleanup = async () => {
+  try {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const result = await Info.deleteMany({
+      $or: [
+        { expiresAt: { $ne: null, $lte: now } },
+        { isTemporary: true, expiresAt: null, createdAt: { $lt: thirtyDaysAgo } }
+      ]
+    });
+    if (result.deletedCount > 0) {
+      console.log(`[Auto-Cleanup] Scrubbed ${result.deletedCount} expired temporary notes.`);
+    }
+    return result.deletedCount;
+  } catch (err) {
+    console.error("[Auto-Cleanup] Error during note cleanup:", err.message);
+    return 0;
+  }
+};
+
 // Local / Docker server
 if (!process.env.VERCEL || process.argv[1] === fileURLToPath(import.meta.url)) {
   const PORT = process.env.PORT || 5000;
   const server = app.listen(PORT, '0.0.0.0', () => {
-    connectDB().catch(err => console.error("Initial DB Connection Warning:", err.message));
+    connectDB()
+      .then(() => {
+        runNoteCleanup();
+      })
+      .catch(err => console.error("Initial DB Connection Warning:", err.message));
+
     console.log(`Server running on port ${PORT}`);
+
+    // Schedule background cleanup every 1 hour (unref so process can exit cleanly)
+    const cleanupInterval = setInterval(runNoteCleanup, 60 * 60 * 1000);
+    if (cleanupInterval.unref) cleanupInterval.unref();
   });
 
   // Graceful shutdown handling

@@ -50,3 +50,42 @@ export const generateCleanSnippet = (rawMarkdown, length = 120) => {
 
   return `${cleanTruncated.trim()}...`;
 };
+
+/**
+ * Returns a human-friendly expiration countdown label for temporary notes.
+ *
+ * @param {string|Date} expiresAt - Target expiration timestamp.
+ * @param {string|Date} createdAt - Fallback creation timestamp for legacy notes.
+ * @returns {string} Humanized countdown string, e.g. "Expires in 3 days".
+ */
+export const formatExpirationLabel = (expiresAt, createdAt) => {
+  let targetDate = expiresAt ? new Date(expiresAt) : null;
+
+  // Fallback for legacy temporary notes created before expiresAt was introduced (30-day default)
+  if (!targetDate && createdAt) {
+    targetDate = new Date(new Date(createdAt).getTime() + 30 * 24 * 60 * 60 * 1000);
+  }
+
+  if (!targetDate || isNaN(targetDate.getTime())) {
+    return 'Temporary note';
+  }
+
+  const diffMs = targetDate.getTime() - Date.now();
+  if (diffMs <= 0) {
+    return 'Expired (pending cleanup)';
+  }
+
+  const hours = Math.ceil(diffMs / (1000 * 60 * 60));
+  if (hours < 1) {
+    return 'Expires in < 1 hr';
+  }
+  if (hours < 24) {
+    return `Expires in ${hours}h`;
+  }
+
+  const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  if (days === 1) {
+    return 'Expires tomorrow';
+  }
+  return `Expires in ${days} days`;
+};
