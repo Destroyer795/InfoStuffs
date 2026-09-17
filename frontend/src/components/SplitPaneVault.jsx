@@ -1466,24 +1466,26 @@ export default function SplitPaneVault({
         <DialogActions sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}`, gap: 1 }}>
           <Button 
             onClick={handleEditClose} 
-            color="error" 
+            variant="outlined"
             className="cursor-hover-target"
             disabled={isSaving}
             sx={{
               fontWeight: 700,
               borderRadius: '8px',
-              border: '2px solid transparent',
+              border: '2px solid #d32f2f !important',
+              color: '#d32f2f',
+              bgcolor: theme.palette.background.paper,
               boxShadow: 'none',
               transition: 'all 0.1s ease-in-out',
               '&:hover': {
                 bgcolor: 'rgba(211, 47, 47, 0.08)',
-                border: '2px solid #d32f2f',
+                border: '2px solid #d32f2f !important',
                 boxShadow: '2px 2px 0px #d32f2f',
                 transform: 'translate(-1px, -1px)'
               },
               '&:active': {
                 boxShadow: 'none !important',
-                transform: 'translate(1px, 1px)'
+                transform: 'translate(1px, 1px) !important'
               }
             }}
           >
@@ -1508,7 +1510,7 @@ export default function SplitPaneVault({
                 boxShadow: isSaving ? 'none' : `2px 2px 0px ${theme.palette.text.primary}`,
                 bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'
               },
-              '&:active': { transform: 'translate(1px, 1px)', boxShadow: 'none !important' }
+              '&:active': { transform: 'translate(1px, 1px) !important', boxShadow: 'none !important' }
             }}
           >
             {isSaving ? (

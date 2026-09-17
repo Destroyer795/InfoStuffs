@@ -867,7 +867,31 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
           )}
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={handleEditClose} color="error" className="cursor-hover-target">Cancel</Button>
+          <Button 
+            onClick={handleEditClose} 
+            variant="outlined" 
+            className="cursor-hover-target"
+            sx={{
+              fontWeight: 700,
+              borderRadius: '8px',
+              border: '2px solid #d32f2f !important',
+              color: '#d32f2f',
+              boxShadow: 'none',
+              transition: 'all 0.1s ease-in-out',
+              '&:hover': {
+                border: '2px solid #d32f2f !important',
+                bgcolor: 'rgba(211, 47, 47, 0.08)',
+                boxShadow: '2px 2px 0px #d32f2f !important',
+                transform: 'translate(-1px, -1px)'
+              },
+              '&:active': {
+                boxShadow: 'none !important',
+                transform: 'translate(1px, 1px) !important'
+              }
+            }}
+          >
+            Cancel
+          </Button>
           <Button 
             variant="outlined" 
             onClick={handleSave}

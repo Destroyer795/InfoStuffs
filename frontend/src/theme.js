@@ -95,17 +95,17 @@ const getDesignTokens = (mode) => {
         styleOverrides: {
           root: {
             border: `2px solid ${borderColor}`,
-            boxShadow: getShadow(shadowColor),
-            transition: 'all 0.1s cubic-bezier(0.25, 0.8, 0.25, 1)',
+            boxShadow: 'none',
+            transition: 'all 0.1s ease-in-out',
             transform: 'translate(0, 0)',
             '&:hover': {
               backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
-              boxShadow: getHoverShadow(shadowColor),
-              transform: 'translate(-2px, -2px)',
+              boxShadow: `2px 2px 0px ${shadowColor}`,
+              transform: 'translate(-1px, -1px)',
             },
             '&:active': {
               boxShadow: 'none !important',
-              transform: 'translate(4px, 4px) !important',
+              transform: 'translate(1px, 1px) !important',
             },
           },
 
