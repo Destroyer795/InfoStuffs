@@ -56,6 +56,7 @@ import OpenInFullIcon from '@mui/icons-material/OpenInFull';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 
 const SecureImagePreview = ({ path, userKey, alt, sx }) => {
+  const theme = useTheme();
   const [url, setUrl] = useState(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
@@ -130,8 +131,20 @@ const SecureImagePreview = ({ path, userKey, alt, sx }) => {
         className="cursor-hover-target"
         sx={{
           borderRadius: '8px',
-          borderWidth: 2,
-          '&:hover': { borderWidth: 2 }
+          border: `2px solid ${theme.palette.text.primary}`,
+          boxShadow: 'none',
+          bgcolor: theme.palette.background.paper,
+          color: theme.palette.text.primary,
+          transition: 'all 0.1s ease-in-out',
+          '&:hover': {
+            boxShadow: `2px 2px 0px ${theme.palette.text.primary}`,
+            transform: 'translate(-1px, -1px)',
+            bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'
+          },
+          '&:active': {
+            boxShadow: 'none !important',
+            transform: 'translate(1px, 1px)'
+          }
         }}
       >
         Download Image
@@ -141,6 +154,7 @@ const SecureImagePreview = ({ path, userKey, alt, sx }) => {
 };
 
 const SecureFilePreview = ({ path, userKey }) => {
+  const theme = useTheme();
   const [url, setUrl] = useState(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
@@ -213,8 +227,20 @@ const SecureFilePreview = ({ path, userKey }) => {
         className="cursor-hover-target"
         sx={{
           borderRadius: '8px',
-          borderWidth: 2,
-          '&:hover': { borderWidth: 2 }
+          border: `2px solid ${theme.palette.text.primary}`,
+          boxShadow: 'none',
+          bgcolor: theme.palette.background.paper,
+          color: theme.palette.text.primary,
+          transition: 'all 0.1s ease-in-out',
+          '&:hover': {
+            boxShadow: `2px 2px 0px ${theme.palette.text.primary}`,
+            transform: 'translate(-1px, -1px)',
+            bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'
+          },
+          '&:active': {
+            boxShadow: 'none !important',
+            transform: 'translate(1px, 1px)'
+          }
         }}
       >
         Download {path.toLowerCase().includes('.pdf') ? 'PDF' : 'Document'}
@@ -615,21 +641,21 @@ export default function SplitPaneVault({
                   height: '40px',
                   p: 0,
                   borderRadius: '8px',
-                  border: neoBorderStyle,
-                  boxShadow: getNeoShadow(2),
+                  border: `2px solid ${theme.palette.text.primary}`,
+                  boxShadow: 'none',
                   bgcolor: theme.palette.background.paper,
                   color: theme.palette.text.primary,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  transition: 'all 0.1s cubic-bezier(0.25, 0.8, 0.25, 1)',
+                  transition: 'all 0.1s ease-in-out',
                   '&:hover': {
-                    transform: 'translate(-2px, -2px)',
-                    boxShadow: getNeoShadow(4),
+                    transform: 'translate(-1px, -1px)',
+                    boxShadow: `2px 2px 0px ${theme.palette.text.primary}`,
                     bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
                   },
                   '&:active': {
-                    transform: 'translate(2px, 2px)',
+                    transform: 'translate(1px, 1px)',
                     boxShadow: 'none !important',
                   }
                 }}
@@ -937,17 +963,20 @@ export default function SplitPaneVault({
                       className="cursor-hover-target"
                       sx={{
                         borderRadius: '8px',
-                        border: neoBorderStyle,
+                        border: `2px solid ${theme.palette.text.primary}`,
                         fontWeight: 700,
                         whiteSpace: 'nowrap',
-                        boxShadow: getNeoShadow(2),
-                        transition: 'all 0.1s cubic-bezier(0.25, 0.8, 0.25, 1)',
+                        boxShadow: 'none',
+                        bgcolor: theme.palette.background.paper,
+                        color: theme.palette.text.primary,
+                        transition: 'all 0.1s ease-in-out',
                         '&:hover': {
-                          transform: 'translate(-2px, -2px)',
-                          boxShadow: getNeoShadow(3)
+                          transform: 'translate(-1px, -1px)',
+                          boxShadow: `2px 2px 0px ${theme.palette.text.primary}`,
+                          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'
                         },
                         '&:active': {
-                          transform: 'translate(2px, 2px)',
+                          transform: 'translate(1px, 1px)',
                           boxShadow: 'none !important'
                         }
                       }}
@@ -1004,15 +1033,16 @@ export default function SplitPaneVault({
                       onClick={() => setPreviewNote(activeNote)}
                       className="cursor-hover-target"
                       sx={{
-                        border: neoBorderStyle,
+                        border: `2px solid ${theme.palette.text.primary}`,
                         borderRadius: '8px',
                         p: 0.8,
-                        boxShadow: getNeoShadow(2),
+                        boxShadow: 'none',
                         bgcolor: theme.palette.background.paper,
-                        transition: 'all 0.1s cubic-bezier(0.25, 0.8, 0.25, 1)',
+                        color: theme.palette.text.primary,
+                        transition: 'all 0.1s ease-in-out',
                         '&:hover': { 
-                          transform: 'translate(-2px, -2px)',
-                          boxShadow: getNeoShadow(3),
+                          transform: 'translate(-1px, -1px)',
+                          boxShadow: `2px 2px 0px ${theme.palette.text.primary}`,
                           bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'
                         },
                         '&:active': {
@@ -1031,15 +1061,16 @@ export default function SplitPaneVault({
                       onClick={handleCopyContent}
                       className="cursor-hover-target"
                       sx={{
-                        border: neoBorderStyle,
+                        border: `2px solid ${theme.palette.text.primary}`,
                         borderRadius: '8px',
                         p: 0.8,
-                        boxShadow: getNeoShadow(2),
+                        boxShadow: 'none',
                         bgcolor: theme.palette.background.paper,
-                        transition: 'all 0.1s cubic-bezier(0.25, 0.8, 0.25, 1)',
+                        color: theme.palette.text.primary,
+                        transition: 'all 0.1s ease-in-out',
                         '&:hover': { 
-                          transform: 'translate(-2px, -2px)',
-                          boxShadow: getNeoShadow(3),
+                          transform: 'translate(-1px, -1px)',
+                          boxShadow: `2px 2px 0px ${theme.palette.text.primary}`,
                           bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'
                         },
                         '&:active': {
@@ -1058,15 +1089,16 @@ export default function SplitPaneVault({
                       onClick={() => handleOpenEdit(activeNote)}
                       className="cursor-hover-target"
                       sx={{
-                        border: neoBorderStyle,
+                        border: `2px solid ${theme.palette.text.primary}`,
                         borderRadius: '8px',
                         p: 0.8,
-                        boxShadow: getNeoShadow(2),
+                        boxShadow: 'none',
                         bgcolor: theme.palette.background.paper,
-                        transition: 'all 0.1s cubic-bezier(0.25, 0.8, 0.25, 1)',
+                        color: theme.palette.text.primary,
+                        transition: 'all 0.1s ease-in-out',
                         '&:hover': { 
-                          transform: 'translate(-2px, -2px)',
-                          boxShadow: getNeoShadow(3),
+                          transform: 'translate(-1px, -1px)',
+                          boxShadow: `2px 2px 0px ${theme.palette.text.primary}`,
                           bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'
                         },
                         '&:active': {
@@ -1089,12 +1121,12 @@ export default function SplitPaneVault({
                         borderRadius: '8px',
                         p: 0.8,
                         color: '#d32f2f',
-                        boxShadow: theme.palette.mode === 'dark' ? '2px 2px 0px #d32f2f' : '2px 2px 0px #d32f2f',
+                        boxShadow: 'none',
                         bgcolor: theme.palette.background.paper,
-                        transition: 'all 0.1s cubic-bezier(0.25, 0.8, 0.25, 1)',
+                        transition: 'all 0.1s ease-in-out',
                         '&:hover': { 
-                          transform: 'translate(-2px, -2px)',
-                          boxShadow: theme.palette.mode === 'dark' ? '3px 3px 0px #d32f2f' : '3px 3px 0px #d32f2f',
+                          transform: 'translate(-1px, -1px)',
+                          boxShadow: '2px 2px 0px #d32f2f',
                           bgcolor: 'rgba(211, 47, 47, 0.08)'
                         },
                         '&:active': {
@@ -1246,21 +1278,21 @@ export default function SplitPaneVault({
                 className="cursor-hover-target"
                 sx={{
                   borderRadius: '8px',
-                  border: neoBorderStyle,
-                  boxShadow: getNeoShadow(3),
+                  border: `2px solid ${theme.palette.text.primary}`,
+                  boxShadow: 'none',
                   bgcolor: theme.palette.background.paper,
                   color: theme.palette.text.primary,
                   fontWeight: 700,
                   px: 2.5,
                   py: 1,
-                  transition: 'all 0.1s cubic-bezier(0.25, 0.8, 0.25, 1)',
+                  transition: 'all 0.1s ease-in-out',
                   '&:hover': {
-                    transform: 'translate(-2px, -2px)',
-                    boxShadow: getNeoShadow(5),
+                    transform: 'translate(-1px, -1px)',
+                    boxShadow: `2px 2px 0px ${theme.palette.text.primary}`,
                     bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'
                   },
                   '&:active': {
-                    transform: 'translate(2px, 2px)',
+                    transform: 'translate(1px, 1px)',
                     boxShadow: 'none !important'
                   }
                 }}
@@ -1437,7 +1469,23 @@ export default function SplitPaneVault({
             color="error" 
             className="cursor-hover-target"
             disabled={isSaving}
-            sx={{ fontWeight: 700 }}
+            sx={{
+              fontWeight: 700,
+              borderRadius: '8px',
+              border: '2px solid transparent',
+              boxShadow: 'none',
+              transition: 'all 0.1s ease-in-out',
+              '&:hover': {
+                bgcolor: 'rgba(211, 47, 47, 0.08)',
+                border: '2px solid #d32f2f',
+                boxShadow: '2px 2px 0px #d32f2f',
+                transform: 'translate(-1px, -1px)'
+              },
+              '&:active': {
+                boxShadow: 'none !important',
+                transform: 'translate(1px, 1px)'
+              }
+            }}
           >
             Cancel
           </Button>
@@ -1448,16 +1496,16 @@ export default function SplitPaneVault({
             className="cursor-hover-target"
             sx={{
               borderRadius: '8px',
-              border: neoBorderStyle,
-              boxShadow: getNeoShadow(2),
+              border: `2px solid ${theme.palette.text.primary}`,
+              boxShadow: 'none',
               bgcolor: theme.palette.background.paper,
               color: theme.palette.text.primary,
               fontWeight: 700,
               px: 2.5,
-              transition: 'all 0.1s cubic-bezier(0.25, 0.8, 0.25, 1)',
+              transition: 'all 0.1s ease-in-out',
               '&:hover': {
-                transform: isSaving ? 'none' : 'translate(-2px, -2px)',
-                boxShadow: isSaving ? 'none' : getNeoShadow(3),
+                transform: isSaving ? 'none' : 'translate(-1px, -1px)',
+                boxShadow: isSaving ? 'none' : `2px 2px 0px ${theme.palette.text.primary}`,
                 bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'
               },
               '&:active': { transform: 'translate(1px, 1px)', boxShadow: 'none !important' }
@@ -1557,12 +1605,20 @@ export default function SplitPaneVault({
             size="small"
             className="cursor-hover-target"
             sx={{
-              border: `1.5px solid ${theme.palette.divider}`,
+              border: `2px solid ${theme.palette.divider}`,
               borderRadius: '8px',
               p: 0.75,
+              boxShadow: 'none',
+              transition: 'all 0.1s ease-in-out',
               '&:hover': {
                 borderColor: theme.palette.text.primary,
+                boxShadow: `2px 2px 0px ${theme.palette.text.primary}`,
+                transform: 'translate(-1px, -1px)',
                 bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'
+              },
+              '&:active': {
+                boxShadow: 'none !important',
+                transform: 'translate(1px, 1px)'
               }
             }}
           >
@@ -1656,14 +1712,15 @@ export default function SplitPaneVault({
                 className="cursor-hover-target"
                 sx={{
                   borderRadius: '8px',
-                  border: neoBorderStyle,
-                  boxShadow: getNeoShadow(2),
+                  border: `2px solid ${theme.palette.text.primary}`,
+                  boxShadow: 'none',
                   bgcolor: theme.palette.background.paper,
                   color: theme.palette.text.primary,
-                  transition: 'all 0.1s cubic-bezier(0.25, 0.8, 0.25, 1)',
+                  transition: 'all 0.1s ease-in-out',
                   '&:hover': {
-                    transform: 'translate(-2px, -2px)',
-                    boxShadow: getNeoShadow(3)
+                    transform: 'translate(-1px, -1px)',
+                    boxShadow: `2px 2px 0px ${theme.palette.text.primary}`,
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'
                   },
                   '&:active': { transform: 'translate(1px, 1px)', boxShadow: 'none !important' }
                 }}
@@ -1682,14 +1739,15 @@ export default function SplitPaneVault({
               className="cursor-hover-target"
               sx={{
                 borderRadius: '8px',
-                border: neoBorderStyle,
-                boxShadow: getNeoShadow(2),
+                border: `2px solid ${theme.palette.text.primary}`,
+                boxShadow: 'none',
                 bgcolor: theme.palette.background.paper,
                 color: theme.palette.text.primary,
-                transition: 'all 0.1s cubic-bezier(0.25, 0.8, 0.25, 1)',
+                transition: 'all 0.1s ease-in-out',
                 '&:hover': {
-                  transform: 'translate(-2px, -2px)',
-                  boxShadow: getNeoShadow(3)
+                  transform: 'translate(-1px, -1px)',
+                  boxShadow: `2px 2px 0px ${theme.palette.text.primary}`,
+                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'
                 },
                 '&:active': { transform: 'translate(1px, 1px)', boxShadow: 'none !important' }
               }}
@@ -1704,16 +1762,17 @@ export default function SplitPaneVault({
             className="cursor-hover-target"
             sx={{
               borderRadius: '8px',
-              border: neoBorderStyle,
-              boxShadow: getNeoShadow(2),
+              border: `2px solid ${theme.palette.text.primary}`,
+              boxShadow: 'none',
               bgcolor: theme.palette.background.paper,
               color: theme.palette.text.primary,
               fontWeight: 700,
               px: 3,
-              transition: 'all 0.1s cubic-bezier(0.25, 0.8, 0.25, 1)',
+              transition: 'all 0.1s ease-in-out',
               '&:hover': {
-                transform: 'translate(-2px, -2px)',
-                boxShadow: getNeoShadow(3)
+                transform: 'translate(-1px, -1px)',
+                boxShadow: `2px 2px 0px ${theme.palette.text.primary}`,
+                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'
               },
               '&:active': { transform: 'translate(1px, 1px)', boxShadow: 'none !important' }
             }}
