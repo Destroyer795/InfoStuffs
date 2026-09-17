@@ -1,18 +1,25 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import { createInfo, deleteInfo, getInfos, updateInfo, deleteAllInfos } from '../controller/info.controller.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 
-const router = express.Router(); //create a new router instance    
+const router = express.Router();
 
-router.use(requireAuth); //apply authentication middleware to all routes in this router
-//this middleware ensures that the user is authenticated before accessing any of the routes defined below
-//the requireAuth middleware checks if the user is authenticated and can be used to protect routes from unauthorized access
-//if the user is not authenticated, they will be redirected
+// Strict rate limiter for destructive vault reset (max 5 requests per hour)
+const nukeLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Vault reset limit exceeded. Please wait before trying again.' }
+});
 
-router.get('/', getInfos); //route to get all infos
-router.post('/', createInfo); //route to create a new info
-router.delete('/nuke', requireAuth, deleteAllInfos); //route to delete all infos if forgot vault
-router.patch('/:id', updateInfo); //route to update an existing info by ID
-router.delete('/:id', deleteInfo); //route to delete an info by ID
+router.use(requireAuth);
+
+router.get('/', getInfos);
+router.post('/', createInfo);
+router.delete('/nuke', nukeLimiter, deleteAllInfos);
+router.patch('/:id', updateInfo);
+router.delete('/:id', deleteInfo);
 
 export default router;

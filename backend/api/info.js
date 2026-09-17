@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import rateLimit from "express-rate-limit";
 import { connectDB } from "../config/db.js";
 import infoRoutes from "../routes/info.route.js";
 import { fileURLToPath } from 'url';
@@ -9,10 +10,19 @@ dotenv.config();
 
 const app = express();
 
-// Trust proxy for Vercel deployments
+// Trust proxy for Vercel deployments and reverse proxies
 app.set('trust proxy', 1);
 
-// CORS - allows production, localhost, and Vercel previews
+// Rate Limiter: General API endpoints (300 requests per 15 minutes)
+export const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many requests from this IP, please try again after 15 minutes.' }
+});
+
+// CORS - allows production, localhost, and legitimate InfoStuffs Vercel previews
 const whitelist = [
   "https://info-stuffs.vercel.app",
   "http://localhost:5173",
@@ -21,10 +31,20 @@ const whitelist = [
   "http://127.0.0.1:5173"
 ];
 
+const isAllowedVercelOrigin = (origin) => {
+  // Matches https://info-stuffs.vercel.app and preview deployments like https://info-stuffs-xyz.vercel.app
+  return /^https:\/\/info-stuffs(-[a-zA-Z0-9_-]+)?\.vercel\.app$/.test(origin);
+};
+
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-    if (whitelist.includes(origin) || origin.endsWith(".vercel.app") || origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:")) {
+    if (
+      whitelist.includes(origin) || 
+      isAllowedVercelOrigin(origin) || 
+      origin.startsWith("http://localhost:") || 
+      origin.startsWith("http://127.0.0.1:")
+    ) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -37,7 +57,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // Health Check Route (Must be above DB connection)
 app.get('/health', (req, res) => {
@@ -64,9 +84,9 @@ app.use(async (req, res, next) => {
   }
 });
 
-// Routes - mounted at both paths for Vercel compatibility
-app.use("/api/info", infoRoutes);
-app.use("/", infoRoutes);
+// Routes - mounted at both paths for Vercel compatibility with rate limiting
+app.use("/api/info", apiLimiter, infoRoutes);
+app.use("/", apiLimiter, infoRoutes);
 
 // Local / Docker server
 if (!process.env.VERCEL || process.argv[1] === fileURLToPath(import.meta.url)) {
