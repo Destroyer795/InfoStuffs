@@ -7,8 +7,14 @@ if (!cached) {
 }
 
 export const connectDB = async () => {
-  if (cached.conn) {
+  if (cached.conn && mongoose.connection.readyState === 1) {
     return cached.conn;
+  }
+
+  // If connection was lost, reset cache
+  if (mongoose.connection.readyState === 0) {
+    cached.conn = null;
+    cached.promise = null;
   }
 
   if (!cached.promise) {

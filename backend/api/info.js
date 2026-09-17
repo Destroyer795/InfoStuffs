@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import mongoose from "mongoose";
 import rateLimit from "express-rate-limit";
 import { connectDB } from "../config/db.js";
 import infoRoutes from "../routes/info.route.js";
@@ -9,6 +10,9 @@ import { fileURLToPath } from 'url';
 dotenv.config();
 
 const app = express();
+
+// Disable x-powered-by header to prevent tech stack fingerprinting
+app.disable('x-powered-by');
 
 // Trust proxy for Vercel deployments and reverse proxies
 app.set('trust proxy', 1);
@@ -69,24 +73,34 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Database connection (cached for serverless)
-let isConnected = false;
+// Database connection with automatic reconnection support
 app.use(async (req, res, next) => {
   try {
-    if (!isConnected) {
+    if (mongoose.connection.readyState !== 1) {
       await connectDB();
-      isConnected = true;
     }
     next();
   } catch (error) {
     console.error("Database connection error:", error);
-    res.status(500).json({ error: "Database connection failed" });
+    res.status(500).json({ success: false, message: "Database connection failed" });
   }
 });
 
 // Routes - mounted at both paths for Vercel compatibility with rate limiting
 app.use("/api/info", apiLimiter, infoRoutes);
 app.use("/", apiLimiter, infoRoutes);
+
+// Global error handling middleware (prevents stack trace disclosure)
+app.use((err, req, res, next) => {
+  if (err.message === 'Not allowed by CORS') {
+    return res.status(403).json({ success: false, message: 'Forbidden by CORS policy' });
+  }
+  console.error("Unhandled error:", err.message);
+  res.status(err.status || 500).json({
+    success: false,
+    message: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message
+  });
+});
 
 // Local / Docker server
 if (!process.env.VERCEL || process.argv[1] === fileURLToPath(import.meta.url)) {
