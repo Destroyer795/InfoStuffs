@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -251,6 +251,16 @@ const formatTimeAgo = (dateString) => {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 };
 
+const formatFullDateTime = (dateString) => {
+  if (!dateString) return 'Date unavailable';
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return 'Date unavailable';
+  return date.toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  });
+};
+
 
 
 export default function SplitPaneVault({
@@ -267,6 +277,17 @@ export default function SplitPaneVault({
 
   // Display real user notes strictly
   const displayList = useMemo(() => infos || [], [infos]);
+
+  // Live 60-second ticker to automatically update relative timestamps
+  const [, setClock] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (!document.hidden) {
+        setClock((c) => c + 1);
+      }
+    }, 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   // By default, no note is selected
   const [selectedId, setSelectedId] = useState(null);
@@ -638,13 +659,15 @@ export default function SplitPaneVault({
                         </Typography>
                       </Box>
 
-                      <Typography 
-                        variant="caption" 
-                        color="text.secondary" 
-                        sx={{ whiteSpace: 'nowrap', fontSize: '0.7rem', fontWeight: 500 }}
-                      >
-                        {formatTimeAgo(note.updatedAt || note.createdAt)}
-                      </Typography>
+                      <Tooltip title={formatFullDateTime(note.updatedAt || note.createdAt)} arrow placement="top">
+                        <Typography 
+                          variant="caption" 
+                          color="text.secondary" 
+                          sx={{ whiteSpace: 'nowrap', fontSize: '0.7rem', fontWeight: 500, cursor: 'default' }}
+                        >
+                          {formatTimeAgo(note.updatedAt || note.createdAt)}
+                        </Typography>
+                      </Tooltip>
                     </Box>
 
                     {/* Content 2-line preview sanitized from raw markdown */}
@@ -806,10 +829,12 @@ export default function SplitPaneVault({
                           ...getImportanceColor(activeNote.importance, theme)
                         }} 
                       />
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <AccessTimeIcon sx={{ fontSize: 13 }} />
-                        Updated {formatTimeAgo(activeNote.updatedAt || activeNote.createdAt)}
-                      </Typography>
+                      <Tooltip title={formatFullDateTime(activeNote.updatedAt || activeNote.createdAt)} arrow placement="top">
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, cursor: 'default' }}>
+                          <AccessTimeIcon sx={{ fontSize: 13 }} />
+                          Updated {formatTimeAgo(activeNote.updatedAt || activeNote.createdAt)}
+                        </Typography>
+                      </Tooltip>
                     </Stack>
                   </Box>
                 </Box>
@@ -1260,10 +1285,12 @@ export default function SplitPaneVault({
                   }}
                 />
               )}
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <AccessTimeIcon sx={{ fontSize: 13 }} />
-                Updated {formatTimeAgo(previewNote?.updatedAt || previewNote?.createdAt)}
-              </Typography>
+              <Tooltip title={formatFullDateTime(previewNote?.updatedAt || previewNote?.createdAt)} arrow placement="top">
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, cursor: 'default' }}>
+                  <AccessTimeIcon sx={{ fontSize: 13 }} />
+                  Updated {formatTimeAgo(previewNote?.updatedAt || previewNote?.createdAt)}
+                </Typography>
+              </Tooltip>
             </Stack>
           </Box>
           <IconButton
