@@ -36,7 +36,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import MarkdownInput from './MarkdownInput';
 import TemporaryRetentionSelector from './TemporaryRetentionSelector';
-import { formatExpirationLabel, calculateExpirationDate, parseExistingRetention } from '../utils/snippet';
+import { formatExpirationLabel, calculateExpirationDate, parseExistingRetention, validateRetentionConfig } from '../utils/snippet';
 
 const SecureImagePreview = ({ path, userKey, alt, sx, height, showDownload }) => {
   const [url, setUrl] = useState(null);
@@ -258,8 +258,8 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
       preset: 30,
       customMode: 'duration',
       days: 0,
-      hours: 2,
-      minutes: 30,
+      hours: 1,
+      minutes: 0,
       specificDate: ''
     }
   });
@@ -410,7 +410,12 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
         if (!isRetentionChanged && editInfo.expiresAt) {
           expiresAt = editInfo.expiresAt;
         } else {
-          expiresAt = calculateExpirationDate(formData.retentionConfig);
+          const validation = validateRetentionConfig(true, formData.retentionConfig);
+          if (!validation.isValid) {
+            showSnack("error", validation.error);
+            return;
+          }
+          expiresAt = validation.expiresAt;
         }
       }
 

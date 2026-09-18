@@ -30,7 +30,7 @@ import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { generateCleanSnippet, formatExpirationLabel, calculateExpirationDate, parseExistingRetention } from '../utils/snippet';
+import { generateCleanSnippet, formatExpirationLabel, calculateExpirationDate, parseExistingRetention, validateRetentionConfig } from '../utils/snippet';
 import { 
   uploadToSupabase, 
   deleteFromSupabase, 
@@ -365,8 +365,8 @@ export default function SplitPaneVault({
       preset: 30,
       customMode: 'duration',
       days: 0,
-      hours: 2,
-      minutes: 30,
+      hours: 1,
+      minutes: 0,
       specificDate: ''
     }
   });
@@ -542,7 +542,13 @@ export default function SplitPaneVault({
         if (!isRetentionChanged && editNote.expiresAt) {
           expiresAt = editNote.expiresAt;
         } else {
-          expiresAt = calculateExpirationDate(editFormData.retentionConfig);
+          const validation = validateRetentionConfig(true, editFormData.retentionConfig);
+          if (!validation.isValid) {
+            showSnack("error", validation.error);
+            setIsSaving(false);
+            return;
+          }
+          expiresAt = validation.expiresAt;
         }
       }
 

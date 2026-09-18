@@ -14,8 +14,9 @@ import {
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import TimerIcon from '@mui/icons-material/Timer';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import {
-  calculateExpirationDate,
+  validateRetentionConfig,
   formatExpirationPreview,
   formatExpirationLabel,
   toLocalISOString
@@ -25,9 +26,10 @@ import {
  * Enhanced retention selector for temporary notes.
  * Supports:
  * - Presets: 24 Hours, 7 Days, 30 Days, 90 Days
- * - Custom Duration: Exact combined Days, Hours, and Minutes (e.g. 2h 30m)
- * - Specific Date & Time: Calendar + Time picker (datetime-local)
+ * - Custom Duration: Exact combined Days, Hours, and Minutes (starts with 1 hour)
+ * - Specific Date & Time: Calendar + Time picker (starts with 1 hour from now)
  * - Live dynamic preview of exact expiration time and countdown.
+ * - Strict boundaries & validation: prevents 0,0,0 durations and past/historical dates.
  */
 export default function TemporaryRetentionSelector({
   isTemporary,
@@ -37,21 +39,22 @@ export default function TemporaryRetentionSelector({
 }) {
   const theme = useTheme();
 
-  // Ensure config has all safe defaults
+  // Ensure config has all safe defaults (starts with 1 hour)
   const safeConfig = useMemo(() => ({
     preset: config?.preset || 30,
     customMode: config?.customMode || 'duration',
     days: config?.days !== undefined ? config.days : 0,
-    hours: config?.hours !== undefined ? config.hours : 2,
-    minutes: config?.minutes !== undefined ? config.minutes : 30,
-    specificDate: config?.specificDate || toLocalISOString(Date.now() + 2.5 * 60 * 60 * 1000)
+    hours: config?.hours !== undefined ? config.hours : 1,
+    minutes: config?.minutes !== undefined ? config.minutes : 0,
+    specificDate: config?.specificDate || toLocalISOString(Date.now() + 60 * 60 * 1000)
   }), [config]);
 
-  // Compute live target expiration timestamp
-  const targetDate = useMemo(() => {
-    if (!isTemporary) return null;
-    return calculateExpirationDate(safeConfig);
+  // Validate retention config and compute expiration timestamp
+  const validation = useMemo(() => {
+    return validateRetentionConfig(isTemporary, safeConfig);
   }, [isTemporary, safeConfig]);
+
+  const targetDate = validation.isValid ? validation.expiresAt : null;
 
   // Live countdown label
   const liveCountdown = useMemo(() => {
@@ -72,14 +75,20 @@ export default function TemporaryRetentionSelector({
     });
   };
 
+  // Earliest allowable specific date/time is 1 minute from now
   const nowLocalStr = useMemo(() => toLocalISOString(Date.now() + 60 * 1000), []);
+
+  const isDurationAllZero = safeConfig.customMode === 'duration' &&
+    Number(safeConfig.days || 0) === 0 &&
+    Number(safeConfig.hours || 0) === 0 &&
+    Number(safeConfig.minutes || 0) === 0;
 
   return (
     <Box
       sx={{
         p: 1.8,
         borderRadius: '10px',
-        border: `1px solid ${theme.palette.divider}`,
+        border: `1px solid ${!validation.isValid && isTemporary ? theme.palette.error.main : theme.palette.divider}`,
         bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
         transition: 'all 0.2s ease-in-out'
       }}
@@ -120,7 +129,19 @@ export default function TemporaryRetentionSelector({
                 <Chip
                   key={opt.value}
                   label={opt.label}
-                  onClick={() => update({ preset: opt.value })}
+                  onClick={() => {
+                    if (opt.value === 'custom') {
+                      update({
+                        preset: 'custom',
+                        hours: safeConfig.hours ?? 1,
+                        minutes: safeConfig.minutes ?? 0,
+                        days: safeConfig.days ?? 0,
+                        specificDate: safeConfig.specificDate || toLocalISOString(Date.now() + 60 * 60 * 1000)
+                      });
+                    } else {
+                      update({ preset: opt.value });
+                    }
+                  }}
                   variant={isSelected ? "filled" : "outlined"}
                   color={isSelected ? "warning" : "default"}
                   className="cursor-hover-target"
@@ -141,7 +162,7 @@ export default function TemporaryRetentionSelector({
 
           {/* Custom Section */}
           {safeConfig.preset === 'custom' && (
-            <Box sx={{ mt: 2, p: 1.5, borderRadius: '8px', bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)', border: `1px dashed ${theme.palette.divider}` }}>
+            <Box sx={{ mt: 2, p: 1.5, borderRadius: '8px', bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)', border: `1px dashed ${!validation.isValid ? theme.palette.error.main : theme.palette.divider}` }}>
               {/* Mode switch: Duration vs Specific Date & Time */}
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
                 <Typography variant="caption" sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'text.secondary' }}>
@@ -162,7 +183,10 @@ export default function TemporaryRetentionSelector({
                     startIcon={<CalendarMonthIcon sx={{ fontSize: 16 }} />}
                     variant={safeConfig.customMode === 'datetime' ? 'contained' : 'outlined'}
                     color={safeConfig.customMode === 'datetime' ? 'warning' : 'inherit'}
-                    onClick={() => update({ customMode: 'datetime' })}
+                    onClick={() => update({
+                      customMode: 'datetime',
+                      specificDate: safeConfig.specificDate || toLocalISOString(Date.now() + 60 * 60 * 1000)
+                    })}
                     sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.78rem' }}
                     className="cursor-hover-target"
                   >
@@ -173,47 +197,57 @@ export default function TemporaryRetentionSelector({
 
               {/* Duration mode: Days, Hours, Minutes */}
               {safeConfig.customMode === 'duration' && (
-                <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                  <TextField
-                    type="number"
-                    size="small"
-                    label="Days"
-                    value={safeConfig.days === '' ? '' : safeConfig.days}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      update({ days: val === '' ? '' : Math.max(0, parseInt(val, 10) || 0) });
-                    }}
-                    inputProps={{ min: 0, max: 365 }}
-                    sx={{ width: { xs: '80px', sm: '95px' } }}
-                    className="cursor-hover-target"
-                  />
-                  <TextField
-                    type="number"
-                    size="small"
-                    label="Hours"
-                    value={safeConfig.hours === '' ? '' : safeConfig.hours}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      update({ hours: val === '' ? '' : Math.max(0, Math.min(23, parseInt(val, 10) || 0)) });
-                    }}
-                    inputProps={{ min: 0, max: 23 }}
-                    sx={{ width: { xs: '80px', sm: '95px' } }}
-                    className="cursor-hover-target"
-                  />
-                  <TextField
-                    type="number"
-                    size="small"
-                    label="Minutes"
-                    value={safeConfig.minutes === '' ? '' : safeConfig.minutes}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      update({ minutes: val === '' ? '' : Math.max(0, Math.min(59, parseInt(val, 10) || 0)) });
-                    }}
-                    inputProps={{ min: 0, max: 59 }}
-                    sx={{ width: { xs: '85px', sm: '100px' } }}
-                    className="cursor-hover-target"
-                  />
-                </Stack>
+                <Box>
+                  <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                    <TextField
+                      type="number"
+                      size="small"
+                      label="Days"
+                      error={isDurationAllZero}
+                      value={safeConfig.days === '' ? '' : safeConfig.days}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        update({ days: val === '' ? '' : Math.max(0, parseInt(val, 10) || 0) });
+                      }}
+                      inputProps={{ min: 0, max: 365 }}
+                      sx={{ width: { xs: '80px', sm: '95px' } }}
+                      className="cursor-hover-target"
+                    />
+                    <TextField
+                      type="number"
+                      size="small"
+                      label="Hours"
+                      error={isDurationAllZero}
+                      value={safeConfig.hours === '' ? '' : safeConfig.hours}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        update({ hours: val === '' ? '' : Math.max(0, Math.min(23, parseInt(val, 10) || 0)) });
+                      }}
+                      inputProps={{ min: 0, max: 23 }}
+                      sx={{ width: { xs: '80px', sm: '95px' } }}
+                      className="cursor-hover-target"
+                    />
+                    <TextField
+                      type="number"
+                      size="small"
+                      label="Minutes"
+                      error={isDurationAllZero}
+                      value={safeConfig.minutes === '' ? '' : safeConfig.minutes}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        update({ minutes: val === '' ? '' : Math.max(0, Math.min(59, parseInt(val, 10) || 0)) });
+                      }}
+                      inputProps={{ min: 0, max: 59 }}
+                      sx={{ width: { xs: '85px', sm: '100px' } }}
+                      className="cursor-hover-target"
+                    />
+                  </Stack>
+                  {isDurationAllZero && (
+                    <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.8, fontWeight: 600 }}>
+                      Duration must be at least 1 minute (cannot be 0 days, 0 hours, 0 minutes).
+                    </Typography>
+                  )}
+                </Box>
               )}
 
               {/* Specific Date & Time mode: HTML5 datetime-local */}
@@ -223,6 +257,8 @@ export default function TemporaryRetentionSelector({
                     type="datetime-local"
                     size="small"
                     label="Expire on exact date & time"
+                    error={!validation.isValid}
+                    helperText={!validation.isValid ? validation.error : ''}
                     value={safeConfig.specificDate || ''}
                     onChange={(e) => update({ specificDate: e.target.value })}
                     InputLabelProps={{ shrink: true }}
@@ -235,37 +271,64 @@ export default function TemporaryRetentionSelector({
             </Box>
           )}
 
-          {/* Live Expiration Preview */}
-          <Box
-            sx={{
-              mt: 1.5,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 0.8,
-              py: 0.8,
-              px: 1.2,
-              borderRadius: '6px',
-              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 152, 0, 0.08)' : 'rgba(255, 152, 0, 0.12)',
-              border: '1px solid rgba(255, 152, 0, 0.3)'
-            }}
-          >
-            <AccessTimeIcon sx={{ fontSize: 16, color: '#ff9800' }} />
-            <Typography
-              variant="caption"
+          {/* Live Expiration Preview / Error Feedback */}
+          {validation.isValid ? (
+            <Box
               sx={{
-                fontWeight: 700,
-                color: theme.palette.mode === 'dark' ? '#ffb74d' : '#d84315',
+                mt: 1.5,
                 display: 'flex',
                 alignItems: 'center',
-                gap: 0.5,
-                flexWrap: 'wrap'
+                gap: 0.8,
+                py: 0.8,
+                px: 1.2,
+                borderRadius: '6px',
+                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 152, 0, 0.08)' : 'rgba(255, 152, 0, 0.12)',
+                border: '1px solid rgba(255, 152, 0, 0.3)'
               }}
             >
-              <span>Will expire on:</span>
-              <span style={{ textDecoration: 'underline' }}>{liveDateStr}</span>
-              <span>({liveCountdown})</span>
-            </Typography>
-          </Box>
+              <AccessTimeIcon sx={{ fontSize: 16, color: '#ff9800' }} />
+              <Typography
+                variant="caption"
+                sx={{
+                  fontWeight: 700,
+                  color: theme.palette.mode === 'dark' ? '#ffb74d' : '#d84315',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  flexWrap: 'wrap'
+                }}
+              >
+                <span>Will expire on:</span>
+                <span style={{ textDecoration: 'underline' }}>{liveDateStr}</span>
+                <span>({liveCountdown})</span>
+              </Typography>
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                mt: 1.5,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                py: 0.8,
+                px: 1.2,
+                borderRadius: '6px',
+                bgcolor: theme.palette.mode === 'dark' ? 'rgba(244, 67, 54, 0.12)' : 'rgba(244, 67, 54, 0.08)',
+                border: '1px solid rgba(244, 67, 54, 0.4)'
+              }}
+            >
+              <ErrorOutlineIcon sx={{ fontSize: 16, color: '#f44336', flexShrink: 0 }} />
+              <Typography
+                variant="caption"
+                sx={{
+                  fontWeight: 700,
+                  color: theme.palette.mode === 'dark' ? '#ff8a80' : '#d32f2f'
+                }}
+              >
+                {validation.error}
+              </Typography>
+            </Box>
+          )}
         </Box>
       )}
     </Box>

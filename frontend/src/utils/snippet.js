@@ -139,36 +139,100 @@ export const formatExpirationPreview = (date) => {
 };
 
 /**
+ * Validates a retention configuration for a temporary note.
+ * Enforces boundaries:
+ * - At least 1 minute into the future
+ * - No 0 days, 0 hours, 0 minutes
+ * - No historical (past) timestamps
+ * - Valid numeric inputs (clamped to realistic limits, e.g. max 365 days)
+ *
+ * @param {boolean} isTemporary - Whether note is marked temporary
+ * @param {object} config - The retention config object
+ * @returns {{ isValid: boolean, error: string | null, expiresAt: string | null }}
+ */
+export const validateRetentionConfig = (isTemporary, config) => {
+  if (!isTemporary) {
+    return { isValid: true, error: null, expiresAt: null };
+  }
+
+  if (!config) {
+    return { isValid: false, error: 'Retention configuration is required for temporary notes.', expiresAt: null };
+  }
+
+  // Preset option (1, 7, 30, 90 days)
+  if (config.preset !== 'custom') {
+    const days = Number(config.preset);
+    if (!days || isNaN(days) || days <= 0) {
+      return { isValid: false, error: 'Please select a valid expiration preset.', expiresAt: null };
+    }
+    const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+    return { isValid: true, error: null, expiresAt };
+  }
+
+  // Custom Mode: Specific Date & Time
+  if (config.customMode === 'datetime') {
+    if (!config.specificDate || typeof config.specificDate !== 'string' || !config.specificDate.trim()) {
+      return { isValid: false, error: 'Please select an expiration date and time.', expiresAt: null };
+    }
+    const parsed = new Date(config.specificDate);
+    if (isNaN(parsed.getTime())) {
+      return { isValid: false, error: 'Invalid expiration date format.', expiresAt: null };
+    }
+    const diffMs = parsed.getTime() - Date.now();
+    if (diffMs <= 0) {
+      return { isValid: false, error: 'Expiration time cannot be in the past. Please select a future time.', expiresAt: null };
+    }
+    if (diffMs < 60 * 1000) {
+      return { isValid: false, error: 'Expiration time must be at least 1 minute in the future.', expiresAt: null };
+    }
+    if (diffMs > 5 * 365 * 24 * 60 * 60 * 1000) {
+      return { isValid: false, error: 'Expiration time cannot exceed 5 years in the future.', expiresAt: null };
+    }
+    return { isValid: true, error: null, expiresAt: parsed.toISOString() };
+  }
+
+  // Custom Mode: Duration
+  const daysVal = config.days === '' ? 0 : Number(config.days);
+  const hoursVal = config.hours === '' ? 0 : Number(config.hours);
+  const minutesVal = config.minutes === '' ? 0 : Number(config.minutes);
+
+  if (isNaN(daysVal) || isNaN(hoursVal) || isNaN(minutesVal)) {
+    return { isValid: false, error: 'Please enter valid numbers for days, hours, and minutes.', expiresAt: null };
+  }
+
+  if (daysVal < 0 || hoursVal < 0 || minutesVal < 0) {
+    return { isValid: false, error: 'Duration numbers cannot be negative.', expiresAt: null };
+  }
+
+  if (daysVal > 365) {
+    return { isValid: false, error: 'Days cannot exceed 365.', expiresAt: null };
+  }
+  if (hoursVal > 23) {
+    return { isValid: false, error: 'Hours must be between 0 and 23.', expiresAt: null };
+  }
+  if (minutesVal > 59) {
+    return { isValid: false, error: 'Minutes must be between 0 and 59.', expiresAt: null };
+  }
+
+  const totalMinutes = Math.floor(daysVal) * 1440 + Math.floor(hoursVal) * 60 + Math.floor(minutesVal);
+  if (totalMinutes < 1) {
+    return { isValid: false, error: 'Duration must be at least 1 minute (cannot be 0 days, 0 hours, 0 minutes).', expiresAt: null };
+  }
+
+  const expiresAt = new Date(Date.now() + totalMinutes * 60 * 1000).toISOString();
+  return { isValid: true, error: null, expiresAt };
+};
+
+/**
  * Calculates ISO expiration timestamp from preset or custom retention settings.
  * Accepts either a config object { preset, customMode, days, hours, minutes, specificDate }
  * or primitive arguments (preset, customValue, customUnit).
+ * Returns null if the configuration is invalid.
  */
 export const calculateExpirationDate = (configOrPreset, customValue = 1, customUnit = 'hours') => {
   if (typeof configOrPreset === 'object' && configOrPreset !== null) {
-    const config = configOrPreset;
-    if (config.preset !== 'custom') {
-      const days = Number(config.preset) || 30;
-      return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
-    }
-
-    // Custom Mode: Specific Date & Time
-    if (config.customMode === 'datetime' && config.specificDate) {
-      const parsed = new Date(config.specificDate);
-      if (!isNaN(parsed.getTime()) && parsed.getTime() > Date.now()) {
-        return parsed.toISOString();
-      }
-    }
-
-    // Custom Mode: Duration (days + hours + minutes)
-    const days = Math.max(0, parseInt(config.days, 10) || 0);
-    const hours = Math.max(0, parseInt(config.hours, 10) || 0);
-    const minutes = Math.max(0, parseInt(config.minutes, 10) || 0);
-
-    let totalMs = (days * 24 * 60 + hours * 60 + minutes) * 60 * 1000;
-    if (totalMs <= 0) {
-      totalMs = 60 * 1000; // minimum 1 minute
-    }
-    return new Date(Date.now() + totalMs).toISOString();
+    const result = validateRetentionConfig(true, configOrPreset);
+    return result.isValid ? result.expiresAt : null;
   }
 
   // Backward compatibility with primitive call
@@ -192,15 +256,15 @@ export const calculateExpirationDate = (configOrPreset, customValue = 1, customU
  */
 export const parseExistingRetention = (expiresAt, createdAt) => {
   const now = Date.now();
-  const defaultDate = toLocalISOString(new Date(now + 2.5 * 60 * 60 * 1000));
+  const defaultDate = toLocalISOString(new Date(now + 1 * 60 * 60 * 1000));
 
   if (!expiresAt) {
     return {
       preset: 30,
       customMode: 'duration',
       days: 0,
-      hours: 2,
-      minutes: 30,
+      hours: 1,
+      minutes: 0,
       specificDate: defaultDate
     };
   }

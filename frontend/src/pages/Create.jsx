@@ -24,7 +24,7 @@ import { useUser } from "@clerk/clerk-react";
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import MarkdownInput from "../components/MarkdownInput"; // Import added
 import TemporaryRetentionSelector from "../components/TemporaryRetentionSelector";
-import { calculateExpirationDate } from "../utils/snippet";
+import { calculateExpirationDate, validateRetentionConfig } from "../utils/snippet";
 
 export default function Create({ handleCreate, userKey }) {
   const [formData, setFormData] = useState({
@@ -40,8 +40,8 @@ export default function Create({ handleCreate, userKey }) {
       preset: 30,
       customMode: 'duration',
       days: 0,
-      hours: 2,
-      minutes: 30,
+      hours: 1,
+      minutes: 0,
       specificDate: ''
     }
   });
@@ -90,6 +90,15 @@ export default function Create({ handleCreate, userKey }) {
       showSnack("error", "Encryption key or user session missing. Unlock vault first.");
       setIsSubmitting(false);
       return;
+    }
+
+    if (formData.isTemporary) {
+      const validation = validateRetentionConfig(true, formData.retentionConfig);
+      if (!validation.isValid) {
+        showSnack("error", validation.error);
+        setIsSubmitting(false);
+        return;
+      }
     }
 
     const submission = {

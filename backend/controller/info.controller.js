@@ -45,6 +45,23 @@ export const createInfo = async (req, res) => {
     return res.status(400).json({ success: false, message: 'File URL is required' });
   }
 
+  // Temporary note validation
+  if (info.isTemporary) {
+    if (!info.expiresAt) {
+      return res.status(400).json({ success: false, message: 'Expiration date is required for temporary notes' });
+    }
+    const expDate = new Date(info.expiresAt);
+    if (isNaN(expDate.getTime())) {
+      return res.status(400).json({ success: false, message: 'Invalid expiration date format' });
+    }
+    // Must be at least 30 seconds in the future
+    if (expDate.getTime() <= Date.now() + 30 * 1000) {
+      return res.status(400).json({ success: false, message: 'Expiration date must be at least 1 minute in the future' });
+    }
+  } else {
+    info.expiresAt = null;
+  }
+
   try {
     const newInfo = new Info(info);
     await newInfo.save();
@@ -62,6 +79,22 @@ export const updateInfo = async (req, res) => {
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({ success: false, message: 'Invalid ID format' });
+  }
+
+  if (updates.isTemporary !== undefined) {
+    if (updates.isTemporary) {
+      if (updates.expiresAt !== undefined && updates.expiresAt !== null) {
+        const expDate = new Date(updates.expiresAt);
+        if (isNaN(expDate.getTime())) {
+          return res.status(400).json({ success: false, message: 'Invalid expiration date format' });
+        }
+        if (expDate.getTime() <= Date.now() + 30 * 1000) {
+          return res.status(400).json({ success: false, message: 'Expiration date must be at least 1 minute in the future' });
+        }
+      }
+    } else {
+      updates.expiresAt = null;
+    }
   }
 
   try {
