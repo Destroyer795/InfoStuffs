@@ -74,6 +74,21 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Root path health check for Render, Vercel, and uptime monitors
+app.get('/', (req, res, next) => {
+  // If no auth header, immediately return 200 OK for platform health checks
+  if (!req.headers.authorization) {
+    return res.status(200).json({
+      status: 'ok',
+      service: 'InfoStuffs API',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: process.env.NODE_ENV || 'development'
+    });
+  }
+  next();
+});
+
 // Database connection with automatic reconnection support
 app.use(async (req, res, next) => {
   try {
@@ -126,7 +141,7 @@ export const runNoteCleanup = async () => {
 
 // Local / Docker server
 if (!process.env.VERCEL || process.argv[1] === fileURLToPath(import.meta.url)) {
-  const PORT = process.env.PORT || 5000;
+  const PORT = Number(process.env.PORT) || 5000;
   const server = app.listen(PORT, '0.0.0.0', () => {
     connectDB()
       .then(() => {
@@ -141,12 +156,36 @@ if (!process.env.VERCEL || process.argv[1] === fileURLToPath(import.meta.url)) {
     if (cleanupInterval.unref) cleanupInterval.unref();
   });
 
+  // Dual-port fallback for Render: Render routes to 10000 by default if PORT is not set.
+  // Listening on both 5000 and 10000 guarantees instant health check resolution on Render.
+  let auxiliaryServer = null;
+  if (!process.env.PORT && !process.env.VERCEL) {
+    const fallbackPort = 10000;
+    try {
+      auxiliaryServer = app.listen(fallbackPort, '0.0.0.0', () => {
+        console.log(`Render auxiliary listener running on port ${fallbackPort}`);
+      });
+      auxiliaryServer.on('error', () => {
+        // Fallback port unavailable or already bound, safe to ignore
+      });
+    } catch (e) {
+      // safe to ignore
+    }
+  }
+
   // Graceful shutdown handling
   const shutdown = (signal) => {
     console.log(`Received ${signal}. Shutting down gracefully...`);
     server.close(() => {
-      console.log('HTTP server closed.');
-      process.exit(0);
+      if (auxiliaryServer) {
+        auxiliaryServer.close(() => {
+          console.log('HTTP servers closed.');
+          process.exit(0);
+        });
+      } else {
+        console.log('HTTP server closed.');
+        process.exit(0);
+      }
     });
   };
 
