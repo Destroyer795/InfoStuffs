@@ -30,7 +30,7 @@ import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { generateCleanSnippet, formatExpirationLabel } from '../utils/snippet';
+import { generateCleanSnippet, formatExpirationLabel, calculateExpirationDate, parseExistingRetention } from '../utils/snippet';
 import { 
   uploadToSupabase, 
   deleteFromSupabase, 
@@ -38,6 +38,7 @@ import {
   createOpaqueStoragePath 
 } from '../utils/supabaseUpload';
 import MarkdownInput from './MarkdownInput';
+import TemporaryRetentionSelector from './TemporaryRetentionSelector';
 
 // Icons
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
@@ -360,7 +361,9 @@ export default function SplitPaneVault({
     imageURL: '',
     file: '',
     isTemporary: false,
-    retentionDays: 30
+    retentionPreset: 30,
+    customRetentionValue: 1,
+    customRetentionUnit: 'hours',
   });
   const [newFileData, setNewFileData] = useState({
     imageFile: null,
@@ -470,14 +473,7 @@ export default function SplitPaneVault({
 
   const handleOpenEdit = (note) => {
     setEditNote(note);
-    let initialRetentionDays = 30;
-    if (note.expiresAt) {
-      const diffDays = Math.round((new Date(note.expiresAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
-      if (diffDays <= 2) initialRetentionDays = 1;
-      else if (diffDays <= 14) initialRetentionDays = 7;
-      else if (diffDays <= 45) initialRetentionDays = 30;
-      else initialRetentionDays = 90;
-    }
+    const parsed = parseExistingRetention(note.expiresAt, note.createdAt);
     setEditFormData({
       name: note.name || '',
       category: note.category || '',
@@ -487,8 +483,12 @@ export default function SplitPaneVault({
       imageURL: note.imageURL || '',
       file: note.file || '',
       isTemporary: !!note.isTemporary,
-      retentionDays: initialRetentionDays,
-      _initialRetentionDays: initialRetentionDays
+      retentionPreset: parsed.preset,
+      customRetentionValue: parsed.customValue,
+      customRetentionUnit: parsed.customUnit,
+      _initialPreset: parsed.preset,
+      _initialCustomValue: parsed.customValue,
+      _initialCustomUnit: parsed.customUnit,
     });
     setNewFileData({ imageFile: null, docFile: null });
   };
@@ -511,7 +511,13 @@ export default function SplitPaneVault({
     if (!onUpdate || !editNote) return;
 
     const isTempChanged = (editFormData.isTemporary || false) !== (editNote.isTemporary || false);
-    const isRetentionChanged = editFormData.isTemporary && (editFormData.retentionDays !== editFormData._initialRetentionDays);
+    const isRetentionChanged = editFormData.isTemporary && (
+      editFormData.retentionPreset !== editFormData._initialPreset ||
+      (editFormData.retentionPreset === 'custom' && (
+        editFormData.customRetentionValue !== editFormData._initialCustomValue ||
+        editFormData.customRetentionUnit !== editFormData._initialCustomUnit
+      ))
+    );
 
     const noChanges = 
       editFormData.name === editNote.name &&
@@ -539,11 +545,21 @@ export default function SplitPaneVault({
         if (!isRetentionChanged && editNote.expiresAt) {
           expiresAt = editNote.expiresAt;
         } else {
-          expiresAt = new Date(Date.now() + (Number(editFormData.retentionDays) || 30) * 24 * 60 * 60 * 1000).toISOString();
+          expiresAt = calculateExpirationDate(
+            editFormData.retentionPreset,
+            editFormData.customRetentionValue,
+            editFormData.customRetentionUnit
+          );
         }
       }
 
-      const { _initialRetentionDays, ...cleanedFormData } = editFormData;
+      const {
+        _initialPreset,
+        _initialCustomValue,
+        _initialCustomUnit,
+        _initialRetentionDays,
+        ...cleanedFormData
+      } = editFormData;
       const updatedData = { ...cleanedFormData, imageURL, file, expiresAt };
       await onUpdate(editNote._id, updatedData);
 
@@ -1420,60 +1436,16 @@ export default function SplitPaneVault({
             </Select>
           </FormControl>
 
-          <Box sx={{ p: 1.5, borderRadius: '8px', border: `1px solid ${theme.palette.divider}`, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={editFormData.isTemporary}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, isTemporary: e.target.checked }))}
-                  color="warning"
-                />
-              }
-              label={
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  Temporary Note (Auto-Deletes)
-                </Typography>
-              }
-              className="cursor-hover-target"
-            />
-            {editFormData.isTemporary && (
-              <Box sx={{ mt: 1.5, pl: 0.5 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 600 }}>
-                  Expires in:
-                </Typography>
-                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-                  {[
-                    { label: '24 Hours', days: 1 },
-                    { label: '7 Days', days: 7 },
-                    { label: '30 Days', days: 30 },
-                    { label: '90 Days', days: 90 },
-                  ].map((opt) => {
-                    const isSelected = (editFormData.retentionDays || 30) === opt.days;
-                    return (
-                      <Chip
-                        key={opt.days}
-                        label={opt.label}
-                        onClick={() => setEditFormData(prev => ({ ...prev, retentionDays: opt.days }))}
-                        variant={isSelected ? "filled" : "outlined"}
-                        color={isSelected ? "warning" : "default"}
-                        className="cursor-hover-target"
-                        sx={{
-                          fontWeight: isSelected ? 700 : 500,
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          borderWidth: isSelected ? '2px' : '1px',
-                          transition: 'all 0.1s ease-in-out',
-                          '&:hover': {
-                            transform: 'translate(-1px, -1px)',
-                          }
-                        }}
-                      />
-                    );
-                  })}
-                </Stack>
-              </Box>
-            )}
-          </Box>
+          <TemporaryRetentionSelector
+            isTemporary={editFormData.isTemporary}
+            onToggleTemporary={(val) => setEditFormData(prev => ({ ...prev, isTemporary: val }))}
+            preset={editFormData.retentionPreset}
+            onPresetChange={(val) => setEditFormData(prev => ({ ...prev, retentionPreset: val }))}
+            customValue={editFormData.customRetentionValue}
+            onCustomValueChange={(val) => setEditFormData(prev => ({ ...prev, customRetentionValue: val }))}
+            customUnit={editFormData.customRetentionUnit}
+            onCustomUnitChange={(val) => setEditFormData(prev => ({ ...prev, customRetentionUnit: val }))}
+          />
 
           <FormControl fullWidth className="cursor-hover-target">
             <InputLabel id="edit-content-type-label">Content Type</InputLabel>

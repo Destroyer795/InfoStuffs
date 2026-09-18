@@ -35,7 +35,8 @@ import { uploadToSupabase, deleteFromSupabase, getDecryptedFileUrl, createOpaque
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import MarkdownInput from './MarkdownInput';
-import { formatExpirationLabel } from '../utils/snippet';
+import TemporaryRetentionSelector from './TemporaryRetentionSelector';
+import { formatExpirationLabel, calculateExpirationDate, parseExistingRetention } from '../utils/snippet';
 
 const SecureImagePreview = ({ path, userKey, alt, sx, height, showDownload }) => {
   const [url, setUrl] = useState(null);
@@ -253,7 +254,9 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
     imageURL: '',
     file: '',
     isTemporary: false,
-    retentionDays: 30
+    retentionPreset: 30,
+    customRetentionValue: 1,
+    customRetentionUnit: 'hours',
   });
   const [newFileData, setNewFileData] = useState({
     imageFile: null,
@@ -339,14 +342,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
 
   const handleEditOpen = (info) => {
     setEditInfo(info);
-    let initialRetentionDays = 30;
-    if (info.expiresAt) {
-      const diffDays = Math.round((new Date(info.expiresAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
-      if (diffDays <= 2) initialRetentionDays = 1;
-      else if (diffDays <= 14) initialRetentionDays = 7;
-      else if (diffDays <= 45) initialRetentionDays = 30;
-      else initialRetentionDays = 90;
-    }
+    const parsed = parseExistingRetention(info.expiresAt, info.createdAt);
     setFormData({
       name: info.name,
       category: info.category,
@@ -356,8 +352,12 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
       imageURL: info.imageURL || '',
       file: info.file || '',
       isTemporary: info.isTemporary || false,
-      retentionDays: initialRetentionDays,
-      _initialRetentionDays: initialRetentionDays
+      retentionPreset: parsed.preset,
+      customRetentionValue: parsed.customValue,
+      customRetentionUnit: parsed.customUnit,
+      _initialPreset: parsed.preset,
+      _initialCustomValue: parsed.customValue,
+      _initialCustomUnit: parsed.customUnit,
     });
     setNewFileData({ imageFile: null, docFile: null });
   };
@@ -380,7 +380,13 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
     if (!onUpdate || !editInfo) return;
 
     const isTempChanged = (formData.isTemporary || false) !== (editInfo.isTemporary || false);
-    const isRetentionChanged = formData.isTemporary && (formData.retentionDays !== formData._initialRetentionDays);
+    const isRetentionChanged = formData.isTemporary && (
+      formData.retentionPreset !== formData._initialPreset ||
+      (formData.retentionPreset === 'custom' && (
+        formData.customRetentionValue !== formData._initialCustomValue ||
+        formData.customRetentionUnit !== formData._initialCustomUnit
+      ))
+    );
 
     const noChanges = 
       formData.name === editInfo.name &&
@@ -407,11 +413,21 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
         if (!isRetentionChanged && editInfo.expiresAt) {
           expiresAt = editInfo.expiresAt;
         } else {
-          expiresAt = new Date(Date.now() + (Number(formData.retentionDays) || 30) * 24 * 60 * 60 * 1000).toISOString();
+          expiresAt = calculateExpirationDate(
+            formData.retentionPreset,
+            formData.customRetentionValue,
+            formData.customRetentionUnit
+          );
         }
       }
 
-      const { _initialRetentionDays, ...cleanedFormData } = formData;
+      const {
+        _initialPreset,
+        _initialCustomValue,
+        _initialCustomUnit,
+        _initialRetentionDays,
+        ...cleanedFormData
+      } = formData;
       const updatedData = { ...cleanedFormData, imageURL, file, expiresAt };
       await onUpdate(editInfo._id, updatedData);
 
@@ -861,60 +877,16 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
             value={formData.importance}
             onChange={(e) => setFormData(prev => ({ ...prev, importance: e.target.value }))}
           />
-          <Box sx={{ p: 1.5, borderRadius: '8px', border: `1px solid ${theme.palette.divider}`, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.isTemporary}
-                  onChange={(e) => setFormData(prev => ({ ...prev, isTemporary: e.target.checked }))}
-                  color="warning"
-                />
-              }
-              label={
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  Temporary Note (Auto-Deletes)
-                </Typography>
-              }
-              className="cursor-hover-target"
-            />
-            {formData.isTemporary && (
-              <Box sx={{ mt: 1.5, pl: 0.5 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 600 }}>
-                  Expires in:
-                </Typography>
-                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-                  {[
-                    { label: '24 Hours', days: 1 },
-                    { label: '7 Days', days: 7 },
-                    { label: '30 Days', days: 30 },
-                    { label: '90 Days', days: 90 },
-                  ].map((opt) => {
-                    const isSelected = (formData.retentionDays || 30) === opt.days;
-                    return (
-                      <Chip
-                        key={opt.days}
-                        label={opt.label}
-                        onClick={() => setFormData(prev => ({ ...prev, retentionDays: opt.days }))}
-                        variant={isSelected ? "filled" : "outlined"}
-                        color={isSelected ? "warning" : "default"}
-                        className="cursor-hover-target"
-                        sx={{
-                          fontWeight: isSelected ? 700 : 500,
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          borderWidth: isSelected ? '2px' : '1px',
-                          transition: 'all 0.1s ease-in-out',
-                          '&:hover': {
-                            transform: 'translate(-1px, -1px)',
-                          }
-                        }}
-                      />
-                    );
-                  })}
-                </Stack>
-              </Box>
-            )}
-          </Box>
+          <TemporaryRetentionSelector
+            isTemporary={formData.isTemporary}
+            onToggleTemporary={(val) => setFormData(prev => ({ ...prev, isTemporary: val }))}
+            preset={formData.retentionPreset}
+            onPresetChange={(val) => setFormData(prev => ({ ...prev, retentionPreset: val }))}
+            customValue={formData.customRetentionValue}
+            onCustomValueChange={(val) => setFormData(prev => ({ ...prev, customRetentionValue: val }))}
+            customUnit={formData.customRetentionUnit}
+            onCustomUnitChange={(val) => setFormData(prev => ({ ...prev, customRetentionUnit: val }))}
+          />
           <FormControl fullWidth className="cursor-hover-target">
             <InputLabel>Content Type</InputLabel>
             <Select

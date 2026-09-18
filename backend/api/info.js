@@ -136,8 +136,8 @@ if (!process.env.VERCEL || process.argv[1] === fileURLToPath(import.meta.url)) {
 
     console.log(`Server running on port ${PORT}`);
 
-    // Schedule background cleanup every 1 hour (unref so process can exit cleanly)
-    const cleanupInterval = setInterval(runNoteCleanup, 60 * 60 * 1000);
+    // Schedule background cleanup every 5 minutes (unref so process can exit cleanly)
+    const cleanupInterval = setInterval(runNoteCleanup, 5 * 60 * 1000);
     if (cleanupInterval.unref) cleanupInterval.unref();
   });
 

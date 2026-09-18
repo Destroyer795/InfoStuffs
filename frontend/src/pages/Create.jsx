@@ -23,6 +23,8 @@ import { uploadToSupabase, createOpaqueStoragePath } from "../utils/supabaseUplo
 import { useUser } from "@clerk/clerk-react";
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import MarkdownInput from "../components/MarkdownInput"; // Import added
+import TemporaryRetentionSelector from "../components/TemporaryRetentionSelector";
+import { calculateExpirationDate } from "../utils/snippet";
 
 export default function Create({ handleCreate, userKey }) {
   const [formData, setFormData] = useState({
@@ -34,7 +36,9 @@ export default function Create({ handleCreate, userKey }) {
     imageFile: null,
     docFile: null,
     isTemporary: false,
-    retentionDays: 30,
+    retentionPreset: 30,
+    customRetentionValue: 1,
+    customRetentionUnit: 'hours',
   });
 
   const [snack, setSnack] = useState({
@@ -90,7 +94,7 @@ export default function Create({ handleCreate, userKey }) {
       type: formData.type,
       isTemporary: formData.isTemporary,
       expiresAt: formData.isTemporary 
-        ? new Date(Date.now() + Number(formData.retentionDays || 30) * 24 * 60 * 60 * 1000).toISOString()
+        ? calculateExpirationDate(formData.retentionPreset, formData.customRetentionValue, formData.customRetentionUnit)
         : null,
     };
 
@@ -210,60 +214,16 @@ export default function Create({ handleCreate, userKey }) {
             />
           </Stack>
 
-          <Box sx={{ p: 1.5, borderRadius: '8px', border: `1px solid ${theme.palette.divider}`, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.isTemporary}
-                  onChange={(e) => setFormData({ ...formData, isTemporary: e.target.checked })}
-                  color="warning"
-                />
-              }
-              label={
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  Temporary Note (Auto-Deletes)
-                </Typography>
-              }
-              className="cursor-hover-target"
-            />
-            {formData.isTemporary && (
-              <Box sx={{ mt: 1.5, pl: 0.5 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 600 }}>
-                  Expires in:
-                </Typography>
-                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-                  {[
-                    { label: '24 Hours', days: 1 },
-                    { label: '7 Days', days: 7 },
-                    { label: '30 Days', days: 30 },
-                    { label: '90 Days', days: 90 },
-                  ].map((opt) => {
-                    const isSelected = (formData.retentionDays || 30) === opt.days;
-                    return (
-                      <Chip
-                        key={opt.days}
-                        label={opt.label}
-                        onClick={() => setFormData(prev => ({ ...prev, retentionDays: opt.days }))}
-                        variant={isSelected ? "filled" : "outlined"}
-                        color={isSelected ? "warning" : "default"}
-                        className="cursor-hover-target"
-                        sx={{
-                          fontWeight: isSelected ? 700 : 500,
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          borderWidth: isSelected ? '2px' : '1px',
-                          transition: 'all 0.1s ease-in-out',
-                          '&:hover': {
-                            transform: 'translate(-1px, -1px)',
-                          }
-                        }}
-                      />
-                    );
-                  })}
-                </Stack>
-              </Box>
-            )}
-          </Box>
+          <TemporaryRetentionSelector
+            isTemporary={formData.isTemporary}
+            onToggleTemporary={(val) => setFormData(prev => ({ ...prev, isTemporary: val }))}
+            preset={formData.retentionPreset}
+            onPresetChange={(val) => setFormData(prev => ({ ...prev, retentionPreset: val }))}
+            customValue={formData.customRetentionValue}
+            onCustomValueChange={(val) => setFormData(prev => ({ ...prev, customRetentionValue: val }))}
+            customUnit={formData.customRetentionUnit}
+            onCustomUnitChange={(val) => setFormData(prev => ({ ...prev, customRetentionUnit: val }))}
+          />
 
           <FormControl fullWidth className="cursor-hover-target">
             <InputLabel>Type</InputLabel>

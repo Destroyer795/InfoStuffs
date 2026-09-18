@@ -75,12 +75,17 @@ export const formatExpirationLabel = (expiresAt, createdAt) => {
     return 'Expired (pending cleanup)';
   }
 
-  const hours = Math.ceil(diffMs / (1000 * 60 * 60));
-  if (hours < 1) {
-    return 'Expires in < 1 hr';
+  const totalMinutes = Math.ceil(diffMs / (1000 * 60));
+  if (totalMinutes <= 1) {
+    return 'Expires in < 1m';
   }
-  if (hours < 24) {
-    return `Expires in ${hours}h`;
+  if (totalMinutes < 60) {
+    return `Expires in ${totalMinutes}m`;
+  }
+
+  const totalHours = Math.ceil(diffMs / (1000 * 60 * 60));
+  if (totalHours < 24) {
+    return `Expires in ${totalHours}h`;
   }
 
   const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
@@ -88,4 +93,65 @@ export const formatExpirationLabel = (expiresAt, createdAt) => {
     return 'Expires tomorrow';
   }
   return `Expires in ${days} days`;
+};
+
+/**
+ * Calculates ISO expiration timestamp from preset or custom retention settings.
+ *
+ * @param {number|string} preset - 1 | 7 | 30 | 90 | 'custom'
+ * @param {number|string} customValue - Numeric duration
+ * @param {string} customUnit - 'minutes' | 'hours' | 'days'
+ * @returns {string} ISO Date string
+ */
+export const calculateExpirationDate = (preset, customValue = 1, customUnit = 'hours') => {
+  let ms = 0;
+  if (preset === 'custom') {
+    const val = Math.max(1, Math.min(10000, Number(customValue) || 1));
+    if (customUnit === 'minutes') ms = val * 60 * 1000;
+    else if (customUnit === 'hours') ms = val * 60 * 60 * 1000;
+    else if (customUnit === 'days') ms = val * 24 * 60 * 60 * 1000;
+    else ms = val * 60 * 60 * 1000;
+  } else {
+    const days = Number(preset) || 30;
+    ms = days * 24 * 60 * 60 * 1000;
+  }
+  return new Date(Date.now() + ms).toISOString();
+};
+
+/**
+ * Deduces retention preset and custom settings from an existing note's timestamps.
+ *
+ * @param {string|Date} expiresAt - Expiration timestamp
+ * @param {string|Date} createdAt - Creation timestamp
+ * @returns {{ preset: number|string, customValue: number, customUnit: string }}
+ */
+export const parseExistingRetention = (expiresAt, createdAt) => {
+  if (!expiresAt) {
+    return { preset: 30, customValue: 30, customUnit: 'days' };
+  }
+  const baseTime = createdAt ? new Date(createdAt).getTime() : Date.now();
+  const expTime = new Date(expiresAt).getTime();
+  const totalLifespanMs = Math.max(0, expTime - baseTime);
+
+  // If createdAt was far in the past or missing, check remaining diff from now
+  const diffMs = totalLifespanMs > 0 ? totalLifespanMs : (expTime - Date.now());
+
+  // Check preset days (allow ±10 minutes margin)
+  const marginMs = 10 * 60 * 1000;
+  const isClose = (targetMs) => Math.abs(diffMs - targetMs) <= marginMs;
+
+  if (isClose(1 * 24 * 60 * 60 * 1000)) return { preset: 1, customValue: 1, customUnit: 'days' };
+  if (isClose(7 * 24 * 60 * 60 * 1000)) return { preset: 7, customValue: 7, customUnit: 'days' };
+  if (isClose(30 * 24 * 60 * 60 * 1000)) return { preset: 30, customValue: 30, customUnit: 'days' };
+  if (isClose(90 * 24 * 60 * 60 * 1000)) return { preset: 90, customValue: 90, customUnit: 'days' };
+
+  // Otherwise, it's custom
+  const totalMinutes = Math.round(diffMs / (60 * 1000));
+  if (totalMinutes % (24 * 60) === 0 && totalMinutes >= 24 * 60) {
+    return { preset: 'custom', customValue: Math.round(totalMinutes / (24 * 60)), customUnit: 'days' };
+  }
+  if (totalMinutes % 60 === 0 && totalMinutes >= 60) {
+    return { preset: 'custom', customValue: Math.round(totalMinutes / 60), customUnit: 'hours' };
+  }
+  return { preset: 'custom', customValue: Math.max(1, totalMinutes), customUnit: 'minutes' };
 };
