@@ -361,9 +361,14 @@ export default function SplitPaneVault({
     imageURL: '',
     file: '',
     isTemporary: false,
-    retentionPreset: 30,
-    customRetentionValue: 1,
-    customRetentionUnit: 'hours',
+    retentionConfig: {
+      preset: 30,
+      customMode: 'duration',
+      days: 0,
+      hours: 2,
+      minutes: 30,
+      specificDate: ''
+    }
   });
   const [newFileData, setNewFileData] = useState({
     imageFile: null,
@@ -483,12 +488,8 @@ export default function SplitPaneVault({
       imageURL: note.imageURL || '',
       file: note.file || '',
       isTemporary: !!note.isTemporary,
-      retentionPreset: parsed.preset,
-      customRetentionValue: parsed.customValue,
-      customRetentionUnit: parsed.customUnit,
-      _initialPreset: parsed.preset,
-      _initialCustomValue: parsed.customValue,
-      _initialCustomUnit: parsed.customUnit,
+      retentionConfig: parsed,
+      _initialRetentionConfig: JSON.stringify(parsed)
     });
     setNewFileData({ imageFile: null, docFile: null });
   };
@@ -512,11 +513,7 @@ export default function SplitPaneVault({
 
     const isTempChanged = (editFormData.isTemporary || false) !== (editNote.isTemporary || false);
     const isRetentionChanged = editFormData.isTemporary && (
-      editFormData.retentionPreset !== editFormData._initialPreset ||
-      (editFormData.retentionPreset === 'custom' && (
-        editFormData.customRetentionValue !== editFormData._initialCustomValue ||
-        editFormData.customRetentionUnit !== editFormData._initialCustomUnit
-      ))
+      JSON.stringify(editFormData.retentionConfig) !== editFormData._initialRetentionConfig
     );
 
     const noChanges = 
@@ -545,19 +542,13 @@ export default function SplitPaneVault({
         if (!isRetentionChanged && editNote.expiresAt) {
           expiresAt = editNote.expiresAt;
         } else {
-          expiresAt = calculateExpirationDate(
-            editFormData.retentionPreset,
-            editFormData.customRetentionValue,
-            editFormData.customRetentionUnit
-          );
+          expiresAt = calculateExpirationDate(editFormData.retentionConfig);
         }
       }
 
       const {
-        _initialPreset,
-        _initialCustomValue,
-        _initialCustomUnit,
-        _initialRetentionDays,
+        _initialRetentionConfig,
+        retentionConfig,
         ...cleanedFormData
       } = editFormData;
       const updatedData = { ...cleanedFormData, imageURL, file, expiresAt };
@@ -1439,12 +1430,8 @@ export default function SplitPaneVault({
           <TemporaryRetentionSelector
             isTemporary={editFormData.isTemporary}
             onToggleTemporary={(val) => setEditFormData(prev => ({ ...prev, isTemporary: val }))}
-            preset={editFormData.retentionPreset}
-            onPresetChange={(val) => setEditFormData(prev => ({ ...prev, retentionPreset: val }))}
-            customValue={editFormData.customRetentionValue}
-            onCustomValueChange={(val) => setEditFormData(prev => ({ ...prev, customRetentionValue: val }))}
-            customUnit={editFormData.customRetentionUnit}
-            onCustomUnitChange={(val) => setEditFormData(prev => ({ ...prev, customRetentionUnit: val }))}
+            config={editFormData.retentionConfig}
+            onChangeConfig={(newConfig) => setEditFormData(prev => ({ ...prev, retentionConfig: newConfig }))}
           />
 
           <FormControl fullWidth className="cursor-hover-target">

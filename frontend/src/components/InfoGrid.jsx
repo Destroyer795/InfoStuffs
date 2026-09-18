@@ -254,9 +254,14 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
     imageURL: '',
     file: '',
     isTemporary: false,
-    retentionPreset: 30,
-    customRetentionValue: 1,
-    customRetentionUnit: 'hours',
+    retentionConfig: {
+      preset: 30,
+      customMode: 'duration',
+      days: 0,
+      hours: 2,
+      minutes: 30,
+      specificDate: ''
+    }
   });
   const [newFileData, setNewFileData] = useState({
     imageFile: null,
@@ -352,12 +357,8 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
       imageURL: info.imageURL || '',
       file: info.file || '',
       isTemporary: info.isTemporary || false,
-      retentionPreset: parsed.preset,
-      customRetentionValue: parsed.customValue,
-      customRetentionUnit: parsed.customUnit,
-      _initialPreset: parsed.preset,
-      _initialCustomValue: parsed.customValue,
-      _initialCustomUnit: parsed.customUnit,
+      retentionConfig: parsed,
+      _initialRetentionConfig: JSON.stringify(parsed)
     });
     setNewFileData({ imageFile: null, docFile: null });
   };
@@ -381,11 +382,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
 
     const isTempChanged = (formData.isTemporary || false) !== (editInfo.isTemporary || false);
     const isRetentionChanged = formData.isTemporary && (
-      formData.retentionPreset !== formData._initialPreset ||
-      (formData.retentionPreset === 'custom' && (
-        formData.customRetentionValue !== formData._initialCustomValue ||
-        formData.customRetentionUnit !== formData._initialCustomUnit
-      ))
+      JSON.stringify(formData.retentionConfig) !== formData._initialRetentionConfig
     );
 
     const noChanges = 
@@ -413,19 +410,13 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
         if (!isRetentionChanged && editInfo.expiresAt) {
           expiresAt = editInfo.expiresAt;
         } else {
-          expiresAt = calculateExpirationDate(
-            formData.retentionPreset,
-            formData.customRetentionValue,
-            formData.customRetentionUnit
-          );
+          expiresAt = calculateExpirationDate(formData.retentionConfig);
         }
       }
 
       const {
-        _initialPreset,
-        _initialCustomValue,
-        _initialCustomUnit,
-        _initialRetentionDays,
+        _initialRetentionConfig,
+        retentionConfig,
         ...cleanedFormData
       } = formData;
       const updatedData = { ...cleanedFormData, imageURL, file, expiresAt };
@@ -880,12 +871,8 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
           <TemporaryRetentionSelector
             isTemporary={formData.isTemporary}
             onToggleTemporary={(val) => setFormData(prev => ({ ...prev, isTemporary: val }))}
-            preset={formData.retentionPreset}
-            onPresetChange={(val) => setFormData(prev => ({ ...prev, retentionPreset: val }))}
-            customValue={formData.customRetentionValue}
-            onCustomValueChange={(val) => setFormData(prev => ({ ...prev, customRetentionValue: val }))}
-            customUnit={formData.customRetentionUnit}
-            onCustomUnitChange={(val) => setFormData(prev => ({ ...prev, customRetentionUnit: val }))}
+            config={formData.retentionConfig}
+            onChangeConfig={(newConfig) => setFormData(prev => ({ ...prev, retentionConfig: newConfig }))}
           />
           <FormControl fullWidth className="cursor-hover-target">
             <InputLabel>Content Type</InputLabel>

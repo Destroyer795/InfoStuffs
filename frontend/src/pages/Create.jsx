@@ -36,9 +36,14 @@ export default function Create({ handleCreate, userKey }) {
     imageFile: null,
     docFile: null,
     isTemporary: false,
-    retentionPreset: 30,
-    customRetentionValue: 1,
-    customRetentionUnit: 'hours',
+    retentionConfig: {
+      preset: 30,
+      customMode: 'duration',
+      days: 0,
+      hours: 2,
+      minutes: 30,
+      specificDate: ''
+    }
   });
 
   const [snack, setSnack] = useState({
@@ -94,7 +99,7 @@ export default function Create({ handleCreate, userKey }) {
       type: formData.type,
       isTemporary: formData.isTemporary,
       expiresAt: formData.isTemporary 
-        ? calculateExpirationDate(formData.retentionPreset, formData.customRetentionValue, formData.customRetentionUnit)
+        ? calculateExpirationDate(formData.retentionConfig)
         : null,
     };
 
@@ -217,12 +222,8 @@ export default function Create({ handleCreate, userKey }) {
           <TemporaryRetentionSelector
             isTemporary={formData.isTemporary}
             onToggleTemporary={(val) => setFormData(prev => ({ ...prev, isTemporary: val }))}
-            preset={formData.retentionPreset}
-            onPresetChange={(val) => setFormData(prev => ({ ...prev, retentionPreset: val }))}
-            customValue={formData.customRetentionValue}
-            onCustomValueChange={(val) => setFormData(prev => ({ ...prev, customRetentionValue: val }))}
-            customUnit={formData.customRetentionUnit}
-            onCustomUnitChange={(val) => setFormData(prev => ({ ...prev, customRetentionUnit: val }))}
+            config={formData.retentionConfig}
+            onChangeConfig={(newConfig) => setFormData(prev => ({ ...prev, retentionConfig: newConfig }))}
           />
 
           <FormControl fullWidth className="cursor-hover-target">
