@@ -67,12 +67,10 @@ const MarkdownInput = ({ value, onChange, placeholder }) => {
           background-color: ${bgColor} !important;
           color: ${textColor} !important;
           font-family: "Inter", sans-serif !important;
+          cursor: text !important;
         }
-        body.has-fine-pointer .rc-md-editor .editor-container .section {
-          cursor: none !important;
-        }
-        body.has-fine-pointer .rc-md-editor .editor-container .input {
-          cursor: none !important;
+        .rc-md-editor .editor-container .section {
+          cursor: text !important;
         }
 
         /* Preview text */
@@ -155,18 +153,6 @@ const MarkdownInput = ({ value, onChange, placeholder }) => {
         }
         .rc-md-editor ::-webkit-scrollbar-thumb:hover {
           background-color: ${textColor};
-        }
-        body.has-fine-pointer .rc-md-editor ::-webkit-scrollbar {
-          cursor: none !important;
-        }
-        body.has-fine-pointer .rc-md-editor ::-webkit-scrollbar-track {
-          cursor: none !important;
-        }
-        body.has-fine-pointer .rc-md-editor ::-webkit-scrollbar-thumb {
-          cursor: none !important;
-        }
-        body.has-fine-pointer .rc-md-editor ::-webkit-scrollbar-thumb:hover {
-          cursor: none !important;
         }
       `}</style>
 

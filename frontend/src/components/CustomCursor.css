@@ -1,61 +1,122 @@
-body.has-fine-pointer * {
-  cursor: none !important;
-}
+/* InfoStuffs Bespoke Stealth Prism Cursor */
 
-.cursor-inner {
-  width: 8px;
-  height: 8px;
-  background-color: var(--cursor-color);
-  border-radius: 50%;
+/* Cursor Master Wrapper */
+.vault-cursor-wrapper {
   position: fixed;
   top: 0;
   left: 0;
   pointer-events: none;
-  z-index: 2147483647; /* maximum positive value for a 32-bit signed binary integer*/
-  transform: translate(-50%, -50%);
-}
-
-.cursor-outer1,
-.cursor-outer2 {
-  position: fixed;
-  top: 0;
-  left: 0;
-  pointer-events: none;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
   z-index: 2147483647;
+  will-change: transform;
+  transform: translate(-3px, -3px);
+  transition: opacity 0.12s ease;
 }
 
-.cursor-outer1 {
-  width: 35px;
-  height: 35px;
-  border: 4px solid var(--cursor-color);
-  opacity: 0.2;
+/* Dark Mode Theme Styling (Pure White Vector with High-Contrast Dual Black Drop Shadows) */
+.vault-cursor-dark {
+  color: #ffffff;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.95)) drop-shadow(0 1.5px 3.5px rgba(0, 0, 0, 0.8));
 }
 
-.cursor-outer2 {
-  width: 50px;
-  height: 50px;
-  border: 4px solid var(--cursor-color);
-  opacity: 0.1;
+/* Light Mode Theme Styling (Solid Jet Black Vector with High-Contrast Dual White Drop Shadows) */
+.vault-cursor-light {
+  color: #000000;
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.95)) drop-shadow(0 1.5px 3.5px rgba(255, 255, 255, 0.8));
 }
 
-@keyframes pulseColor {
-  0% {
-    box-shadow: 0 0 0 0 rgba(var(--cursor-rgb), 0.8);
-    background-color: rgba(var(--cursor-rgb), 0.7);
+/* Vector Canvas */
+.vault-cursor-svg {
+  display: block;
+  overflow: visible;
+}
+
+/* Geometric Hardware Dart Body */
+.prism-body {
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+              fill 0.15s ease,
+              stroke-width 0.15s ease;
+  transform-origin: 3px 3px;
+}
+
+/* Inner Aperture Core */
+.prism-core {
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.15s ease;
+  transform-origin: 10px 10px;
+}
+
+/* Hover State: Sleek Focus Enhancement */
+.vault-cursor-wrapper.is-hovering .prism-body {
+  transform: scale(1.14);
+  stroke-width: 1.8px;
+}
+
+.vault-cursor-wrapper.is-hovering .prism-core {
+  opacity: 0.9;
+  fill: currentColor;
+}
+
+/* Click State: Crisp Mechanical Snap */
+.vault-cursor-wrapper.is-clicking .prism-body {
+  transform: scale(0.85);
+  fill: currentColor;
+}
+
+/* =========================================================
+   DESKTOP VS TEXT, SCROLLBARS & INPUT RULES
+   ========================================================= */
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  /* Hide system cursor on root html, body, and all non-text elements */
+  html.has-fine-pointer,
+  html.has-fine-pointer body,
+  body.has-fine-pointer {
+    cursor: none !important;
   }
-  50% {
-    box-shadow: 0 0 10px 10px rgba(var(--cursor-rgb), 0.7);
-    background-color: rgba(var(--cursor-rgb), 0.5);
+
+  html.has-fine-pointer *:not(input):not(textarea):not([contenteditable="true"]):not(pre):not(code):not(.selectable-text):not(.selectable-text *),
+  body.has-fine-pointer *:not(input):not(textarea):not([contenteditable="true"]):not(pre):not(code):not(.selectable-text):not(.selectable-text *) {
+    cursor: none !important;
   }
-  100% {
-    box-shadow: 0 0 0 0 rgba(var(--cursor-rgb), 0.6);
-    background-color: rgba(var(--cursor-rgb), 0.3);
+
+  /* Genuine text inputs, textareas, and code blocks retain normal browser selection cursor */
+  html.has-fine-pointer input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  html.has-fine-pointer textarea,
+  html.has-fine-pointer [contenteditable="true"],
+  html.has-fine-pointer .rc-md-editor .editor-container .input,
+  html.has-fine-pointer .rc-md-editor .editor-container .section,
+  html.has-fine-pointer .selectable-text,
+  body.has-fine-pointer input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  body.has-fine-pointer textarea,
+  body.has-fine-pointer [contenteditable="true"],
+  body.has-fine-pointer .rc-md-editor .editor-container .input,
+  body.has-fine-pointer .rc-md-editor .editor-container .section,
+  body.has-fine-pointer .selectable-text {
+    cursor: text !important;
+  }
+
+  /* When actively selecting text, only hide the custom cursor so native browser selection takes over */
+  html.cursor-text-mode .vault-cursor-wrapper,
+  body.cursor-text-mode .vault-cursor-wrapper {
+    opacity: 0 !important;
+    visibility: hidden !important;
   }
 }
 
-.cursor-hovering {
-  animation: pulseColor 1.2s ease-in-out infinite;
-  border-radius: 50%;
+/* =========================================================
+   SMALLER DEVICES & TOUCH: COMPLETELY SUPPRESSED
+   ========================================================= */
+@media (max-width: 1023px), (hover: none), (pointer: coarse) {
+  .vault-cursor-wrapper {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  html,
+  body,
+  html *,
+  body * {
+    cursor: auto !important;
+  }
 }
