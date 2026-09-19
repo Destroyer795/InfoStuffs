@@ -304,6 +304,7 @@ const formatFullDateTime = (dateString) => {
 
 export default function SplitPaneVault({
   infos = [],
+  allInfos,
   onUpdate,
   onDelete,
   userKey,
@@ -314,8 +315,9 @@ export default function SplitPaneVault({
   const navigate = useNavigate();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-  // Display real user notes strictly
+  // displayList receives centralized filteredInfos from App
   const displayList = useMemo(() => infos || [], [infos]);
+  const fullList = useMemo(() => (allInfos && allInfos.length ? allInfos : displayList), [allInfos, displayList]);
 
   const notesListRef = useRef(null);
   const canvasScrollRef = useRef(null);
@@ -383,35 +385,30 @@ export default function SplitPaneVault({
 
   // Categories list with counts (normalized casing so "knowledge" and "Knowledge" merge into "Knowledge")
   const categories = useMemo(() => {
-    const counts = { All: displayList.length };
-    displayList.forEach(item => {
+    const counts = { All: fullList.length };
+    fullList.forEach(item => {
       const raw = (item.category || 'General').trim();
       if (!raw) return;
       const normalized = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
       counts[normalized] = (counts[normalized] || 0) + 1;
     });
     return Object.entries(counts).map(([name, count]) => ({ name, count }));
-  }, [displayList]);
+  }, [fullList]);
 
-  // Filter notes by search query and category
+  // Filter notes by category (search query filtering is already centralized in displayList)
   const filteredNotes = useMemo(() => {
     return displayList.filter(note => {
-      const matchesSearch = !searchQuery || 
-        note.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        note.content?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        note.category?.toLowerCase().includes(searchQuery.toLowerCase());
-
       const matchesCat = selectedCategory === 'All' || 
         (note.category || 'General').trim().toLowerCase() === selectedCategory.toLowerCase();
 
-      return matchesSearch && matchesCat;
+      return matchesCat;
     });
-  }, [displayList, searchQuery, selectedCategory]);
+  }, [displayList, selectedCategory]);
 
   // Active note object
   const activeNote = useMemo(() => {
-    return displayList.find(n => n._id === selectedId) || null;
-  }, [displayList, selectedId]);
+    return fullList.find(n => n._id === selectedId) || null;
+  }, [fullList, selectedId]);
 
   const getRelativePathFromUrl = (url) => {
     if (typeof url !== 'string') return null;
@@ -578,7 +575,7 @@ export default function SplitPaneVault({
   };
 
   const handleDeleteActive = async (id) => {
-    const toDelete = displayList.find(n => n._id === id);
+    const toDelete = fullList.find(n => n._id === id);
     try {
       if (toDelete?.imageURL) {
         const imagePath = getRelativePathFromUrl(toDelete.imageURL);

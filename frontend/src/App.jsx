@@ -228,11 +228,13 @@ const App = () => {
   const toggleDarkMode = () => setDarkMode((prev) => !prev);
 
   const filteredInfos = useMemo(() => {
-    if (!searchQuery) return infos;
-    return infos.filter(
+    if (!searchQuery || !searchQuery.trim()) return infos;
+    const query = searchQuery.toLowerCase().trim();
+    return (infos || []).filter(
       (info) =>
-        info.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        info.category.toLowerCase().includes(searchQuery.toLowerCase())
+        info.name?.toLowerCase().includes(query) ||
+        info.category?.toLowerCase().includes(query) ||
+        (typeof info.content === 'string' && info.content.toLowerCase().includes(query))
     );
   }, [infos, searchQuery]);
 
@@ -549,13 +551,12 @@ const App = () => {
       <Router>
         <AppContent
           infos={infos}
+          filteredInfos={filteredInfos}
           handleUpdate={handleUpdate}
           handleDelete={handleDelete}
           handleCreate={handleCreate}
           darkMode={darkMode}
           toggleDarkMode={toggleDarkMode}
-          error={error}
-          isLoading={isLoading}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           isVaultUnlocked={!!encryptionKey} 
@@ -567,8 +568,8 @@ const App = () => {
 };
 
 function AppContent({
-  infos, handleUpdate, handleDelete, handleCreate, darkMode,
-  toggleDarkMode, error, isLoading,
+  infos, filteredInfos, handleUpdate, handleDelete, handleCreate, darkMode,
+  toggleDarkMode,
   searchQuery, setSearchQuery, isVaultUnlocked, userKey
 }) {
   const location = useLocation();
@@ -607,7 +608,8 @@ function AppContent({
               <ProtectedRoute>
                 {isVaultUnlocked && (
                   <SplitPaneVault
-                    infos={infos}
+                    infos={filteredInfos}
+                    allInfos={infos}
                     onUpdate={handleUpdate}
                     onDelete={handleDelete}
                     userKey={userKey}
