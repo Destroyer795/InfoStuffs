@@ -14,6 +14,10 @@ export const createOpaqueStoragePath = (file, folder = "uploads") => {
 
 export const uploadToSupabase = async (file, storagePath, key) => {
   if (!file || !storagePath || !key) return null;
+  if (!supabase) {
+    console.warn("Supabase client is not initialized. Storage upload skipped.");
+    return null;
+  }
 
   try {
     const encryptedBlob = await encryptFile(file, key);
@@ -37,6 +41,10 @@ export const uploadToSupabase = async (file, storagePath, key) => {
 
 export const getSignedUrl = async (path) => {
   if (!path) return null;
+  if (!supabase) {
+    console.warn("Supabase client is not initialized. Signed URL generation skipped.");
+    return null;
+  }
   try {
     const { data, error } = await supabase.storage
       .from("infostuffsende")
@@ -56,6 +64,10 @@ export const getSignedUrl = async (path) => {
 
 export const deleteFromSupabase = async (path) => {
   if (!path) return false;
+  if (!supabase) {
+    console.warn("Supabase client is not initialized. Storage delete skipped.");
+    return false;
+  }
 
   try {
     const { error } = await supabase.storage
