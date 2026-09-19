@@ -23,7 +23,6 @@ const CustomCursor = () => {
   const [isHovering, setIsHovering] = useState(false);
   const [isClicking, setIsClicking] = useState(false);
   const [isTextMode, setIsTextMode] = useState(false);
-  const [isScrollbarMode, setIsScrollbarMode] = useState(false);
 
   // Check if device is a desktop with a fine pointer and viewport >= 1024px
   const [isEligibleDevice, setIsEligibleDevice] = useState(() => {
@@ -137,35 +136,8 @@ const CustomCursor = () => {
       }
     };
 
-    const isOverScrollbar = (clientX, clientY) => {
-      // 1. Root viewport scrollbars (vertical on right or horizontal on bottom)
-      const docEl = document.documentElement;
-      if (docEl.clientWidth > 0 && clientX >= docEl.clientWidth) return true;
-      if (docEl.clientHeight > 0 && clientY >= docEl.clientHeight) return true;
-
-      // 2. Elements with scrollbars under the cursor
-      let el = document.elementFromPoint(clientX, clientY);
-      while (el && el !== docEl && el !== document.body) {
-        const style = window.getComputedStyle(el);
-        const hasScrollY = (style.overflowY === 'auto' || style.overflowY === 'scroll') && el.scrollHeight > el.clientHeight;
-        const hasScrollX = (style.overflowX === 'auto' || style.overflowX === 'scroll') && el.scrollWidth > el.clientWidth;
-
-        if (hasScrollY || hasScrollX) {
-          const rect = el.getBoundingClientRect();
-          // Vertical scrollbar on right
-          if (hasScrollY && clientX >= rect.left + el.clientLeft + el.clientWidth) {
-            return true;
-          }
-          // Horizontal scrollbar on bottom
-          if (hasScrollX && clientY >= rect.top + el.clientTop + el.clientHeight) {
-            return true;
-          }
-        }
-        el = el.parentElement;
-      }
-
-      return false;
-    };
+    // Track whether user is actively dragging to select text
+    let isMouseDown = false;
 
     const handleMouseMove = (e) => {
       const { clientX: x, clientY: y } = e;
@@ -177,19 +149,19 @@ const CustomCursor = () => {
 
       if (!visible) setVisible(true);
 
-      // Check if hovering over any scrollbar
-      const onScrollbar = isOverScrollbar(x, y);
-      setIsScrollbarMode(onScrollbar);
-      if (onScrollbar) {
-        setIsHovering(false);
-        return;
-      }
-
       const target = e.target;
-      const selection = window.getSelection();
-      const isSelecting = selection && !selection.isCollapsed && selection.toString().trim().length > 0;
 
-      if (isSelecting || isTextElement(target)) {
+      // Only hide the cursor when actively dragging to select text (mousedown + moving)
+      // or when hovering genuine text input fields
+      const isActivelySelecting = isMouseDown && (() => {
+        const selection = window.getSelection();
+        return selection && !selection.isCollapsed && selection.toString().trim().length > 0;
+      })();
+
+      if (isTextElement(target)) {
+        updateTextMode(true);
+        setIsHovering(false);
+      } else if (isActivelySelecting) {
         updateTextMode(true);
         setIsHovering(false);
       } else if (isInteractiveElement(target)) {
@@ -202,11 +174,22 @@ const CustomCursor = () => {
     };
 
     const handleMouseDown = () => {
+      isMouseDown = true;
       setIsClicking(true);
     };
 
     const handleMouseUp = () => {
+      isMouseDown = false;
       setIsClicking(false);
+
+      // Bring cursor back after finishing a text selection drag
+      // (unless the mouse is still over a genuine text input)
+      requestAnimationFrame(() => {
+        const active = document.activeElement;
+        if (!isTextElement(active)) {
+          updateTextMode(false);
+        }
+      });
     };
 
     // Only hide if the cursor truly exits the window boundaries (not when touching a scrollbar)
@@ -228,16 +211,20 @@ const CustomCursor = () => {
 
     const handleSelectionChange = () => {
       const selection = window.getSelection();
-      const isSelecting = selection && !selection.isCollapsed && selection.toString().trim().length > 0;
-      if (isSelecting) {
+      const hasSelection = selection && !selection.isCollapsed && selection.toString().trim().length > 0;
+
+      if (hasSelection && isMouseDown) {
+        // Only enter text mode if actively dragging
         updateTextMode(true);
-      } else {
-        // If selection ended and active element isn't an input, reset text mode
+      } else if (!hasSelection) {
+        // Selection collapsed (e.g. clicked away) — exit text mode if not in a text input
         const active = document.activeElement;
         if (!isTextElement(active)) {
           updateTextMode(false);
         }
       }
+      // If hasSelection && !isMouseDown: selection exists passively (user finished selecting)
+      // Keep cursor visible — don't hide it
     };
 
     // When hitting Enter or Escape (e.g. submitting vault password, closing modal), exit text mode immediately
@@ -259,9 +246,7 @@ const CustomCursor = () => {
 
     // When scrolling, if not actively selecting or in an input, ensure text mode isn't stuck
     const handleWheel = () => {
-      const selection = window.getSelection();
-      const isSelecting = selection && !selection.isCollapsed && selection.toString().trim().length > 0;
-      if (!isSelecting && !isTextElement(document.activeElement)) {
+      if (!isMouseDown && !isTextElement(document.activeElement)) {
         updateTextMode(false);
       }
     };
@@ -292,7 +277,7 @@ const CustomCursor = () => {
 
   if (!isEligibleDevice) return null;
 
-  const isHidden = !visible || isTextMode || isScrollbarMode;
+  const isHidden = !visible || isTextMode;
 
   return (
     <div
