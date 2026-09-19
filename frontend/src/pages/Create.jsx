@@ -158,7 +158,7 @@ export default function Create({ handleCreate, userKey }) {
 
       handleCreate(submission)
         .then(() => {
-          setTimeout(() => navigate("/"), 2000);
+          setTimeout(() => navigate("/dashboard"), 2000);
         })
         .catch((err) => {
           console.error(err);
