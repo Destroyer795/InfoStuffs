@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, lazy, Suspense } from 'react';
+import { useEffect, useState, useMemo, useCallback, lazy, Suspense } from 'react';
 import { 
   useAuth, 
   useUser, 
@@ -37,14 +37,12 @@ import Login from './pages/Login.jsx';
 import Signup from './pages/Signup.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 
-import { encryptText, decryptText, generateKeyFromPassword } from './utils/encryption';
-import { getSignedUrl } from './utils/supabaseUpload';
+import { encryptText, decryptNoteArray } from './utils/encryption';
 import EncryptionWorker from './utils/worker?worker'; 
 import { lightTheme, darkTheme } from './theme';
 import config from './config';
 import { saveOfflineNotes, getOfflineNotes } from './utils/localStore';
 
-const InfoGrid = lazy(() => import('./components/InfoGrid.jsx'));
 const SplitPaneVault = lazy(() => import('./components/SplitPaneVault.jsx'));
 const Create = lazy(() => import('./pages/Create.jsx'));
 const UpdateProf = lazy(() => import('./pages/UpdateProf.jsx').then(module => ({ default: module.UpdateProf })));
@@ -211,7 +209,6 @@ const App = () => {
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   
   const [encryptionKey, setEncryptionKey] = useState(null);
@@ -290,56 +287,22 @@ const App = () => {
     setSnackbar({ ...snackbar, open: false });
   };
 
-  const getAuthHeaders = async () => {
+  const getAuthHeaders = useCallback(async () => {
     const token = await getToken();
     return token ? { Authorization: `Bearer ${token}` } : {};
-  };
+  }, [getToken]);
 
-  const fetchInfos = async () => {
+  const fetchInfos = useCallback(async () => {
     if (!isSignedIn || !encryptionKey) return;
 
     setIsLoading(true);
-    setError(null);
 
     // 1. OFFLINE BOOT: If no internet, read from IndexedDB
     if (!navigator.onLine) {
       console.log("Network offline: Booting from Zero-Knowledge Local Cache...");
       try {
         const cachedNotes = await getOfflineNotes();
-        
-        // Decrypt cached notes
-        const decryptedPromises = (cachedNotes || []).map(async (item) => {
-          const decryptedName = await decryptText(item.name, encryptionKey);
-          const decryptedCategory = await decryptText(item.category, encryptionKey);
-          
-          const decryptedContent = item.type === 'text' 
-            ? await decryptText(item.content, encryptionKey) 
-            : item.content;
-
-          let realImageUrl = item.imageURL;
-          let realFileUrl = item.file;
-
-          if (item.type === 'image' && item.imageURL) {
-              realImageUrl = await decryptText(item.imageURL, encryptionKey);
-          }
-
-          if (item.type === 'file' && item.file) {
-              realFileUrl = await decryptText(item.file, encryptionKey);
-          }
-
-          return {
-            ...item,
-            name: decryptedName,
-            category: decryptedCategory,
-            content: decryptedContent,
-            imageURL: realImageUrl,
-            file: realFileUrl
-          };
-        });
-
-        const decrypted = (await Promise.all(decryptedPromises))
-          .filter(item => item.name && item.name.length > 0);
-        
+        const decrypted = await decryptNoteArray(cachedNotes || [], encryptionKey);
         setInfos(decrypted);
       } catch (err) {
         console.error('Failed to retrieve offline notes:', err);
@@ -359,38 +322,7 @@ const App = () => {
       // 3. THE ZKA CACHE: Save the raw ciphertext BEFORE decryption (background process)
       saveOfflineNotes(rawNotes, user?.id).catch(err => console.error("Cache write failed:", err));
       
-      const decryptedPromises = rawNotes.map(async (item) => {
-        const decryptedName = await decryptText(item.name, encryptionKey);
-        const decryptedCategory = await decryptText(item.category, encryptionKey);
-        
-        const decryptedContent = item.type === 'text' 
-          ? await decryptText(item.content, encryptionKey) 
-          : item.content;
-
-        let realImageUrl = item.imageURL;
-        let realFileUrl = item.file;
-
-        if (item.type === 'image' && item.imageURL) {
-            realImageUrl = await decryptText(item.imageURL, encryptionKey);
-        }
-
-        if (item.type === 'file' && item.file) {
-            realFileUrl = await decryptText(item.file, encryptionKey);
-        }
-
-        return {
-          ...item,
-          name: decryptedName,
-          category: decryptedCategory,
-          content: decryptedContent,
-          imageURL: realImageUrl,
-          file: realFileUrl
-        };
-      });
-
-      const decrypted = (await Promise.all(decryptedPromises))
-        .filter(item => item.name && item.name.length > 0);
-
+      const decrypted = await decryptNoteArray(rawNotes, encryptionKey);
       setInfos(decrypted);
     } catch (err) {
       console.error('Failed to fetch from backend', err);
@@ -398,49 +330,17 @@ const App = () => {
       // Fallback in case Render is down but the device thinks it's online
       try {
         const cachedNotes = await getOfflineNotes();
-        
-        const decryptedPromises = (cachedNotes || []).map(async (item) => {
-          const decryptedName = await decryptText(item.name, encryptionKey);
-          const decryptedCategory = await decryptText(item.category, encryptionKey);
-          
-          const decryptedContent = item.type === 'text' 
-            ? await decryptText(item.content, encryptionKey) 
-            : item.content;
-
-          let realImageUrl = item.imageURL;
-          let realFileUrl = item.file;
-
-          if (item.type === 'image' && item.imageURL) {
-              realImageUrl = await decryptText(item.imageURL, encryptionKey);
-          }
-
-          if (item.type === 'file' && item.file) {
-              realFileUrl = await decryptText(item.file, encryptionKey);
-          }
-
-          return {
-            ...item,
-            name: decryptedName,
-            category: decryptedCategory,
-            content: decryptedContent,
-            imageURL: realImageUrl,
-            file: realFileUrl
-          };
-        });
-
-        const decrypted = (await Promise.all(decryptedPromises))
-          .filter(item => item.name && item.name.length > 0);
-        
+        const decrypted = await decryptNoteArray(cachedNotes || [], encryptionKey);
         setInfos(decrypted);
       } catch (cacheErr) {
         console.error('Failed to retrieve offline cache:', cacheErr);
-        setError('Failed to load your content.');
+        setSnackbar({ open: true, message: 'Failed to load your content.', severity: 'error' });
         setInfos([]);
       }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isSignedIn, encryptionKey, getAuthHeaders, API_BASE_URL, user?.id]);
 
   useEffect(() => {
     localStorage.setItem('appTheme', darkMode ? 'dark' : 'light');
@@ -453,7 +353,7 @@ const App = () => {
       setIsLoading(false);
       setEncryptionKey(null);
     }
-  }, [authLoaded, userLoaded, isSignedIn, encryptionKey]);
+  }, [authLoaded, userLoaded, isSignedIn, encryptionKey, fetchInfos]);
 
   const handleCreate = async (newData) => {
     if (!encryptionKey) return;

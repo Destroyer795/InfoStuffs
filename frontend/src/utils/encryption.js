@@ -104,9 +104,46 @@ export const decryptText = async (packedData, key) => {
 
     const dec = new TextDecoder();
     return dec.decode(decryptedContent);
-  } catch (e) {
+  } catch {
     return ''; 
   }
+};
+
+// Decrypt an array of encrypted note objects
+export const decryptNoteArray = async (notes, key) => {
+  if (!Array.isArray(notes) || !key) return [];
+
+  const decryptedPromises = notes.map(async (item) => {
+    const decryptedName = await decryptText(item.name, key);
+    const decryptedCategory = await decryptText(item.category, key);
+
+    const decryptedContent = item.type === 'text'
+      ? await decryptText(item.content, key)
+      : item.content;
+
+    let realImageUrl = item.imageURL;
+    let realFileUrl = item.file;
+
+    if (item.type === 'image' && item.imageURL) {
+      realImageUrl = await decryptText(item.imageURL, key);
+    }
+
+    if (item.type === 'file' && item.file) {
+      realFileUrl = await decryptText(item.file, key);
+    }
+
+    return {
+      ...item,
+      name: decryptedName,
+      category: decryptedCategory,
+      content: decryptedContent,
+      imageURL: realImageUrl,
+      file: realFileUrl
+    };
+  });
+
+  const decrypted = await Promise.all(decryptedPromises);
+  return decrypted.filter(item => item.name && item.name.length > 0);
 };
 
 // Encrypt File (Blob)
