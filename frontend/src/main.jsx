@@ -7,6 +7,7 @@ import { ThemeProvider, CssBaseline } from '@mui/material'
 import { darkTheme } from './theme'
 import OfflineVault from './pages/OfflineVault.jsx'
 import CustomCursor from './components/Cursor.jsx'
+import CustomScrollbar from './components/CustomScrollbar.jsx'
 
 
 // Register the service worker immediately for offline support
@@ -101,6 +102,7 @@ const InfoStuffsRoot = () => {
       <ThemeProvider theme={darkTheme}>
         <CssBaseline />
         <CustomCursor />
+        <CustomScrollbar global={true} />
         <OfflineVault />
       </ThemeProvider>
     );

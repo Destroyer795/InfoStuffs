@@ -32,6 +32,7 @@ import {
 
 import NavBar from './components/NavBar.jsx';
 import CustomCursor from './components/Cursor.jsx';
+import CustomScrollbar from './components/CustomScrollbar.jsx';
 import Login from './pages/Login.jsx';
 import Signup from './pages/Signup.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
@@ -528,7 +529,6 @@ const App = () => {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <CustomCursor />
-      
       {shouldShowLoading && <LoadingScreen darkMode={darkMode} />}
       
       {showVaultModal && !isUnlocking && (
@@ -577,6 +577,7 @@ function AppContent({
 
   return (
     <Box>
+      <CustomScrollbar global={true} watch={location.pathname} />
       {!hideNav && (
         <>
           <NavBar darkMode={darkMode} toggleDarkMode={toggleDarkMode} />

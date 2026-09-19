@@ -1,0 +1,164 @@
+/* InfoStuffs Custom Monochromatic Vault Scrollbar */
+
+/* =========================================================
+   1. HIDE NATIVE BROWSER SCROLLBARS GLOBALLY
+   ========================================================= */
+html,
+body,
+* {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE / Edge */
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* =========================================================
+   2. CUSTOM DOM SCROLLBAR TRACK & THUMB
+   ========================================================= */
+
+/* Base Scrollbar Track */
+.vault-scrollbar-track {
+  pointer-events: none;
+  opacity: 0;
+  border-radius: 9999px;
+  transition: opacity 0.18s ease, background-color 0.15s ease;
+  user-select: none;
+  z-index: 50;
+}
+
+/* Vertical Track */
+.vault-scrollbar-track.is-vertical {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  right: 4px;
+  width: 8px;
+}
+
+/* Horizontal Track (for categories, horizontal pill lists) */
+.vault-scrollbar-track.is-horizontal {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 0px;
+  height: 5px;
+  width: auto;
+}
+
+/* Visible when scrollable */
+.vault-scrollbar-track.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Global Viewport Scrollbar Track (Fixed to screen edge) */
+.vault-scrollbar-track.is-global {
+  position: fixed;
+  top: 4px;
+  bottom: 4px;
+  right: 4px;
+  z-index: 2147483640;
+}
+
+/* Dark Mode Theme Styling */
+.vault-scrollbar-dark {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.vault-scrollbar-dark:hover {
+  background-color: rgba(255, 255, 255, 0.14);
+}
+
+.vault-scrollbar-dark .vault-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.45);
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.9);
+}
+
+.vault-scrollbar-dark .vault-scrollbar-thumb:hover,
+.vault-scrollbar-dark .vault-scrollbar-thumb.is-dragging {
+  background-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 1);
+}
+
+/* Light Mode Theme Styling */
+.vault-scrollbar-light {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+.vault-scrollbar-light:hover {
+  background-color: rgba(0, 0, 0, 0.14);
+}
+
+.vault-scrollbar-light .vault-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.45);
+  box-shadow: 0 0 2px rgba(255, 255, 255, 0.9);
+}
+
+.vault-scrollbar-light .vault-scrollbar-thumb:hover,
+.vault-scrollbar-light .vault-scrollbar-thumb.is-dragging {
+  background-color: rgba(0, 0, 0, 0.95);
+  box-shadow: 0 0 4px rgba(255, 255, 255, 1);
+}
+
+/* Scrollbar Thumb */
+.vault-scrollbar-thumb {
+  position: absolute;
+  border-radius: 9999px;
+  will-change: transform;
+  cursor: pointer;
+  transition: background-color 0.15s ease, width 0.15s ease, height 0.15s ease, left 0.15s ease, top 0.15s ease;
+}
+
+/* Vertical Thumb Dimensions */
+.vault-scrollbar-thumb.is-vertical {
+  top: 0;
+  left: 1px;
+  width: 6px;
+  min-height: 32px;
+}
+
+.vault-scrollbar-track.is-vertical:hover .vault-scrollbar-thumb.is-vertical,
+.vault-scrollbar-thumb.is-vertical.is-dragging {
+  width: 7px;
+  left: 0.5px;
+}
+
+/* Horizontal Thumb Dimensions */
+.vault-scrollbar-thumb.is-horizontal {
+  top: 0.5px;
+  left: 0;
+  height: 4px;
+  min-width: 24px;
+}
+
+.vault-scrollbar-track.is-horizontal:hover .vault-scrollbar-thumb.is-horizontal,
+.vault-scrollbar-thumb.is-horizontal.is-dragging {
+  height: 5px;
+  top: 0px;
+}
+
+/* Responsive adjustments for narrow viewports */
+@media (max-width: 767px) {
+  .vault-scrollbar-track.is-vertical {
+    width: 6px;
+    right: 2px;
+  }
+  .vault-scrollbar-thumb.is-vertical {
+    width: 4px;
+    left: 1px;
+    min-height: 24px;
+  }
+  .vault-scrollbar-track.is-horizontal {
+    height: 4px;
+  }
+  .vault-scrollbar-thumb.is-horizontal {
+    height: 3px;
+    min-width: 20px;
+  }
+}

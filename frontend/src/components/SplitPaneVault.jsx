@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -39,6 +39,7 @@ import {
 } from '../utils/supabaseUpload';
 import MarkdownInput from './MarkdownInput';
 import TemporaryRetentionSelector from './TemporaryRetentionSelector';
+import CustomScrollbar from './CustomScrollbar';
 
 // Icons
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
@@ -315,6 +316,10 @@ export default function SplitPaneVault({
 
   // Display real user notes strictly
   const displayList = useMemo(() => infos || [], [infos]);
+
+  const notesListRef = useRef(null);
+  const canvasScrollRef = useRef(null);
+  const categoriesScrollRef = useRef(null);
 
   // Live 60-second ticker to automatically update relative timestamps
   const [, setClock] = useState(0);
@@ -704,114 +709,90 @@ export default function SplitPaneVault({
               </Button>
             </Box>
 
-            {/* Category Filter Pills (Horizontal Scroll) */}
-            <Box 
-              onWheel={(e) => {
-                if (e.deltaY !== 0) {
-                  e.currentTarget.scrollLeft += e.deltaY;
-                }
-              }}
-              sx={{ 
-                display: 'flex', 
-                gap: 1, 
-                overflowX: 'auto', 
-                overflowY: 'hidden',
-                mt: 0.75, // Shift categories down by a little bit as requested
-                pt: 1,    // Generous top padding so hover lift/shadow is never cut off at the top
-                pb: 0.75, // Bottom padding for scrollbar and shadow
-                px: 0.5,
-                scrollbarWidth: 'thin',
-                scrollbarColor: theme.palette.mode === 'dark' 
-                  ? 'rgba(255, 255, 255, 0.2) transparent' 
-                  : 'rgba(0, 0, 0, 0.2) transparent',
-                '&::-webkit-scrollbar': {
-                  height: '4px',
-                },
-                '&::-webkit-scrollbar-track': {
-                  background: 'transparent',
-                },
-                '&::-webkit-scrollbar-thumb': {
-                  backgroundColor: theme.palette.mode === 'dark' 
-                    ? 'rgba(255, 255, 255, 0.2)' 
-                    : 'rgba(0, 0, 0, 0.2)',
-                  borderRadius: '4px',
-                  '&:hover': {
-                    backgroundColor: theme.palette.mode === 'dark' 
-                      ? 'rgba(255, 255, 255, 0.38)' 
-                      : 'rgba(0, 0, 0, 0.38)',
+            {/* Category Filter Pills (Horizontal Scroll with Custom Scrollbar) */}
+            <Box sx={{ position: 'relative', mt: 0.75, pb: 0.75 }}>
+              <Box 
+                ref={categoriesScrollRef}
+                onWheel={(e) => {
+                  if (e.deltaY !== 0) {
+                    e.currentTarget.scrollLeft += e.deltaY;
                   }
-                }
-              }}
-            >
-              {categories.map((cat) => {
-                const isSelected = selectedCategory.toLowerCase() === cat.name.toLowerCase();
-                return (
-                  <Chip
-                    key={cat.name}
-                    label={`${cat.name} (${cat.count})`}
-                    size="small"
-                    onClick={() => setSelectedCategory(cat.name)}
-                    className="cursor-hover-target"
-                    sx={{
-                      cursor: 'pointer',
-                      flexShrink: 0,
-                      fontWeight: isSelected ? 700 : 500,
-                      textTransform: 'capitalize',
-                      border: isSelected ? neoBorderStyle : `1px solid ${theme.palette.divider}`,
-                      bgcolor: isSelected 
-                        ? theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.1)' 
-                        : theme.palette.background.paper,
-                      color: theme.palette.text.primary,
-                      boxShadow: isSelected ? getNeoShadow(2) : 'none',
-                      transition: 'all 0.1s cubic-bezier(0.25, 0.8, 0.25, 1)',
-                      '&:hover': {
-                        transform: 'translate(-1px, -1px)',
-                        boxShadow: getNeoShadow(2),
-                        borderColor: theme.palette.text.primary
-                      },
-                      '&:active': {
-                        transform: 'translate(1px, 1px)',
-                        boxShadow: 'none'
-                      }
-                    }}
-                  />
-                );
-              })}
+                }}
+                sx={{ 
+                  display: 'flex', 
+                  gap: 1, 
+                  overflowX: 'auto', 
+                  overflowY: 'hidden',
+                  pt: 0.5,
+                  pb: 0.75,
+                  px: 0.5,
+                  scrollbarWidth: 'none',
+                  '&::-webkit-scrollbar': {
+                    display: 'none',
+                    width: 0,
+                    height: 0,
+                  }
+                }}
+              >
+                {categories.map((cat) => {
+                  const isSelected = selectedCategory.toLowerCase() === cat.name.toLowerCase();
+                  return (
+                    <Chip
+                      key={cat.name}
+                      label={`${cat.name} (${cat.count})`}
+                      size="small"
+                      onClick={() => setSelectedCategory(cat.name)}
+                      className="cursor-hover-target"
+                      sx={{
+                        cursor: 'pointer',
+                        flexShrink: 0,
+                        fontWeight: isSelected ? 700 : 500,
+                        textTransform: 'capitalize',
+                        border: isSelected ? neoBorderStyle : `1px solid ${theme.palette.divider}`,
+                        bgcolor: isSelected 
+                          ? theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.1)' 
+                          : theme.palette.background.paper,
+                        color: theme.palette.text.primary,
+                        boxShadow: isSelected ? getNeoShadow(2) : 'none',
+                        transition: 'all 0.1s cubic-bezier(0.25, 0.8, 0.25, 1)',
+                        '&:hover': {
+                          transform: 'translate(-1px, -1px)',
+                          boxShadow: getNeoShadow(2),
+                          borderColor: theme.palette.text.primary
+                        },
+                        '&:active': {
+                          transform: 'translate(1px, 1px)',
+                          boxShadow: 'none'
+                        }
+                      }}
+                    />
+                  );
+                })}
+              </Box>
+              <CustomScrollbar 
+                targetRef={categoriesScrollRef} 
+                horizontal={true} 
+                watch={categories.length} 
+              />
             </Box>
           </Box>
 
-          {/* Notes Scrollable Rows with custom themed scrollbar */}
-          <Box 
-            sx={{ 
-              flexGrow: 1, 
-              overflowY: 'auto', 
-              p: 1.5, 
-              display: 'flex', 
-              flexDirection: 'column', 
-              gap: 1.2,
-              scrollbarWidth: 'thin',
-              scrollbarColor: theme.palette.mode === 'dark' 
-                ? 'rgba(255, 255, 255, 0.2) transparent' 
-                : 'rgba(0, 0, 0, 0.2) transparent',
-              '&::-webkit-scrollbar': {
-                width: '6px',
-              },
-              '&::-webkit-scrollbar-track': {
-                background: 'transparent',
-              },
-              '&::-webkit-scrollbar-thumb': {
-                backgroundColor: theme.palette.mode === 'dark' 
-                  ? 'rgba(255, 255, 255, 0.2)' 
-                  : 'rgba(0, 0, 0, 0.2)',
-                borderRadius: '8px',
-                '&:hover': {
-                  backgroundColor: theme.palette.mode === 'dark' 
-                    ? 'rgba(255, 255, 255, 0.38)' 
-                    : 'rgba(0, 0, 0, 0.38)',
-                }
-              }
-            }}
-          >
+          {/* Notes Scrollable Container with Custom Monochromatic Scrollbar */}
+          <Box sx={{ position: 'relative', flexGrow: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <Box 
+              ref={notesListRef}
+              sx={{ 
+                flexGrow: 1, 
+                overflowY: 'auto', 
+                pl: 1.5,
+                pt: 1.5,
+                pb: 1.5,
+                pr: 3, // Generous 24px right padding so cards have a clear, distinct gap from the scrollbar
+                display: 'flex', 
+                flexDirection: 'column', 
+                gap: 1.2
+              }}
+            >
             {filteredNotes.length === 0 ? (
               <Box sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
                 <Typography variant="body2">
@@ -959,6 +940,8 @@ export default function SplitPaneVault({
                 );
               })
             )}
+            </Box>
+            <CustomScrollbar targetRef={notesListRef} watch={filteredNotes.length} />
           </Box>
         </Box>
 
@@ -1198,39 +1181,21 @@ export default function SplitPaneVault({
                 </Stack>
               </Box>
 
-              {/* Canvas Scrollable Reading Body with custom themed scrollbar */}
-              <Box
-                sx={{
-                  flexGrow: 1,
-                  overflowY: 'auto',
-                  p: { xs: 2.5, sm: 4, md: 5 },
-                  maxWidth: '900px',
-                  width: '100%',
-                  mx: 'auto',
-                  fontSize: '1.05rem',
-                  lineHeight: 1.7,
-                  wordBreak: 'break-word',
-                  scrollbarWidth: 'thin',
-                  scrollbarColor: theme.palette.mode === 'dark' 
-                    ? 'rgba(255, 255, 255, 0.2) transparent' 
-                    : 'rgba(0, 0, 0, 0.2) transparent',
-                  '&::-webkit-scrollbar': {
-                    width: '6px',
-                  },
-                  '&::-webkit-scrollbar-track': {
-                    background: 'transparent',
-                  },
-                  '&::-webkit-scrollbar-thumb': {
-                    backgroundColor: theme.palette.mode === 'dark' 
-                      ? 'rgba(255, 255, 255, 0.2)' 
-                      : 'rgba(0, 0, 0, 0.2)',
-                    borderRadius: '8px',
-                    '&:hover': {
-                      backgroundColor: theme.palette.mode === 'dark' 
-                        ? 'rgba(255, 255, 255, 0.38)' 
-                        : 'rgba(0, 0, 0, 0.38)',
-                    }
-                  },
+              {/* Canvas Scrollable Container with Custom Monochromatic Scrollbar */}
+              <Box sx={{ position: 'relative', flexGrow: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <Box
+                  ref={canvasScrollRef}
+                  sx={{
+                    flexGrow: 1,
+                    overflowY: 'auto',
+                    p: { xs: 2.5, sm: 4, md: 5 },
+                    pr: { xs: 3.5, sm: 5, md: 6 }, // Generous right padding creating clear space before scrollbar
+                    maxWidth: '900px',
+                    width: '100%',
+                    mx: 'auto',
+                    fontSize: '1.05rem',
+                    lineHeight: 1.7,
+                    wordBreak: 'break-word',
                   '& img': { maxWidth: '100%', borderRadius: '8px', border: `2px solid ${theme.palette.divider}` },
                   '& pre': {
                     backgroundColor: theme.palette.mode === 'dark' ? '#181818' : '#f5f5f2',
@@ -1296,6 +1261,8 @@ export default function SplitPaneVault({
                     userKey={userKey} 
                   />
                 )}
+                </Box>
+                <CustomScrollbar targetRef={canvasScrollRef} watch={selectedId} />
               </Box>
             </Box>
           ) : (
