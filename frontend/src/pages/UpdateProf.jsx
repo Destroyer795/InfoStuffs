@@ -9,11 +9,9 @@ import {
   Alert,
 } from '@mui/material';
 import React from 'react';
-import { useTheme } from '@mui/material/styles';
 import { useUser, useReverification } from '@clerk/clerk-react';
 
 export const UpdateProf = () => {
-  const theme = useTheme();
   const { user, isLoaded } = useUser();
 
   const [details, setDetails] = React.useState({

@@ -7,7 +7,7 @@ const META_STORE = 'vault_meta';
 // Initialize the database (version 2 adds metadata store)
 export const initDB = async () => {
   return openDB(DB_NAME, 2, {
-    upgrade(db, oldVersion) {
+    upgrade(db) {
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME, { keyPath: '_id' });
       }

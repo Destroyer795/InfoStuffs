@@ -30,7 +30,7 @@ import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { generateCleanSnippet, formatExpirationLabel, calculateExpirationDate, parseExistingRetention, validateRetentionConfig } from '../utils/snippet';
+import { generateCleanSnippet, formatExpirationLabel, parseExistingRetention, validateRetentionConfig } from '../utils/snippet';
 import { 
   uploadToSupabase, 
   deleteFromSupabase, 
@@ -556,7 +556,7 @@ export default function SplitPaneVault({
 
       const {
         _initialRetentionConfig,
-        retentionConfig,
+        retentionConfig: _retentionConfig,
         ...cleanedFormData
       } = editFormData;
       const updatedData = { ...cleanedFormData, imageURL, file, expiresAt };

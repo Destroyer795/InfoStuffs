@@ -36,7 +36,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import MarkdownInput from './MarkdownInput';
 import TemporaryRetentionSelector from './TemporaryRetentionSelector';
-import { formatExpirationLabel, calculateExpirationDate, parseExistingRetention, validateRetentionConfig } from '../utils/snippet';
+import { formatExpirationLabel, parseExistingRetention, validateRetentionConfig } from '../utils/snippet';
 
 const SecureImagePreview = ({ path, userKey, alt, sx, height, showDownload }) => {
   const [url, setUrl] = useState(null);
@@ -421,7 +421,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
 
       const {
         _initialRetentionConfig,
-        retentionConfig,
+        retentionConfig: _retentionConfig,
         ...cleanedFormData
       } = formData;
       const updatedData = { ...cleanedFormData, imageURL, file, expiresAt };

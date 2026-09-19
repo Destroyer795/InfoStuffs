@@ -120,7 +120,7 @@ const OfflineVault = () => {
         const decrypted = await Promise.all(decryptedPromises);
         setDecryptedNotes(decrypted);
         setIsUnlocked(true);
-      } catch (err) {
+      } catch {
         setError('An error occurred during decryption.');
       } finally {
         setIsUnlocking(false);
