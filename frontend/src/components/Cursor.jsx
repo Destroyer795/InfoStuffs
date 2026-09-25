@@ -297,17 +297,6 @@ const CustomCursor = () => {
       aria-hidden="true"
     >
       <svg className="vault-cursor-svg" width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-        {/* Precision Text Selection Guide - Visible when selecting text */}
-        <line
-          className="prism-text-guide"
-          x1="3"
-          y1="0"
-          x2="3"
-          y2="9"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-        />
         {/* Outer Precision Dart Pointer */}
         <path
           className="prism-body"

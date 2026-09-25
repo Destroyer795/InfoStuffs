@@ -45,13 +45,6 @@
   transform-origin: 10px 10px;
 }
 
-/* Precision Text Guide at Dart Tip */
-.prism-text-guide {
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  pointer-events: none;
-}
-
 /* Hover State: Sleek Focus Enhancement */
 .vault-cursor-wrapper.is-hovering .prism-body {
   transform: scale(1.14);
@@ -69,11 +62,7 @@
   fill: currentColor;
 }
 
-/* Text Selecting State: Precision focus with active fill and guide */
-.vault-cursor-wrapper.is-selecting .prism-text-guide {
-  opacity: 1;
-}
-
+/* Text Selecting State: Precision focus with active fill */
 .vault-cursor-wrapper.is-selecting .prism-body {
   transform: scale(0.92);
   stroke-width: 1.8px;
