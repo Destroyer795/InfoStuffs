@@ -23,6 +23,7 @@ const CustomCursor = () => {
   const [isHovering, setIsHovering] = useState(false);
   const [isClicking, setIsClicking] = useState(false);
   const [isTextMode, setIsTextMode] = useState(false);
+  const [isSelecting, setIsSelecting] = useState(false);
 
   // Check if device is a desktop with a fine pointer and viewport >= 1024px
   const [isEligibleDevice, setIsEligibleDevice] = useState(() => {
@@ -151,17 +152,16 @@ const CustomCursor = () => {
 
       const target = e.target;
 
-      // Only hide the cursor when actively dragging to select text (mousedown + moving)
-      // or when hovering genuine text input fields
-      const isActivelySelecting = isMouseDown && (() => {
+      // Track active text selection without hiding cursor
+      const hasSelection = (() => {
         const selection = window.getSelection();
-        return selection && !selection.isCollapsed && selection.toString().trim().length > 0;
+        return !!(selection && !selection.isCollapsed && selection.toString().trim().length > 0);
       })();
 
-      if (isTextElement(target)) {
-        updateTextMode(true);
-        setIsHovering(false);
-      } else if (isActivelySelecting) {
+      const isActivelySelecting = isMouseDown && hasSelection;
+      setIsSelecting(isActivelySelecting);
+
+      if (isTextElement(target) && !isMouseDown) {
         updateTextMode(true);
         setIsHovering(false);
       } else if (isInteractiveElement(target)) {
@@ -176,17 +176,28 @@ const CustomCursor = () => {
     const handleMouseDown = () => {
       isMouseDown = true;
       setIsClicking(true);
+      document.documentElement.classList.add('is-mouse-down');
+      document.body.classList.add('is-mouse-down');
+
+      const selection = window.getSelection();
+      const hasSelection = !!(selection && !selection.isCollapsed && selection.toString().trim().length > 0);
+      setIsSelecting(hasSelection);
+      updateTextMode(false);
     };
 
     const handleMouseUp = () => {
       isMouseDown = false;
       setIsClicking(false);
+      setIsSelecting(false);
+      document.documentElement.classList.remove('is-mouse-down');
+      document.body.classList.remove('is-mouse-down');
 
-      // Bring cursor back after finishing a text selection drag
-      // (unless the mouse is still over a genuine text input)
+      // Bring cursor back after finishing a click/drag
       requestAnimationFrame(() => {
         const active = document.activeElement;
-        if (!isTextElement(active)) {
+        if (isTextElement(active)) {
+          updateTextMode(true);
+        } else {
           updateTextMode(false);
         }
       });
@@ -211,20 +222,16 @@ const CustomCursor = () => {
 
     const handleSelectionChange = () => {
       const selection = window.getSelection();
-      const hasSelection = selection && !selection.isCollapsed && selection.toString().trim().length > 0;
+      const hasSelection = !!(selection && !selection.isCollapsed && selection.toString().trim().length > 0);
 
-      if (hasSelection && isMouseDown) {
-        // Only enter text mode if actively dragging
-        updateTextMode(true);
-      } else if (!hasSelection) {
-        // Selection collapsed (e.g. clicked away) — exit text mode if not in a text input
+      setIsSelecting(hasSelection && isMouseDown);
+
+      if (!hasSelection) {
         const active = document.activeElement;
         if (!isTextElement(active)) {
           updateTextMode(false);
         }
       }
-      // If hasSelection && !isMouseDown: selection exists passively (user finished selecting)
-      // Keep cursor visible — don't hide it
     };
 
     // When hitting Enter or Escape (e.g. submitting vault password, closing modal), exit text mode immediately
@@ -277,12 +284,12 @@ const CustomCursor = () => {
 
   if (!isEligibleDevice) return null;
 
-  const isHidden = !visible || isTextMode;
+  const isHidden = !visible || (isTextMode && !isSelecting);
 
   return (
     <div
       ref={containerRef}
-      className={`vault-cursor-wrapper ${isDark ? 'vault-cursor-dark' : 'vault-cursor-light'} ${isHovering ? 'is-hovering' : ''} ${isClicking ? 'is-clicking' : ''}`}
+      className={`vault-cursor-wrapper ${isDark ? 'vault-cursor-dark' : 'vault-cursor-light'} ${isHovering ? 'is-hovering' : ''} ${isClicking ? 'is-clicking' : ''} ${isSelecting ? 'is-selecting' : ''}`}
       style={{
         opacity: isHidden ? 0 : 1,
         visibility: isHidden ? 'hidden' : 'visible'
@@ -290,6 +297,17 @@ const CustomCursor = () => {
       aria-hidden="true"
     >
       <svg className="vault-cursor-svg" width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* Precision Text Selection Guide - Visible when selecting text */}
+        <line
+          className="prism-text-guide"
+          x1="3"
+          y1="0"
+          x2="3"
+          y2="9"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+        />
         {/* Outer Precision Dart Pointer */}
         <path
           className="prism-body"

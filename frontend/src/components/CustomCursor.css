@@ -45,6 +45,13 @@
   transform-origin: 10px 10px;
 }
 
+/* Precision Text Guide at Dart Tip */
+.prism-text-guide {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+
 /* Hover State: Sleek Focus Enhancement */
 .vault-cursor-wrapper.is-hovering .prism-body {
   transform: scale(1.14);
@@ -59,6 +66,22 @@
 /* Click State: Crisp Mechanical Snap */
 .vault-cursor-wrapper.is-clicking .prism-body {
   transform: scale(0.85);
+  fill: currentColor;
+}
+
+/* Text Selecting State: Precision focus with active fill and guide */
+.vault-cursor-wrapper.is-selecting .prism-text-guide {
+  opacity: 1;
+}
+
+.vault-cursor-wrapper.is-selecting .prism-body {
+  transform: scale(0.92);
+  stroke-width: 1.8px;
+  fill: currentColor;
+}
+
+.vault-cursor-wrapper.is-selecting .prism-core {
+  opacity: 1;
   fill: currentColor;
 }
 
@@ -78,25 +101,23 @@
     cursor: none !important;
   }
 
-  /* Genuine text inputs, textareas, and code blocks retain normal browser selection cursor */
-  html.has-fine-pointer input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),
-  html.has-fine-pointer textarea,
-  html.has-fine-pointer [contenteditable="true"],
-  html.has-fine-pointer .rc-md-editor .editor-container .input,
-  html.has-fine-pointer .rc-md-editor .editor-container .section,
-  html.has-fine-pointer .selectable-text,
-  body.has-fine-pointer input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),
-  body.has-fine-pointer textarea,
-  body.has-fine-pointer [contenteditable="true"],
-  body.has-fine-pointer .rc-md-editor .editor-container .input,
-  body.has-fine-pointer .rc-md-editor .editor-container .section,
-  body.has-fine-pointer .selectable-text {
+  /* Genuine text inputs, textareas retain normal browser selection cursor when hovering */
+  html.has-fine-pointer:not(.is-mouse-down) input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  html.has-fine-pointer:not(.is-mouse-down) textarea,
+  html.has-fine-pointer:not(.is-mouse-down) [contenteditable="true"],
+  html.has-fine-pointer:not(.is-mouse-down) .rc-md-editor .editor-container .input,
+  html.has-fine-pointer:not(.is-mouse-down) .rc-md-editor .editor-container .section,
+  body.has-fine-pointer:not(.is-mouse-down) input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  body.has-fine-pointer:not(.is-mouse-down) textarea,
+  body.has-fine-pointer:not(.is-mouse-down) [contenteditable="true"],
+  body.has-fine-pointer:not(.is-mouse-down) .rc-md-editor .editor-container .input,
+  body.has-fine-pointer:not(.is-mouse-down) .rc-md-editor .editor-container .section {
     cursor: text !important;
   }
 
-  /* When actively selecting text, only hide the custom cursor so native browser selection takes over */
-  html.cursor-text-mode .vault-cursor-wrapper,
-  body.cursor-text-mode .vault-cursor-wrapper {
+  /* When hovering text inputs without mouse down, hide custom cursor so native cursor displays */
+  html.cursor-text-mode:not(.is-mouse-down) .vault-cursor-wrapper,
+  body.cursor-text-mode:not(.is-mouse-down) .vault-cursor-wrapper {
     opacity: 0 !important;
     visibility: hidden !important;
   }
