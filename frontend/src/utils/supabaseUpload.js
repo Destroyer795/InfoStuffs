@@ -1,4 +1,4 @@
-import { supabase } from "../superbaseClient.js";
+import { supabase } from "../supabaseClient.js";
 import { encryptFile, decryptFile } from "./encryption.js";
 
 export const createOpaqueStoragePath = (file, folder = "uploads") => {
