@@ -1,4 +1,4 @@
-/* InfoStuffs Bespoke Stealth Prism Cursor */
+/* InfoStuffs Custom Cursor */
 
 /* Cursor Master Wrapper */
 .vault-cursor-wrapper {
@@ -15,13 +15,13 @@
 /* Dark Mode Theme Styling (Pure White Vector with High-Contrast Dual Black Drop Shadows) */
 .vault-cursor-dark {
   color: #ffffff;
-  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.95)) drop-shadow(0 1.5px 3.5px rgba(0, 0, 0, 0.8));
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.95)) drop-shadow(1.5px 3.5px rgba(0, 0, 0, 0.8));
 }
 
 /* Light Mode Theme Styling (Solid Jet Black Vector with High-Contrast Dual White Drop Shadows) */
 .vault-cursor-light {
   color: #000000;
-  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.95)) drop-shadow(0 1.5px 3.5px rgba(255, 255, 255, 0.8));
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.95)) drop-shadow(1.5px 3.5px rgba(255, 255, 255, 0.8));
 }
 
 /* Vector Canvas */
@@ -78,35 +78,59 @@
    DESKTOP VS TEXT, SCROLLBARS & INPUT RULES
    ========================================================= */
 @media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
-  /* Hide system cursor on root html, body, and all non-text elements */
-  html.has-fine-pointer,
-  html.has-fine-pointer body,
-  body.has-fine-pointer {
+  /* Hide system cursor on root html, body, and all non-text elements by default */
+  html.has-fine-pointer:not(.is-resizing),
+  html.has-fine-pointer:not(.is-resizing) body,
+  body.has-fine-pointer:not(.is-resizing) {
     cursor: none !important;
   }
 
-  html.has-fine-pointer *:not(input):not(textarea):not([contenteditable="true"]):not(pre):not(code):not(.selectable-text):not(.selectable-text *),
-  body.has-fine-pointer *:not(input):not(textarea):not([contenteditable="true"]):not(pre):not(code):not(.selectable-text):not(.selectable-text *) {
+  html.has-fine-pointer:not(.is-resizing) *:not(input):not(textarea):not([contenteditable="true"]):not(pre):not(code):not(.selectable-text):not(.selectable-text *):not(.cursor-grab-target),
+  body.has-fine-pointer:not(.is-resizing) *:not(input):not(textarea):not([contenteditable="true"]):not(pre):not(code):not(.selectable-text):not(.selectable-text *):not(.cursor-grab-target) {
     cursor: none !important;
+  }
+
+  /* During splitpane dragging actions, show the authentic system grabbing hand cursor */
+  html.is-resizing,
+  html.is-resizing *,
+  body.is-resizing,
+  body.is-resizing * {
+    cursor: grabbing !important;
+  }
+
+  /* When hovering the splitpane divider handle before dragging, show open grab hand */
+  .cursor-grab-target,
+  .cursor-grab-target * {
+    cursor: grab !important;
+  }
+
+  /* Hide custom cursor wrapper while resizing or hovering the grab divider so the OS hand cursor takes over seamlessly */
+  html.is-resizing .vault-cursor-wrapper,
+  body.is-resizing .vault-cursor-wrapper,
+  html.cursor-grab-hover .vault-cursor-wrapper,
+  body.cursor-grab-hover .vault-cursor-wrapper {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    display: none !important;
   }
 
   /* Genuine text inputs, textareas retain normal browser selection cursor when hovering */
-  html.has-fine-pointer:not(.is-mouse-down) input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),
-  html.has-fine-pointer:not(.is-mouse-down) textarea,
-  html.has-fine-pointer:not(.is-mouse-down) [contenteditable="true"],
-  html.has-fine-pointer:not(.is-mouse-down) .rc-md-editor .editor-container .input,
-  html.has-fine-pointer:not(.is-mouse-down) .rc-md-editor .editor-container .section,
-  body.has-fine-pointer:not(.is-mouse-down) input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),
-  body.has-fine-pointer:not(.is-mouse-down) textarea,
-  body.has-fine-pointer:not(.is-mouse-down) [contenteditable="true"],
-  body.has-fine-pointer:not(.is-mouse-down) .rc-md-editor .editor-container .input,
-  body.has-fine-pointer:not(.is-mouse-down) .rc-md-editor .editor-container .section {
+  html.has-fine-pointer:not(.is-mouse-down):not(.is-resizing) input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  html.has-fine-pointer:not(.is-mouse-down):not(.is-resizing) textarea,
+  html.has-fine-pointer:not(.is-mouse-down):not(.is-resizing) [contenteditable="true"],
+  html.has-fine-pointer:not(.is-mouse-down):not(.is-resizing) .rc-md-editor .editor-container .input,
+  html.has-fine-pointer:not(.is-mouse-down):not(.is-resizing) .rc-md-editor .editor-container .section,
+  body.has-fine-pointer:not(.is-mouse-down):not(.is-resizing) input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  body.has-fine-pointer:not(.is-mouse-down):not(.is-resizing) textarea,
+  body.has-fine-pointer:not(.is-mouse-down):not(.is-resizing) [contenteditable="true"],
+  body.has-fine-pointer:not(.is-mouse-down):not(.is-resizing) .rc-md-editor .editor-container .input,
+  body.has-fine-pointer:not(.is-mouse-down):not(.is-resizing) .rc-md-editor .editor-container .section {
     cursor: text !important;
   }
 
-  /* When hovering text inputs without mouse down, hide custom cursor so native cursor displays */
-  html.cursor-text-mode:not(.is-mouse-down) .vault-cursor-wrapper,
-  body.cursor-text-mode:not(.is-mouse-down) .vault-cursor-wrapper {
+  /* When hovering text inputs without mouse down/resizing, hide custom cursor so native cursor displays */
+  html.cursor-text-mode:not(.is-mouse-down):not(.is-resizing) .vault-cursor-wrapper,
+  body.cursor-text-mode:not(.is-mouse-down):not(.is-resizing) .vault-cursor-wrapper {
     opacity: 0 !important;
     visibility: hidden !important;
   }
