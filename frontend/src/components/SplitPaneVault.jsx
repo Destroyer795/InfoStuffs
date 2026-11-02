@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -322,6 +322,71 @@ export default function SplitPaneVault({
   const notesListRef = useRef(null);
   const canvasScrollRef = useRef(null);
   const categoriesScrollRef = useRef(null);
+  const splitContainerRef = useRef(null);
+
+  // ── Resizable Split Pane (desktop only) ──
+  const DEFAULT_LEFT_WIDTH = 400; // px
+  const MIN_LEFT_WIDTH = 260;
+  const MIN_RIGHT_WIDTH = 300;
+
+  const [leftWidth, setLeftWidth] = useState(() => {
+    try {
+      const saved = localStorage.getItem('splitPaneLeftWidth');
+      return saved ? Number(saved) : DEFAULT_LEFT_WIDTH;
+    } catch { return DEFAULT_LEFT_WIDTH; }
+  });
+  const isDraggingRef = useRef(false);
+
+  const handleDividerPointerDown = useCallback((e) => {
+    isDraggingRef.current = true;
+    document.documentElement.classList.add('is-resizing');
+    document.body.classList.add('is-resizing');
+    document.body.classList.add('is-mouse-down');
+    document.body.style.userSelect = 'none';
+
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+
+    const handlePointerMove = (moveEvent) => {
+      if (!isDraggingRef.current || !splitContainerRef.current) return;
+      const containerRect = splitContainerRef.current.getBoundingClientRect();
+      const containerWidth = containerRect.width;
+      let newLeft = moveEvent.clientX - containerRect.left;
+
+      // Clamp within bounds
+      newLeft = Math.max(MIN_LEFT_WIDTH, Math.min(newLeft, containerWidth - MIN_RIGHT_WIDTH));
+      setLeftWidth(newLeft);
+    };
+
+    const handlePointerUp = (upEvent) => {
+      isDraggingRef.current = false;
+      document.documentElement.classList.remove('is-resizing');
+      document.body.classList.remove('is-resizing');
+      document.body.classList.remove('is-mouse-down');
+      document.body.style.userSelect = '';
+
+      try {
+        if (e.currentTarget && upEvent?.pointerId) {
+          e.currentTarget.releasePointerCapture(upEvent.pointerId);
+        }
+      } catch {}
+
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
+
+      // Persist preference
+      setLeftWidth((w) => {
+        try { localStorage.setItem('splitPaneLeftWidth', String(w)); } catch {}
+        return w;
+      });
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
+  }, []);
 
   // Live 60-second ticker to automatically update relative timestamps
   const [, setClock] = useState(0);
@@ -613,6 +678,7 @@ export default function SplitPaneVault({
       
       {/* Main Split-Pane Container */}
       <Box 
+        ref={splitContainerRef}
         sx={{ 
           flexGrow: 1, 
           display: 'flex', 
@@ -625,8 +691,8 @@ export default function SplitPaneVault({
         {/* LEFT COLUMN: Master Index List */}
         <Box
           sx={{
-            width: { xs: '100%', md: '380px', lg: '420px' },
-            minWidth: { md: '360px' },
+            width: { xs: '100%', md: `${leftWidth}px` },
+            minWidth: { md: `${MIN_LEFT_WIDTH}px` },
             display: {
               xs: selectedId && isMobile ? 'none' : 'flex',
               md: 'flex'
@@ -635,7 +701,8 @@ export default function SplitPaneVault({
             borderRight: { md: `2px solid ${theme.palette.divider}` },
             bgcolor: theme.palette.background.default,
             height: '100%',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            flexShrink: 0
           }}
         >
           {/* Index Header: Search & Create New Button */}
@@ -942,6 +1009,67 @@ export default function SplitPaneVault({
           </Box>
         </Box>
 
+
+        {/* DRAGGABLE DIVIDER (desktop only) */}
+        {!isMobile && (
+          <Box
+            onPointerDown={handleDividerPointerDown}
+            className="cursor-hover-target cursor-grab-target"
+            sx={{
+              width: '6px',
+              cursor: 'grab',
+              display: { xs: 'none', md: 'flex' },
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              position: 'relative',
+              zIndex: 10,
+              bgcolor: 'transparent',
+              transition: 'background-color 0.15s ease',
+              '&:hover, &:active': {
+                bgcolor: theme.palette.mode === 'dark' 
+                  ? 'rgba(255,255,255,0.12)' 
+                  : 'rgba(0,0,0,0.08)',
+              },
+              '&:hover .divider-grip, &:active .divider-grip': {
+                opacity: 1,
+              },
+              // Wider invisible hit area for easier grabbing
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                left: '-4px',
+                right: '-4px',
+              }
+            }}
+          >
+            {/* Visual grip dots */}
+            <Box
+              className="divider-grip"
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '3px',
+                opacity: 0.4,
+                transition: 'opacity 0.15s ease',
+              }}
+            >
+              {[0, 1, 2, 3, 4].map((i) => (
+                <Box
+                  key={i}
+                  sx={{
+                    width: '3px',
+                    height: '3px',
+                    borderRadius: '50%',
+                    bgcolor: theme.palette.text.secondary,
+                  }}
+                />
+              ))}
+            </Box>
+          </Box>
+        )}
 
         {/* RIGHT COLUMN: Reading & Action Canvas */}
         <Box
