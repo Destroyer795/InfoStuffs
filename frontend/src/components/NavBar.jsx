@@ -6,6 +6,8 @@ import { useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 import ProfileMenu from './ProfileMenu';
 
+const PUBLIC_LOGO_HOST = 'https://info-stuffs.vercel.app';
+
 function NavBar({ darkMode, toggleDarkMode }) {
   const theme = useTheme();
   const navigate = useNavigate();
@@ -32,28 +34,35 @@ function NavBar({ darkMode, toggleDarkMode }) {
               display: 'flex', 
               alignItems: 'center', 
               cursor: 'pointer',
-              gap: 1
+              gap: 1,
+              userSelect: 'none'
             }}
             className='cursor-hover-target'
           >
             <Box
               component="img"
-              src={darkMode ? "/logo_name_dark.png" : "/logo_name.png"}
+              src={darkMode ? `${PUBLIC_LOGO_HOST}/logo_name_dark.png` : `${PUBLIC_LOGO_HOST}/logo_name.png`}
               alt="InfoStuffs"
+              draggable="false"
+              onDragStart={(e) => e.preventDefault()}
               sx={{
                 height: 45,
                 objectFit: 'contain',
-                display: { xs: 'none', sm: 'block' }
+                display: { xs: 'none', sm: 'block' },
+                userSelect: 'none'
               }}
             />
             <Box
               component="img"
-              src={darkMode ? "/logo_dark.png" : "/logo.png"}
+              src={darkMode ? `${PUBLIC_LOGO_HOST}/logo_dark.png` : `${PUBLIC_LOGO_HOST}/logo.png`}
               alt="InfoStuffs"
+              draggable="false"
+              onDragStart={(e) => e.preventDefault()}
               sx={{
                 height: 40,
                 objectFit: 'contain',
-                display: { xs: 'block', sm: 'none' }
+                display: { xs: 'block', sm: 'none' },
+                userSelect: 'none'
               }}
             />
           </Box>
