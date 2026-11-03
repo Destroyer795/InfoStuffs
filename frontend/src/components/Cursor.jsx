@@ -57,6 +57,21 @@ const CustomCursor = () => {
     };
   }, []);
 
+  // Sync theme-dark / theme-light class on document and body for CSS cursor styling
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('theme-dark');
+      document.body.classList.add('theme-dark');
+      document.documentElement.classList.remove('theme-light');
+      document.body.classList.remove('theme-light');
+    } else {
+      document.documentElement.classList.add('theme-light');
+      document.body.classList.add('theme-light');
+      document.documentElement.classList.remove('theme-dark');
+      document.body.classList.remove('theme-dark');
+    }
+  }, [isDark]);
+
   // Manage root and body classes
   useEffect(() => {
     if (isEligibleDevice) {

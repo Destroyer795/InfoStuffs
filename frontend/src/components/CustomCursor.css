@@ -90,18 +90,32 @@
     cursor: none !important;
   }
 
-  /* During splitpane dragging actions, show the authentic system grabbing hand cursor */
+  /* Light Mode (default): Pixel-identical Chromium hand in dark color (#181818 with crisp white border & soft shadow) */
+  .cursor-grab-target,
+  .cursor-grab-target * {
+    cursor: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAtklEQVR4nO2WbQrAIAiGPUX36RDe/yiNxgRnRp82GL4ga7/eR80KwDUmFHHcENOjEzCFYf6GEO6IMSYFZi8ANyTx/wxBa3OAbEaGZMrXFu1AnmULwKIdqFVBA+Bwu9tRBehox3zWcuxaABJmFuA1dtro1YLvkyUAbc55dq1Y3YRqtpMAUyp6PgKxWv4mhHX5lyG2z/8IhNWF1A1hdRlBD4DldQza4SR14nVUHM9fPM1cLpfrv7oAuqvNryZSxJEAAAAASUVORK5CYII=") 13 13, grab !important;
+  }
+
   html.is-resizing,
   html.is-resizing *,
   body.is-resizing,
   body.is-resizing * {
-    cursor: grabbing !important;
+    cursor: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAhUlEQVR4nO2VwQkAIQwErcJ+UoT9l+JxckIMHkZJ4mcHFvztBNSkBADYo4jEl9aPKJmhlIhqzrmF4ynRynspF5AyXhIqgffsIVGkwF+6DJOwK+eTrmIq0Ce/LqCVEPfAVmBz+usCJqhfgOc/oJawnn6QWAm4f8V8F8yI2Ixy680CAADgmAd48zQm1p9CzgAAAABJRU5ErkJggg==") 13 13, grabbing !important;
   }
 
-  /* When hovering the splitpane divider handle before dragging, show open grab hand */
-  .cursor-grab-target,
-  .cursor-grab-target * {
+  /* Dark Mode: Authentic native system grab cursor exactly as before */
+  html.theme-dark .cursor-grab-target,
+  html.theme-dark .cursor-grab-target *,
+  body.theme-dark .cursor-grab-target,
+  body.theme-dark .cursor-grab-target * {
     cursor: grab !important;
+  }
+
+  html.theme-dark.is-resizing,
+  html.theme-dark.is-resizing *,
+  body.theme-dark.is-resizing,
+  body.theme-dark.is-resizing * {
+    cursor: grabbing !important;
   }
 
   /* Hide custom cursor wrapper while resizing or hovering the grab divider so the OS hand cursor takes over seamlessly */
