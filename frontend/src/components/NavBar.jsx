@@ -29,7 +29,7 @@ function NavBar({ darkMode, toggleDarkMode }) {
       <Toolbar sx={{ justifyContent: "space-between", minHeight: '70px' }}>
         <Stack direction="row" alignItems="center" spacing={1}>
           <Box 
-            onClick={() => navigate('/')} 
+            onClick={() => navigate('/dashboard')} 
             sx={{ 
               display: 'flex', 
               alignItems: 'center', 

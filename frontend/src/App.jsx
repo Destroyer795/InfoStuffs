@@ -46,6 +46,7 @@ import { saveOfflineNotes, getOfflineNotes } from './utils/localStore';
 const SplitPaneVault = lazy(() => import('./components/SplitPaneVault.jsx'));
 const Create = lazy(() => import('./pages/Create.jsx'));
 const UpdateProf = lazy(() => import('./pages/UpdateProf.jsx').then(module => ({ default: module.UpdateProf })));
+const Landing = lazy(() => import('./pages/Landing.jsx'));
 
 const LoadingScreen = ({ darkMode }) => (
   <Backdrop
@@ -474,7 +475,7 @@ function AppContent({
 }) {
   const location = useLocation();
   const { isSignedIn, isLoaded } = useUser();
-  const hideNav = ['/login', '/signup'].includes(location.pathname) || !isLoaded || !isSignedIn;
+  const hideNav = ['/login', '/signup', '/'].includes(location.pathname) || !isLoaded || !isSignedIn;
 
   return (
     <Box>
@@ -536,7 +537,10 @@ function AppContent({
               </ProtectedRoute>
             }
           />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route
+            path="/"
+            element={<Landing darkMode={darkMode} toggleDarkMode={toggleDarkMode} />}
+          />
         </Routes>
       </Suspense>
     </Box>

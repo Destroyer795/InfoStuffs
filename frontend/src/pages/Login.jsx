@@ -53,7 +53,7 @@ export default function Login() {
 
       if (result.status === 'complete') {
         await setActive({ session: result.createdSessionId });
-        navigate('/');
+        navigate('/dashboard');
       } else {
         console.error(JSON.stringify(result, null, 2));
         setError('Invalid credentials. Please try again.');
