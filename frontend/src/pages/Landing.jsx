@@ -124,11 +124,18 @@ export default function Landing({ darkMode, toggleDarkMode }) {
     runLiveEncryption(demoText, demoPassword);
   }, [demoText, demoPassword, runLiveEncryption]);
 
+  // If already logged in, redirect directly to dashboard vault
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isLoaded, isSignedIn, navigate]);
+
   const handleOpenApp = () => {
     if (isLoaded && isSignedIn) {
       navigate('/dashboard');
     } else {
-      navigate('/login');
+      navigate('/signup');
     }
   };
 
@@ -213,6 +220,11 @@ export default function Landing({ darkMode, toggleDarkMode }) {
     boxSizing: 'border-box',
   };
 
+  // Prevent flashing landing page when user is authenticated
+  if (isLoaded && isSignedIn) {
+    return null;
+  }
+
   return (
     <Box sx={{ minHeight: '100vh', backgroundColor: bgColor, color: theme.palette.text.primary }}>
       {/* ── CLEAN TOP HEADER (NO BOXED NAV LINKS) ── */}
@@ -232,7 +244,7 @@ export default function Landing({ darkMode, toggleDarkMode }) {
         <Container maxWidth="lg" disableGutters sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           {/* Logo Brand */}
           <Box
-            onClick={() => navigate('/')}
+            onClick={scrollToTop}
             className="cursor-hover-target"
             sx={{
               display: 'flex',
@@ -749,6 +761,7 @@ export default function Landing({ darkMode, toggleDarkMode }) {
                           borderRadius: '10px',
                           wordBreak: 'break-all',
                           color: isDark ? '#34D399' : '#047857',
+                          boxSizing: 'border-box',
                         }}
                       >
                         {demoCiphertext || 'Type in the left editor to generate ciphertext...'}

@@ -43,7 +43,7 @@ export default function Signup() {
       await signUp.authenticateWithRedirect({
         strategy,
         redirectUrl: '/sso-callback',
-        redirectUrlComplete: '/',
+        redirectUrlComplete: '/dashboard',
       });
     } catch (err) {
       setError(err.errors?.[0]?.longMessage || 'An unexpected error occurred.');

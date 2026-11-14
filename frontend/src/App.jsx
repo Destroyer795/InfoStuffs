@@ -500,8 +500,30 @@ function AppContent({
              } 
           />
           
-          <Route path="/login" element={<SignedOut><Login /></SignedOut>} />
-          <Route path="/signup" element={<SignedOut><Signup /></SignedOut>} />
+          <Route
+            path="/login"
+            element={
+              !isLoaded ? (
+                <LoadingScreen darkMode={darkMode} />
+              ) : isSignedIn ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <SignedOut><Login /></SignedOut>
+              )
+            }
+          />
+          <Route
+            path="/signup"
+            element={
+              !isLoaded ? (
+                <LoadingScreen darkMode={darkMode} />
+              ) : isSignedIn ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <SignedOut><Signup /></SignedOut>
+              )
+            }
+          />
           
           <Route
             path="/dashboard"
@@ -539,7 +561,15 @@ function AppContent({
           />
           <Route
             path="/"
-            element={<Landing darkMode={darkMode} toggleDarkMode={toggleDarkMode} />}
+            element={
+              !isLoaded ? (
+                <LoadingScreen darkMode={darkMode} />
+              ) : isSignedIn ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <Landing darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+              )
+            }
           />
         </Routes>
       </Suspense>
