@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { connectDB } from '../config/db.js';
-import Info from '../models/info.model.js';
+import { cleanupExpiredNotes } from '../services/noteCleanup.js';
 
 export default async function handler(req, res) {
   // Security Check: Ensure only Vercel's Cron scheduler can trigger this route
@@ -29,18 +29,10 @@ export default async function handler(req, res) {
   try {
     await connectDB();
     
-    // Logic: Delete expired notes and legacy temporary notes older than 30 days
-    const now = new Date();
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const result = await Info.deleteMany({
-      $or: [
-        { expiresAt: { $ne: null, $lte: now } },
-        { isTemporary: true, expiresAt: null, createdAt: { $lt: thirtyDaysAgo } }
-      ]
-    });
+    const deletedCount = await cleanupExpiredNotes();
 
-    console.log(`Cron execution successful. Scrubbed ${result.deletedCount} records.`);
-    return res.status(200).json({ success: true, deletedCount: result.deletedCount });
+    console.log(`Cron execution successful. Scrubbed ${deletedCount} records.`);
+    return res.status(200).json({ success: true, deletedCount });
     
   } catch (error) {
     console.error("Cron Job Error:", error);

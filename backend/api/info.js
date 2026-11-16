@@ -4,8 +4,9 @@ import dotenv from "dotenv";
 import mongoose from "mongoose";
 import rateLimit from "express-rate-limit";
 import { connectDB } from "../config/db.js";
-import Info from "../models/info.model.js";
 import infoRoutes from "../routes/info.route.js";
+import fileRoutes from "../routes/file.route.js";
+import { cleanupExpiredNotes } from '../services/noteCleanup.js';
 import { fileURLToPath } from 'url';
 
 dotenv.config();
@@ -104,6 +105,7 @@ app.use(async (req, res, next) => {
 
 // Routes - mounted at both paths for Vercel compatibility with rate limiting
 app.use("/api/info", apiLimiter, infoRoutes);
+app.use("/api/files", apiLimiter, fileRoutes);
 app.use("/", apiLimiter, infoRoutes);
 
 // Global error handling middleware (prevents stack trace disclosure)
@@ -121,18 +123,11 @@ app.use((err, req, res, next) => {
 // Automated Expired Note Cleanup (scrubs user-expired and legacy 30d temporary notes)
 export const runNoteCleanup = async () => {
   try {
-    const now = new Date();
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const result = await Info.deleteMany({
-      $or: [
-        { expiresAt: { $ne: null, $lte: now } },
-        { isTemporary: true, expiresAt: null, createdAt: { $lt: thirtyDaysAgo } }
-      ]
-    });
-    if (result.deletedCount > 0) {
-      console.log(`[Auto-Cleanup] Scrubbed ${result.deletedCount} expired temporary notes.`);
+    const deletedCount = await cleanupExpiredNotes();
+    if (deletedCount > 0) {
+      console.log(`[Auto-Cleanup] Scrubbed ${deletedCount} expired temporary notes.`);
     }
-    return result.deletedCount;
+    return deletedCount;
   } catch (err) {
     console.error("[Auto-Cleanup] Error during note cleanup:", err.message);
     return 0;
