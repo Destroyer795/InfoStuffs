@@ -23,7 +23,7 @@ Designing a Zero-Knowledge Personal Information Manager with Client-Side Encrypt
 
 **Authentication:** Clerk  
 
-**Storage:** Supabase (Obfuscated paths + client-side encrypted blobs + Ephemeral Signed URLs) & IndexedDB (`idb` for secure offline caching)  
+**Storage:** Cloudflare R2 (opaque UUID object keys, client-side encrypted blobs, and authenticated S3 presigned URLs) & IndexedDB (`idb` for secure offline caching)
 
 **Cryptography:** Web Crypto API (AES-GCM + PBKDF2) using Web Workers
 
@@ -45,10 +45,12 @@ This project implements a strict Zero-Knowledge/E2EE model to minimize server tr
 
 ### 2. Secure File & Media Handling
 
-- **Encrypted Paths in Database:** The database stores encrypted strings (for example, `U2FsdGVk...`) instead of plaintext storage paths.
-- **Obfuscated Storage Paths:** When files are uploaded to Supabase, the app generates randomized UUID storage paths (e.g., `images/UUID.ext`). The storage provider receives and stores the client-side encrypted binary payloads directly. Thus, while Supabase knows the file extension, size, and opaque storage path, it never sees the original filenames or plaintext file contents.
-- **Ephemeral Access:** When a user unlocks their vault, the client decrypts the database-stored storage path and requests a signed URL from Supabase.  
-- **Time-Limited URLs:** Signed URLs are valid for one hour. If a URL is leaked, it expires quickly, and if the database is compromised, the encrypted paths remain unreadable.
+- **Encrypted References:** `imageURL` and `file` retain their AES-GCM encrypted reference strings. Separate `storagePaths` metadata contains only the opaque object keys needed for authorization, quota accounting, and deletion without vault keys.
+- **Obfuscated Storage Paths:** The browser generates randomized UUID paths such as `images/UUID.ext`, encrypts the entire file in memory, and uploads only the ciphertext. Cloudflare R2 can see the extension, ciphertext size, and opaque object key. Original filenames and plaintext file contents are never uploaded.
+- **Authenticated Access:** The browser obtains a Clerk session token and requests presigned URLs from the backend at `/api/files`. The backend checks object ownership. R2 access credentials remain exclusively on the backend.
+- **Time-Limited URLs:** PUT URLs last 15 minutes and GET URLs last one hour. PUT signatures bind the ciphertext byte count and content type, and conditional writes prevent overwriting an existing key. Anyone possessing a presigned URL can use it until it expires.
+- **Verified Quotas:** A file's encrypted payload must fit within 100 MiB (`100 * 1024 * 1024` bytes). AES-GCM adds 28 bytes, so the maximum source file is 100 MiB minus 28 bytes. The global limit is 9 GiB (`9 * 1024 * 1024 * 1024` bytes). MongoDB leases serialize upload reservations across server instances. The storage ledger counts pending uploads, abandoned uploads, and unmatched migration copies in addition to saved notes. Saved `byteSize` is verified using R2 object metadata.
+- **Storage Cleanup:** Deleting a note removes its R2 objects before its database record. Replacements save the new reference before removing old objects. Failed deletions retain accounting for retry. Local cleanup and the authenticated Vercel cron share the same implementation. Startup replaces the previous MongoDB TTL index with an ordinary expiry index so that TTL deletion cannot bypass R2 cleanup. The database account needs permission to list, drop, and create this index.
 
 ### 3. Nuclear Reset
 
@@ -69,6 +71,8 @@ To support server-side query routing, access control, and vault management, the 
 - **`importance`:** The user-assigned importance level (`High`, `Medium`, or `Low`).
 - **`type`:** The note type (`text`, `image`, or `file`).
 - **`isTemporary`:** A boolean flag indicating if the note is temporary.
+- **`byteSize`:** The combined size of a note's ciphertext attachments, used for storage accounting.
+- **Opaque object metadata:** Random UUID paths, file extensions, ciphertext sizes, ownership, upload reservations, and expiry metadata in `storagePaths` and the storage ledger. These reveal storage relationships and approximate file lengths, but contain no original filenames, file contents, passwords, or vault keys.
 - **Timestamps:** Standard MongoDB database creation (`createdAt`) and update (`updatedAt`) timestamps.
 
 ---
@@ -120,13 +124,33 @@ Create a `.env` file in the root directory based on `.env.example`:
 ```env
 VITE_API_BASE_URL=http://localhost:5000
 VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-VITE_SUPABASE_KEY=your_supabase_anon_key
-VITE_SUPABASE_URL=https://your_supabase_project_id.supabase.co
+R2_ACCOUNT_ID=your_cloudflare_account_id
+R2_ACCESS_KEY_ID=your_r2_access_key_id
+R2_SECRET_ACCESS_KEY=your_r2_secret_access_key
+R2_BUCKET_NAME=your_private_bucket_name
 MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/infostuffs?retryWrites=true&w=majority
 CLERK_SECRET_KEY=your_clerk_secret_key
 PORT=5000
 NODE_ENV=development
 ```
+
+Keep the bucket private and create an R2 API token scoped to object read and write access for that bucket. Configure the four `R2_` variables on the backend hosting service only. Do not use a `VITE_` prefix for secrets. Missing R2 configuration produces a boot warning and file endpoints return 503; text notes remain available.
+
+Configure the R2 bucket's CORS policy for the exact frontend origins you use. Browser PUTs send `Content-Type` and `If-None-Match`. For example:
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://info-stuffs.vercel.app", "http://localhost:8080", "http://localhost:3000", "http://localhost:5173"],
+    "AllowedMethods": ["GET", "PUT", "HEAD"],
+    "AllowedHeaders": ["Content-Type", "If-None-Match"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+See Cloudflare's [presigned URL guide](https://developers.cloudflare.com/r2/api/s3/presigned-urls/) and [bucket CORS configuration](https://developers.cloudflare.com/r2/buckets/cors/). The frontend build receives only the public Clerk key and API base URL.
 
 #### 3. Run with Docker Compose:
 To build and start all services in detached mode:
@@ -151,3 +175,36 @@ docker compose down -v && docker compose build --no-cache && docker compose up -
 * **Health Check API:** `http://localhost:5000/health` (Returns JSON status, uptime, & ISO timestamp)
 
 ---
+
+## Migrating existing ciphertext to Cloudflare R2
+
+Use Node.js 22 or later. The Supabase SDK is a backend-only dependency for this migration tool; the application and browser have no Supabase runtime dependency.
+
+1. Back up MongoDB, stop application writes on the previous deployment, and keep the Supabase bucket `infostuffsende` read-only. Run the migration before enabling the R2 deployment's upload and cleanup flows. Existing plaintext references could otherwise be cleaned before their objects are copied.
+2. In a trusted terminal, set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in addition to `MONGO_URI` and all four `R2_` variables. `SUPABASE_KEY` is accepted as an alternative, but it must have permission to list and download every user's objects. An anonymous browser key with restricted policies cannot guarantee a complete migration. These source variables are optional outside migration and must never enter a frontend build.
+3. From the repository root, install the locked backend dependencies and run:
+
+   ```bash
+   npm ci --prefix backend
+   node backend/scripts/migrate-supabase-to-r2.mjs
+   ```
+
+The script reads the root `.env` when launched from the repository root. It recursively paginates all folders and root objects, copies the exact encrypted bytes to identical R2 keys with `application/octet-stream`, and reads each destination back to verify its SHA-256 hash and byte count. It never decrypts, changes `imageURL` or `file`, deletes source files, or overwrites a differing destination. Reruns verify identical existing copies and resume backfill. A failed copy, incomplete listing, integrity mismatch, or ownership conflict produces a failure count and a nonzero exit code. Review the summary and source inventory before switching storage, especially if zero objects were listed.
+
+**Encrypted legacy reference limitation:** Existing `imageURL` and `file` strings are encrypted in this repository. A password-free script cannot match these strings to plaintext object keys. It backfills matching plaintext references and already mapped `storagePaths`; all other copied blobs are still counted globally through the storage ledger. The summary reports `legacyNotesPending`. When a user next unlocks their vault, the browser recovers its opaque paths locally and syncs the mapping and R2-verified `byteSize`. No passwords or vault keys leave the browser. An unclaimed legacy object key acts as a secret capability during this one-time reconciliation; recorded ownership is enforced afterward. Retain unmatched legacy objects and their encrypted note records until reconciliation succeeds. Deleting, replacing, expiring, or resetting a vault with unmapped attachments returns a conflict or defers cleanup so these files cannot be silently orphaned. If the vault password is lost before mapping, automatic per-user attachment cleanup is impossible without a separate trusted ownership inventory.
+
+The migration copies every source key, including root and nested keys. Application file endpoints deliberately accept only `images/<filename>`, `documents/<filename>`, and `uploads/<filename>` with ASCII letters, digits, dots, underscores, and hyphens. Historical keys outside this format are retained exactly in R2; they need a reviewed compatibility mapping before the application can access them. Do not rename or delete the source copies.
+
+After a zero-failure run, deploy the R2 backend and frontend, verify unlocked vault attachments, and preserve Supabase as a read-only rollback backup. Remove the migration-only source credentials from the application runtime after use. The summary includes files migrated, existing copies verified, bytes copied, records backfilled, pending encrypted notes, and failures.
+
+## Local verification
+
+```bash
+npm ci --legacy-peer-deps
+npm ci --prefix backend
+npm ci --prefix frontend --legacy-peer-deps
+npm test
+npm run build --prefix frontend
+```
+
+Tests use fake storage and database adapters plus real AES-GCM encryption. They cover ownership, authentication, path traversal, quota boundaries, pending reservations, safe replacement and cleanup ordering, TTL index conversion, recursive migration, destination collisions, ciphertext integrity, and note backfill. No production storage or database is contacted by tests. The frontend build may report its existing bundle-size advisory.

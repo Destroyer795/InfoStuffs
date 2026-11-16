@@ -695,7 +695,7 @@ export default function Landing({ darkMode, toggleDarkMode }) {
                       <Stack direction="row" spacing={1} alignItems="center">
                         <StorageIcon fontSize="small" />
                         <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.05rem' }}>
-                          Database Side (MongoDB & Supabase)
+                          Database Side (MongoDB & Cloudflare R2)
                         </Typography>
                       </Stack>
                       <Chip
@@ -770,7 +770,7 @@ export default function Landing({ darkMode, toggleDarkMode }) {
                   </Box>
 
                   <Typography variant="caption" sx={{ color: mutedText, lineHeight: 1.4, pt: 1, display: 'block' }}>
-                    Even if our MongoDB cluster or Supabase bucket is breached, an attacker sees only this cryptographic noise.
+                    Even if our MongoDB cluster or Cloudflare R2 bucket is breached, file contents remain cryptographic noise.
                     Decryption without your vault password is mathematically infeasible.
                   </Typography>
                 </Stack>
@@ -845,9 +845,9 @@ export default function Landing({ darkMode, toggleDarkMode }) {
                   Obfuscated Storage Paths
                 </Typography>
                 <Typography variant="body2" sx={{ color: mutedText, lineHeight: 1.7, fontSize: '0.95rem' }}>
-                  Images and attachments are encrypted before upload. Supabase receives opaque randomized UUID paths
-                  containing raw encrypted bytes. Decrypted paths are only held in client memory
-                  to request temporary 1-hour signed URLs.
+                  Images and attachments are encrypted before upload. Cloudflare R2 receives ciphertext at randomized UUID paths.
+                  Opaque object keys and ciphertext sizes support ownership checks, quota accounting, and cleanup.
+                  Your browser uses authenticated requests to obtain temporary 1-hour download URLs.
                 </Typography>
               </Stack>
             </Paper>
@@ -917,8 +917,8 @@ export default function Landing({ darkMode, toggleDarkMode }) {
                     { label: 'Note Title', desc: 'Encrypted ciphertext string' },
                     { label: 'Note Body & Markdown', desc: 'Encrypted text and code snippets' },
                     { label: 'Categories & Tags', desc: 'Encrypted client-side' },
-                    { label: 'Original File Names', desc: 'Encrypted prior to storage path generation' },
-                    { label: 'Image & Attachment Blobs', desc: 'Binary ciphertext stored in Supabase' },
+                    { label: 'Original File Names', desc: 'Never sent to storage; random UUID object keys are used' },
+                    { label: 'Image & Attachment Blobs', desc: 'Binary ciphertext stored in Cloudflare R2' },
                     { label: 'Local Offline Cache', desc: 'Stored strictly as encrypted records in IndexedDB' },
                   ].map((item, idx) => (
                     <Box
@@ -980,7 +980,8 @@ export default function Landing({ darkMode, toggleDarkMode }) {
                     { label: 'Note Type', desc: 'text, image, or file type descriptor' },
                     { label: 'Temporary Retention Flag', desc: 'Boolean flag controlling cron-based auto expiration' },
                     { label: 'Timestamps (createdAt, updatedAt)', desc: 'Standard MongoDB synchronization timestamps' },
-                    { label: 'File Extension & Byte Size', desc: 'Supabase storage metadata required for HTTP headers' },
+                    { label: 'File Extension & Byte Size', desc: 'Cloudflare R2 ciphertext metadata used for quota accounting' },
+                    { label: 'Opaque Object Keys & Ownership', desc: 'Random UUID paths used for access checks and storage cleanup' },
                   ].map((item, idx) => (
                     <Box
                       key={idx}

@@ -595,8 +595,8 @@ const OfflineVault = () => {
             <Box sx={{ border: '2px dashed #444', p: 4, borderRadius: '8px', textAlign: 'center', my: 2 }}>
               <Typography color="text.secondary" variant="body1">
                 {selectedNote?.type === 'image' 
-                  ? '🖼️ Image attachments are unavailable offline (requires connection to Supabase storage).' 
-                  : '📄 File attachments are unavailable offline (requires connection to Supabase storage).'
+                  ? '🖼️ Image attachments are unavailable offline (requires connection to Cloudflare R2 storage).'
+                  : '📄 File attachments are unavailable offline (requires connection to Cloudflare R2 storage).'
                 }
               </Typography>
             </Box>

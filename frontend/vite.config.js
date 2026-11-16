@@ -52,9 +52,6 @@ export default defineConfig({
             if (id.includes('@mui')) {
               return 'vendor_mui';
             }
-            if (id.includes('@supabase')) {
-              return 'vendor_supabase';
-            }
             return 'vendor';
           }
         }
