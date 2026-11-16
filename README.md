@@ -47,7 +47,7 @@ This project implements a strict Zero-Knowledge/E2EE model to minimize server tr
 
 - **Encrypted References:** `imageURL` and `file` retain their AES-GCM encrypted reference strings. Separate `storagePaths` metadata contains only the opaque object keys needed for authorization, quota accounting, and deletion without vault keys.
 - **Obfuscated Storage Paths:** The browser generates randomized UUID paths such as `images/UUID.ext`, encrypts the entire file in memory, and uploads only the ciphertext. Cloudflare R2 can see the extension, ciphertext size, and opaque object key. Original filenames and plaintext file contents are never uploaded.
-- **Authenticated Access:** The browser obtains a Clerk session token and requests presigned URLs from the backend at `/api/files`. The backend checks object ownership. R2 access credentials remain exclusively on the backend.
+- **Authenticated Access:** The browser obtains a Clerk session token and requests presigned URLs from the backend at `/api/files`. The backend checks object ownership. R2 signing and credential configuration happen exclusively on the backend.
 - **Time-Limited URLs:** PUT URLs last 15 minutes and GET URLs last one hour. PUT signatures bind the ciphertext byte count and content type, and conditional writes prevent overwriting an existing key. Anyone possessing a presigned URL can use it until it expires.
 - **Verified Quotas:** A file's encrypted payload must fit within 100 MiB (`100 * 1024 * 1024` bytes). AES-GCM adds 28 bytes, so the maximum source file is 100 MiB minus 28 bytes. The global limit is 9 GiB (`9 * 1024 * 1024 * 1024` bytes). MongoDB leases serialize upload reservations across server instances. The storage ledger counts pending uploads, abandoned uploads, and unmatched migration copies in addition to saved notes. Saved `byteSize` is verified using R2 object metadata.
 - **Storage Cleanup:** Deleting a note removes its R2 objects before its database record. Replacements save the new reference before removing old objects. Failed deletions retain accounting for retry. Local cleanup and the authenticated Vercel cron share the same implementation. Startup replaces the previous MongoDB TTL index with an ordinary expiry index so that TTL deletion cannot bypass R2 cleanup. The database account needs permission to list, drop, and create this index.
@@ -151,6 +151,8 @@ Configure the R2 bucket's CORS policy for the exact frontend origins you use. Br
 ```
 
 See Cloudflare's [presigned URL guide](https://developers.cloudflare.com/r2/api/s3/presigned-urls/) and [bucket CORS configuration](https://developers.cloudflare.com/r2/buckets/cors/). The frontend build receives only the public Clerk key and API base URL.
+
+AWS Signature Version 4 presigned URLs necessarily contain the access-key ID in `X-Amz-Credential`. The secret access key never leaves the backend. A literal requirement to hide even the public signing identifier is incompatible with direct S3 presigned URLs and would require a different delivery protocol, such as backend proxying. No R2 credential configuration or secret key is bundled into the browser.
 
 #### 3. Run with Docker Compose:
 To build and start all services in detached mode:

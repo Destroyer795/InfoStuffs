@@ -39,15 +39,16 @@ export const getPresignedUploadUrl = async (req, res) => {
       if (await StorageObject.exists({ _id: storagePath })) {
         throw new StorageError(409, 'This storage path already exists. Choose a new opaque path.');
       }
+      const signingDate = new Date();
       await StorageObject.create({
         _id: storagePath, userId: req.auth.userId, byteSize, status: 'pending',
-        uploadExpiresAt: new Date(Date.now() + 900_000),
+        uploadExpiresAt: new Date(signingDate.getTime() + 900_000),
       });
       try {
         return await getSignedUrl(client, new PutObjectCommand({
           Bucket: process.env.R2_BUCKET_NAME, Key: storagePath,
           ContentLength: byteSize, ContentType: contentType, IfNoneMatch: '*',
-        }), { expiresIn: 900, signableHeaders: new Set(['content-type', 'content-length', 'if-none-match']) });
+        }), { expiresIn: 900, signingDate, signableHeaders: new Set(['content-type', 'content-length', 'if-none-match']) });
       } catch (error) {
         await StorageObject.deleteOne({ _id: storagePath, userId: req.auth.userId });
         throw error;
@@ -79,8 +80,10 @@ export const deleteFileFromStorage = async (req, res) => {
   if (!isValidStoragePath(storagePath)) return res.status(400).json({ success: false, message: 'Invalid storage path.' });
   try {
     requireStorage();
-    await getOwnedStorageObject(storagePath, req.auth.userId);
-    await deleteStorageObject(storagePath, req.auth.userId);
+    await withStorageLock(`user:${req.auth.userId}`, async () => {
+      await getOwnedStorageObject(storagePath, req.auth.userId);
+      await deleteStorageObject(storagePath, req.auth.userId);
+    });
     return res.status(200).json({ success: true, message: 'File deleted successfully' });
   } catch (error) {
     return handleError(res, error);

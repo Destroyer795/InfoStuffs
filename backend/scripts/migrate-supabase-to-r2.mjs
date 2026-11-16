@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import mongoose from 'mongoose';
 import { createClient } from '@supabase/supabase-js';
 import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
-import r2 from '../config/r2.js';
+import { createR2Client } from '../config/r2.js';
 import Info from '../models/info.model.js';
 import StorageObject from '../models/storageObject.model.js';
 import { ensureNoteCleanupIndexes } from '../config/storageIndexes.js';
@@ -137,13 +137,23 @@ export const migrateSupabaseToR2 = async ({
     logger.error(`[Listing failed] ${error.message}`);
   }
   summary.recordsBackfilled = backfilledIds.size;
-  summary.legacyNotesPending = await InfoModel.countDocuments({
-    $or: [
-      { type: 'image', imageURL: { $exists: true, $nin: ['', null] } },
-      { type: 'file', file: { $exists: true, $nin: ['', null] } },
-    ],
-    'storagePaths.0': { $exists: false },
-  });
+  try {
+    summary.legacyNotesPending = await InfoModel.countDocuments({
+      $or: [
+        { type: 'image', imageURL: { $exists: true, $nin: ['', null] } },
+        { type: 'file', file: { $exists: true, $nin: ['', null] } },
+      ],
+      'storagePaths.0': { $exists: false },
+    });
+    if (summary.legacyNotesPending && !summary.filesMigrated && !summary.existingFilesVerified && !summary.failures) {
+      summary.failures++;
+      logger.error('MongoDB contains attachment references, but no source objects were accessible. Check source credentials and bucket inventory.');
+    }
+  } catch (error) {
+    summary.failures++;
+    summary.legacyNotesPending = null;
+    logger.error(`Pending note count failed: ${error.message}`);
+  }
   logger.log(`Migration summary: ${JSON.stringify(summary)}`);
   if (summary.legacyNotesPending) {
     logger.warn(`${summary.legacyNotesPending} encrypted note references require a vault unlock to backfill ownership and note byteSize. All copied objects already count toward quota.`);
@@ -170,14 +180,18 @@ const main = async () => {
   const supabase = createClient(process.env.SUPABASE_URL, supabaseKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
+  // Bulk transfers must not inherit the short API metadata/deletion request deadline.
+  const migrationClient = createR2Client({
+    maxAttempts: 3, requestHandler: { connectionTimeout: 10_000, requestTimeout: 0, socketTimeout: 120_000 },
+  });
   try {
     await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 15_000 });
     await ensureNoteCleanupIndexes();
-    const summary = await migrateSupabaseToR2({ supabase, s3: r2, bucketName: process.env.R2_BUCKET_NAME });
+    const summary = await migrateSupabaseToR2({ supabase, s3: migrationClient, bucketName: process.env.R2_BUCKET_NAME });
     if (summary.failures) process.exitCode = 1;
   } finally {
     await mongoose.disconnect();
-    r2?.destroy();
+    migrationClient?.destroy();
   }
 };
 

@@ -8,7 +8,7 @@ if (missingVariables.length) {
   console.warn(`[R2] Storage disabled. Missing environment variables: ${missingVariables.join(', ')}`);
 }
 
-export const r2 = missingVariables.length ? null : new S3Client({
+export const createR2Client = (overrides = {}) => missingVariables.length ? null : new S3Client({
   region: 'auto',
   endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
   credentials: {
@@ -18,7 +18,9 @@ export const r2 = missingVariables.length ? null : new S3Client({
   requestChecksumCalculation: 'WHEN_REQUIRED',
   responseChecksumValidation: 'WHEN_REQUIRED',
   maxAttempts: 2,
-  requestHandler: { connectionTimeout: 5000, requestTimeout: 10_000 },
+  requestHandler: { connectionTimeout: 5000, requestTimeout: 10_000, throwOnRequestTimeout: true },
+  ...overrides,
 });
 
+export const r2 = createR2Client();
 export default r2;

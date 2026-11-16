@@ -141,6 +141,16 @@ test('direct deletion cannot remove attached files and pending PUT reservations 
   assert.equal(calls[0].constructor.name, 'DeleteObjectCommand');
 });
 
+test('direct file deletion cannot race a note save holding the user storage lock', async () => {
+  objects.set('uploads/opaque.bin', { userId: 'alice', byteSize: 42, status: 'ready' });
+  stub(StorageLock, 'findOneAndUpdate', async () => null);
+  const res = response();
+  await deleteFileFromStorage(uploadRequest(), res);
+  assert.equal(res.statusCode, 503);
+  assert.equal(calls.length, 0);
+  assert.equal(objects.has('uploads/opaque.bin'), true);
+});
+
 test('attachment accounting uses R2 ContentLength and rejects under-reported ciphertext', async () => {
   objects.set('uploads/opaque.bin', { userId: 'alice', byteSize: 12, status: 'pending' });
   await assert.rejects(prepareInfoAttachments({ file: 'encrypted:path' }, ['uploads/opaque.bin'], 'alice'), /does not match/);

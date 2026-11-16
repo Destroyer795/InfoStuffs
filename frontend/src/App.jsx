@@ -280,7 +280,7 @@ const App = () => {
       setSnackbar({ open: true, message: "Vault has been reset. You can now use a new password.", severity: 'success' });
     } catch (err) {
       console.error("Reset failed", err);
-      setSnackbar({ open: true, message: "Failed to reset vault.", severity: 'error' });
+      setSnackbar({ open: true, message: err.response?.data?.message || 'Failed to reset vault.', severity: 'error' });
     }
   };
 

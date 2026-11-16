@@ -26,9 +26,13 @@ export const requireStorage = () => {
 
 export const withStorageLock = async (lockId, operation) => {
   const owner = randomUUID();
-  await StorageLock.updateOne({ _id: lockId }, {
-    $setOnInsert: { lockedUntil: new Date(0) },
-  }, { upsert: true });
+  try {
+    await StorageLock.updateOne({ _id: lockId }, {
+      $setOnInsert: { lockedUntil: new Date(0) },
+    }, { upsert: true });
+  } catch (error) {
+    if (error.code !== 11000) throw error;
+  }
   const lease = await StorageLock.findOneAndUpdate({
     _id: lockId, lockedUntil: { $lte: new Date() },
   }, { $set: { owner, lockedUntil: new Date(Date.now() + 120_000) } }, { new: true });
@@ -36,7 +40,11 @@ export const withStorageLock = async (lockId, operation) => {
   try {
     return await operation();
   } finally {
-    await StorageLock.updateOne({ _id: lockId, owner }, { $set: { lockedUntil: new Date(0) } });
+    try {
+      await StorageLock.updateOne({ _id: lockId, owner }, { $set: { lockedUntil: new Date(0) } });
+    } catch (error) {
+      console.error('[R2] Storage lease release deferred until expiry:', error.message);
+    }
   }
 };
 
@@ -137,12 +145,14 @@ export const cleanupUnreferencedUploads = async () => {
     userId: { $ne: null }, status: { $ne: 'legacy' }, uploadExpiresAt: { $lte: new Date() },
   }).lean();
   for (const object of objects) {
-    if (!await Info.exists({ storagePaths: object._id })) {
-      try {
-        await deleteStorageObject(object._id, object.userId);
-      } catch (error) {
-        console.error('[R2 Cleanup] Object retained for retry:', object._id, error.message);
-      }
+    try {
+      await withStorageLock(`user:${object.userId}`, async () => {
+        if (!await Info.exists({ storagePaths: object._id })) {
+          await deleteStorageObject(object._id, object.userId);
+        }
+      });
+    } catch (error) {
+      console.error('[R2 Cleanup] Object retained for retry:', object._id, error.message);
     }
   }
 };

@@ -164,3 +164,19 @@ test('source listing failures cannot be reported as successful migrations', asyn
   assert.equal(summary.filesMigrated, 0);
   assert.ok(state.logs.some(([level, message]) => level === 'error' && message.includes('Permission denied')));
 });
+
+test('an empty source listing cannot silently skip existing encrypted attachments', async () => {
+  const state = fixture({ files: new Map(), notes: [{ _id: 'note', userId: 'alice', type: 'file', file: 'iv:ciphertext' }] });
+  const summary = await migrateSupabaseToR2(state.options);
+  assert.equal(summary.failures, 1);
+  assert.equal(summary.legacyNotesPending, 1);
+});
+
+test('a final database error still prints the migration summary and reports failure', async () => {
+  const state = fixture({ files: new Map() });
+  state.options.InfoModel.countDocuments = async () => { throw new Error('Database unavailable'); };
+  const summary = await migrateSupabaseToR2(state.options);
+  assert.equal(summary.failures, 1);
+  assert.equal(summary.legacyNotesPending, null);
+  assert.ok(state.logs.some(([level, message]) => level === 'log' && message.startsWith('Migration summary:')));
+});
