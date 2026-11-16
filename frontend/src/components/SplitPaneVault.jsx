@@ -32,11 +32,11 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { generateCleanSnippet, formatExpirationLabel, parseExistingRetention, validateRetentionConfig } from '../utils/snippet';
 import { 
-  uploadToSupabase, 
-  deleteFromSupabase, 
+  uploadToStorage,
+  validateFileSize,
   getDecryptedFileUrl, 
   createOpaqueStoragePath 
-} from '../utils/supabaseUpload';
+} from '../utils/fileStorage';
 import MarkdownInput from './MarkdownInput';
 import TemporaryRetentionSelector from './TemporaryRetentionSelector';
 import CustomScrollbar from './CustomScrollbar';
@@ -475,17 +475,16 @@ export default function SplitPaneVault({
     return fullList.find(n => n._id === selectedId) || null;
   }, [fullList, selectedId]);
 
-  const getRelativePathFromUrl = (url) => {
-    if (typeof url !== 'string') return null;
-    if (!url.includes('http')) return url;
-    const mainUrlPart = url.split('?')[0]; 
-    const parts = mainUrlPart.split('/infostuffsende/');
-    return parts?.[1] || null;
-  };
-
   const handleFileUpdate = (e) => {
     if (!e.target.files.length) return;
     const file = e.target.files[0];
+    try {
+      validateFileSize(file);
+    } catch (error) {
+      e.target.value = '';
+      showSnack('error', error.message);
+      return;
+    }
     if (editFormData.type === 'image') {
       setNewFileData(prev => ({ ...prev, imageFile: file }));
     } else if (editFormData.type === 'file') {
@@ -494,47 +493,20 @@ export default function SplitPaneVault({
   };
 
   const handleFileSubmit = async () => {
-    let newImageUrl = editFormData.imageURL;
-    let newFileUrl = editFormData.file;
-
-    try {
-      if (editNote?.type === 'image' && editFormData.type !== 'image') {
-        const oldImagePath = getRelativePathFromUrl(editNote.imageURL);
-        if (oldImagePath) await deleteFromSupabase(oldImagePath);
-        newImageUrl = '';
-      }
-      if (editNote?.type === 'file' && editFormData.type !== 'file') {
-        const oldFilePath = getRelativePathFromUrl(editNote.file);
-        if (oldFilePath) await deleteFromSupabase(oldFilePath);
-        newFileUrl = ''; 
-      }
-
-      if (editFormData.type === 'image' && newFileData.imageFile) {
-        const oldImagePath = getRelativePathFromUrl(editNote?.imageURL);
-        if (oldImagePath) await deleteFromSupabase(oldImagePath);
-        const storagePath = createOpaqueStoragePath(newFileData.imageFile, 'images');
-        newImageUrl = await uploadToSupabase(newFileData.imageFile, storagePath, userKey);
-        if (!newImageUrl) throw new Error("Image encryption or upload failed");
-      }
-
-      if (editFormData.type === 'file' && newFileData.docFile) {
-        const oldFilePath = getRelativePathFromUrl(editNote?.file);
-        if (oldFilePath) await deleteFromSupabase(oldFilePath);
-        const storagePath = createOpaqueStoragePath(newFileData.docFile, 'documents');
-        newFileUrl = await uploadToSupabase(newFileData.docFile, storagePath, userKey);
-        if (!newFileUrl) throw new Error("Document encryption or upload failed");
-      }
-
-      if (editFormData.type === 'text') {
-        newImageUrl = '';
-        newFileUrl = '';
-      }
-
-      return { imageURL: newImageUrl, file: newFileUrl };
-    } catch (error) {
-      console.error('File upload failed:', error);
-      throw error;
+    let imageURL = editFormData.type === 'image' ? editFormData.imageURL : '';
+    let file = editFormData.type === 'file' ? editFormData.file : '';
+    let byteSize = editFormData.type === editNote?.type ? (editNote.byteSize || 0) : 0;
+    if (editFormData.type === 'image' && newFileData.imageFile) {
+      const uploaded = await uploadToStorage(newFileData.imageFile, createOpaqueStoragePath(newFileData.imageFile, 'images'), userKey);
+      imageURL = uploaded.storagePath;
+      byteSize = uploaded.byteSize;
     }
+    if (editFormData.type === 'file' && newFileData.docFile) {
+      const uploaded = await uploadToStorage(newFileData.docFile, createOpaqueStoragePath(newFileData.docFile, 'documents'), userKey);
+      file = uploaded.storagePath;
+      byteSize = uploaded.byteSize;
+    }
+    return { imageURL, file, byteSize: editFormData.type === 'text' ? 0 : byteSize };
   };
 
   const handleCopyContent = () => {
@@ -602,7 +574,7 @@ export default function SplitPaneVault({
 
     try {
       setIsSaving(true);
-      const { imageURL, file } = await handleFileSubmit();
+      const { imageURL, file, byteSize } = await handleFileSubmit();
       
       let expiresAt = null;
       if (editFormData.isTemporary) {
@@ -624,7 +596,7 @@ export default function SplitPaneVault({
         retentionConfig: _retentionConfig,
         ...cleanedFormData
       } = editFormData;
-      const updatedData = { ...cleanedFormData, imageURL, file, expiresAt };
+      const updatedData = { ...cleanedFormData, imageURL, file, byteSize, expiresAt };
       await onUpdate(editNote._id, updatedData);
 
       if (previewNote && previewNote._id === editNote._id) {
@@ -640,16 +612,7 @@ export default function SplitPaneVault({
   };
 
   const handleDeleteActive = async (id) => {
-    const toDelete = fullList.find(n => n._id === id);
     try {
-      if (toDelete?.imageURL) {
-        const imagePath = getRelativePathFromUrl(toDelete.imageURL);
-        if (imagePath) await deleteFromSupabase(imagePath);
-      }
-      if (toDelete?.file) {
-        const filePath = getRelativePathFromUrl(toDelete.file);
-        if (filePath) await deleteFromSupabase(filePath);
-      }
       if (onDelete) {
         await onDelete(id);
       }

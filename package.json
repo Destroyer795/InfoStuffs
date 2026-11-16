@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "npm run test --prefix backend",
+    "test": "npm run test --prefix backend && npm run test --prefix frontend",
     "dev": "cross-env NODE_ENV=development nodemon backend/api/info.js",
     "build": "npm install --legacy-peer-deps && npm install --prefix frontend --legacy-peer-deps && npm run build --prefix frontend",
     "start": "cross-env NODE_ENV=production node backend/api/info.js"

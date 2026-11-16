@@ -19,7 +19,7 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { uploadToSupabase, createOpaqueStoragePath } from "../utils/supabaseUpload";
+import { uploadToStorage, createOpaqueStoragePath, validateFileSize } from "../utils/fileStorage";
 import { useUser } from "@clerk/clerk-react";
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import MarkdownInput from "../components/MarkdownInput"; // Import added
@@ -75,6 +75,13 @@ export default function Create({ handleCreate, userKey }) {
   const handleFileChange = (e) => {
     if (!e.target.files.length) return;
     const file = e.target.files[0];
+    try {
+      validateFileSize(file);
+    } catch (error) {
+      e.target.value = '';
+      showSnack('error', error.message);
+      return;
+    }
     if (formData.type === 'image') {
       setFormData({ ...formData, imageFile: file });
     } else if (formData.type === 'file') {
@@ -106,6 +113,7 @@ export default function Create({ handleCreate, userKey }) {
       category: formData.category,
       importance: formData.importance,
       type: formData.type,
+      byteSize: 0,
       isTemporary: formData.isTemporary,
       expiresAt: formData.isTemporary 
         ? calculateExpirationDate(formData.retentionConfig)
@@ -133,13 +141,9 @@ export default function Create({ handleCreate, userKey }) {
           return;
         }
         const storagePath = createOpaqueStoragePath(formData.imageFile, "images");
-        const url = await uploadToSupabase(formData.imageFile, storagePath, userKey);
-        if (!url) {
-          showSnack("error", "Image upload failed.");
-          setIsSubmitting(false);
-          return;
-        }
-        submission.imageURL = url;
+        const uploaded = await uploadToStorage(formData.imageFile, storagePath, userKey);
+        submission.imageURL = uploaded.storagePath;
+        submission.byteSize = uploaded.byteSize;
       } else if (formData.type === 'file') {
         if (!formData.docFile) {
           showSnack("error", "Please upload a file.");
@@ -147,26 +151,17 @@ export default function Create({ handleCreate, userKey }) {
           return;
         }
         const storagePath = createOpaqueStoragePath(formData.docFile, "documents");
-        const url = await uploadToSupabase(formData.docFile, storagePath, userKey);
-        if (!url) {
-          showSnack("error", "File upload failed.");
-          setIsSubmitting(false);
-          return;
-        }
-        submission.file = url;
+        const uploaded = await uploadToStorage(formData.docFile, storagePath, userKey);
+        submission.file = uploaded.storagePath;
+        submission.byteSize = uploaded.byteSize;
       }
 
-      handleCreate(submission)
-        .then(() => {
-          setTimeout(() => navigate("/dashboard"), 2000);
-        })
-        .catch((err) => {
-          console.error(err);
-          setIsSubmitting(false);
-        });
+      await handleCreate(submission);
+      navigate('/dashboard');
 
     } catch (err) {
       console.error(err);
+      showSnack('error', err.response?.data?.message || err.message || 'Unable to create note.');
       setIsSubmitting(false);
     }
   };

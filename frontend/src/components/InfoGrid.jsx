@@ -31,7 +31,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
-import { uploadToSupabase, deleteFromSupabase, getDecryptedFileUrl, createOpaqueStoragePath } from "../utils/supabaseUpload";
+import { uploadToStorage, getDecryptedFileUrl, createOpaqueStoragePath, validateFileSize } from "../utils/fileStorage";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import MarkdownInput from './MarkdownInput';
@@ -289,6 +289,13 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
   const handleFileUpdate = (e) => {
     if (!e.target.files.length) return;
     const file = e.target.files[0];
+    try {
+      validateFileSize(file);
+    } catch (error) {
+      e.target.value = '';
+      showSnack('error', error.message);
+      return;
+    }
     if (formData.type === 'image') {
       setNewFileData(prev => ({ ...prev, imageFile: file }));
     } else if (formData.type === 'file') {
@@ -296,53 +303,21 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
     }
   };
 
-  const getRelativePathFromUrl = (url) => {
-    if (typeof url !== 'string') return null;
-    const mainUrlPart = url.split('?')[0]; 
-    const parts = mainUrlPart.split('/infostuffsende/');
-    return parts?.[1] || null;
-  };
-
   const handleFileSubmit = async () => {
-    let newImageUrl = formData.imageURL;
-    let newFileUrl = formData.file;
-
-    try {
-      if (editInfo?.type === 'image' && formData.type !== 'image') {
-        const oldImagePath = getRelativePathFromUrl(editInfo.imageURL);
-        if (oldImagePath) await deleteFromSupabase(oldImagePath);
-        newImageUrl = '';
-      }
-      if (editInfo?.type === 'file' && formData.type !== 'file') {
-        const oldFilePath = getRelativePathFromUrl(editInfo.file);
-        if (oldFilePath) await deleteFromSupabase(oldFilePath);
-        newFileUrl = ''; 
-      }
-
-      if (formData.type === 'image' && newFileData.imageFile) {
-        const oldImagePath = getRelativePathFromUrl(editInfo?.imageURL);
-        if (oldImagePath) await deleteFromSupabase(oldImagePath);
-        const storagePath = createOpaqueStoragePath(newFileData.imageFile, 'images');
-        newImageUrl = await uploadToSupabase(newFileData.imageFile, storagePath, userKey);
-      }
-
-      if (formData.type === 'file' && newFileData.docFile) {
-        const oldFilePath = getRelativePathFromUrl(editInfo?.file);
-        if (oldFilePath) await deleteFromSupabase(oldFilePath);
-        const storagePath = createOpaqueStoragePath(newFileData.docFile, 'documents');
-        newFileUrl = await uploadToSupabase(newFileData.docFile, storagePath, userKey);
-      }
-
-      if (formData.type === 'text') {
-        newImageUrl = '';
-        newFileUrl = '';
-      }
-
-      return { imageURL: newImageUrl, file: newFileUrl };
-    } catch (error) {
-      console.error('File upload failed:', error);
-      throw error;
+    let imageURL = formData.type === 'image' ? formData.imageURL : '';
+    let file = formData.type === 'file' ? formData.file : '';
+    let byteSize = formData.type === editInfo?.type ? (editInfo.byteSize || 0) : 0;
+    if (formData.type === 'image' && newFileData.imageFile) {
+      const uploaded = await uploadToStorage(newFileData.imageFile, createOpaqueStoragePath(newFileData.imageFile, 'images'), userKey);
+      imageURL = uploaded.storagePath;
+      byteSize = uploaded.byteSize;
     }
+    if (formData.type === 'file' && newFileData.docFile) {
+      const uploaded = await uploadToStorage(newFileData.docFile, createOpaqueStoragePath(newFileData.docFile, 'documents'), userKey);
+      file = uploaded.storagePath;
+      byteSize = uploaded.byteSize;
+    }
+    return { imageURL, file, byteSize: formData.type === 'text' ? 0 : byteSize };
   };
 
   const handleEditOpen = (info) => {
@@ -403,7 +378,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
     }
 
     try {
-      const { imageURL, file } = await handleFileSubmit();
+      const { imageURL, file, byteSize } = await handleFileSubmit();
 
       let expiresAt = null;
       if (formData.isTemporary) {
@@ -424,7 +399,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
         retentionConfig: _retentionConfig,
         ...cleanedFormData
       } = formData;
-      const updatedData = { ...cleanedFormData, imageURL, file, expiresAt };
+      const updatedData = { ...cleanedFormData, imageURL, file, byteSize, expiresAt };
       await onUpdate(editInfo._id, updatedData);
 
       if (selectedInfo && selectedInfo._id === editInfo._id) {
@@ -664,15 +639,7 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
                   onClick={async (e) => {
                     e.stopPropagation();
                     try {
-                      if (info.imageURL) {
-                        const imagePath = getRelativePathFromUrl(info.imageURL);
-                        if (imagePath) await deleteFromSupabase(imagePath);
-                      }
-                      if (info.file) {
-                        const filePath = getRelativePathFromUrl(info.file);
-                        if (filePath) await deleteFromSupabase(filePath);
-                      }
-                      onDelete?.(info._id);
+                      await onDelete?.(info._id);
                       showSnack("success", "Deleted")
                     } catch {
                       showSnack("error", "Delete failed")

@@ -42,6 +42,7 @@ import EncryptionWorker from './utils/worker?worker';
 import { lightTheme, darkTheme } from './theme';
 import config from './config';
 import { saveOfflineNotes, getOfflineNotes } from './utils/localStore';
+import { normalizeStoragePath } from './utils/fileStorage';
 
 const SplitPaneVault = lazy(() => import('./components/SplitPaneVault.jsx'));
 const Create = lazy(() => import('./pages/Create.jsx'));
@@ -324,6 +325,23 @@ const App = () => {
       saveOfflineNotes(rawNotes, user?.id).catch(err => console.error("Cache write failed:", err));
       
       const decrypted = await decryptNoteArray(rawNotes, encryptionKey);
+      let attachmentSyncFailed = false;
+      // Only an unlocked client can recover encrypted legacy paths for metadata backfill.
+      for (const note of decrypted) {
+        if (note.storagePaths?.length || !(note.imageURL || note.file)) continue;
+        try {
+          const storagePaths = [...new Set([note.imageURL, note.file].filter(Boolean).map(normalizeStoragePath))];
+          const synced = await axios.patch(`${API_BASE_URL}/api/info/${note._id}`, { storagePaths }, { headers });
+          note.storagePaths = synced.data.data.storagePaths;
+          note.byteSize = synced.data.data.byteSize;
+        } catch (error) {
+          attachmentSyncFailed = true;
+          console.warn('Attachment metadata sync deferred:', error.response?.data?.message || error.message);
+        }
+      }
+      if (attachmentSyncFailed) {
+        setSnackbar({ open: true, message: 'Some attachments are temporarily unavailable. Please try again later.', severity: 'warning' });
+      }
       setInfos(decrypted);
     } catch (err) {
       console.error('Failed to fetch from backend', err);
@@ -362,6 +380,8 @@ const App = () => {
     
     const encryptedData = { 
       ...newData, 
+      byteSize: newData.byteSize || 0,
+      storagePaths: [newData.imageURL, newData.file].filter(Boolean).map(normalizeStoragePath),
       name: await encryptText(newData.name, encryptionKey),
       category: await encryptText(newData.category, encryptionKey),
       content: newData.type === 'text' ? await encryptText(newData.content, encryptionKey) : newData.content,
@@ -395,6 +415,8 @@ const App = () => {
 
     const encryptedData = { 
       ...updatedData, 
+      byteSize: updatedData.byteSize || 0,
+      storagePaths: [updatedData.imageURL, updatedData.file].filter(Boolean).map(normalizeStoragePath),
       name: await encryptText(updatedData.name, encryptionKey),
       category: await encryptText(updatedData.category, encryptionKey),
       content: updatedData.type === 'text' ? await encryptText(updatedData.content, encryptionKey) : updatedData.content,
