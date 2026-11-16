@@ -13,6 +13,8 @@ const { default: r2 } = await import('../config/r2.js');
 const { default: fileRoutes } = await import('../routes/file.route.js');
 const { getPresignedUploadUrl, getPresignedDownloadUrl, deleteFileFromStorage } = await import('../controller/file.controller.js');
 const { cleanupExpiredNotes } = await import('../services/noteCleanup.js');
+const { createInfo, updateInfo, deleteInfo, deleteAllInfos } = await import('../controller/info.controller.js');
+const { ensureNoteCleanupIndexes } = await import('../config/storageIndexes.js');
 const { MAX_STORAGE_BYTES, MAX_FILE_BYTES, isValidStoragePath, prepareInfoAttachments } = await import('../services/storage.js');
 
 const restores = [];
@@ -43,6 +45,7 @@ beforeEach(() => {
   stub(StorageObject, 'find', () => lean([]));
   stub(StorageObject, 'deleteOne', async ({ _id }) => { objects.delete(_id); return {}; });
   stub(StorageObject, 'updateOne', async ({ _id }, update) => { Object.assign(objects.get(_id), update.$set); });
+  stub(StorageObject, 'updateMany', async () => ({}));
   stub(StorageObject, 'findOneAndUpdate', async ({ _id }, update) => Object.assign(objects.get(_id), update.$set));
   stub(r2, 'send', async (command) => { calls.push(command); return { ContentLength: 42 }; });
 });
@@ -201,4 +204,107 @@ test('missing R2 configuration disables storage without crashing', async () => {
   } finally {
     names.forEach((name, index) => { process.env[name] = previous[index]; });
   }
+});
+
+const noteId = '507f1f77bcf86cd799439011';
+const fileNote = (extra = {}) => ({
+  _id: noteId, userId: 'alice', name: 'iv:name', category: 'iv:category', importance: 'High',
+  type: 'file', file: 'iv:path', imageURL: '', byteSize: 42, storagePaths: ['uploads/old.bin'], ...extra,
+});
+
+test('Info validates byteSize and uses an ordinary expiry index', () => {
+  assert.equal(new Info({ userId: 'alice', name: 'encrypted', category: 'encrypted', importance: 'High' }).byteSize, 0);
+  const invalid = new Info({ ...fileNote(), byteSize: -1 }).validateSync();
+  assert.ok(invalid.errors.byteSize);
+  assert.equal(Info.schema.indexes().some(([, options]) => options.expireAfterSeconds !== undefined), false);
+});
+
+test('startup replaces the deployed TTL index before serving data', async () => {
+  const operations = [];
+  stub(Info.collection, 'indexes', async () => [{ name: 'expiresAt_1', key: { expiresAt: 1 }, expireAfterSeconds: 0 }, { name: '_id_', key: { _id: 1 } }]);
+  stub(Info.collection, 'dropIndex', async (name) => operations.push(['drop', name]));
+  stub(Info.collection, 'createIndex', async (key) => operations.push(['create', key]));
+  await ensureNoteCleanupIndexes();
+  assert.deepEqual(operations, [['drop', 'expiresAt_1'], ['create', { expiresAt: 1 }]]);
+});
+
+test('create stores server-verified ciphertext bytes and only the authenticated user ID', async () => {
+  objects.set('uploads/opaque.bin', { userId: 'alice', status: 'pending', byteSize: 42 });
+  stub(Info.prototype, 'save', async function () { return this; });
+  const res = response();
+  await createInfo({ auth: { userId: 'alice' }, body: {
+    ...fileNote({ storagePaths: ['uploads/opaque.bin'] }), userId: 'bob', byteSize: 42,
+  } }, res);
+  assert.equal(res.statusCode, 201);
+  assert.equal(res.body.data.userId, 'alice');
+  assert.equal(res.body.data.byteSize, 42);
+  assert.deepEqual([...res.body.data.storagePaths], ['uploads/opaque.bin']);
+});
+
+test('failed replacement upload keeps the original database reference and ciphertext', async () => {
+  const existing = fileNote();
+  stub(Info, 'findOne', () => lean(existing));
+  objects.set('uploads/new.bin', { userId: 'alice', status: 'pending', byteSize: 42 });
+  let saved = false;
+  stub(Info, 'findOneAndUpdate', async () => { saved = true; });
+  stub(r2, 'send', async (command) => {
+    calls.push(command);
+    if (command.constructor.name === 'HeadObjectCommand') throw new Error('Upload missing');
+  });
+  const res = response();
+  await updateInfo({ params: { id: noteId }, auth: { userId: 'alice' }, body: { file: 'new:encrypted', storagePaths: ['uploads/new.bin'], byteSize: 42 } }, res);
+  assert.equal(res.statusCode, 500);
+  assert.equal(saved, false);
+  assert.equal(calls.some((command) => command.constructor.name === 'DeleteObjectCommand'), false);
+});
+
+test('successful replacement saves the new reference before deleting the old ciphertext', async () => {
+  const existing = fileNote();
+  stub(Info, 'findOne', () => lean(existing));
+  objects.set('uploads/new.bin', { userId: 'alice', status: 'pending', byteSize: 42 });
+  objects.set('uploads/old.bin', { userId: 'alice', status: 'ready', byteSize: 42 });
+  const operations = [];
+  stub(Info, 'findOneAndUpdate', async (filter, updates) => { operations.push('save'); return { ...existing, ...updates }; });
+  stub(r2, 'send', async (command) => { operations.push(command.constructor.name); return { ContentLength: 42 }; });
+  const res = response();
+  await updateInfo({ params: { id: noteId }, auth: { userId: 'alice' }, body: { file: 'new:encrypted', storagePaths: ['uploads/new.bin'], byteSize: 42 } }, res);
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(operations, ['HeadObjectCommand', 'save', 'DeleteObjectCommand']);
+  assert.equal(res.body.data.byteSize, 42);
+});
+
+test('legacy reconciliation backfills a note without changing its encrypted reference', async () => {
+  const existing = fileNote({ storagePaths: undefined, byteSize: 0 });
+  stub(Info, 'findOne', () => lean(existing));
+  objects.set('uploads/old.bin', { userId: null, status: 'legacy', byteSize: 42 });
+  stub(Info, 'findOneAndUpdate', async (filter, updates) => ({ ...existing, ...updates }));
+  const res = response();
+  await updateInfo({ params: { id: noteId }, auth: { userId: 'alice' }, body: { storagePaths: ['uploads/old.bin'] } }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.data.file, existing.file);
+  assert.equal(res.body.data.byteSize, 42);
+  assert.equal(objects.get('uploads/old.bin').userId, 'alice');
+});
+
+test('note deletion removes ciphertext before MongoDB and leaves the record on R2 errors', async () => {
+  const existing = fileNote();
+  stub(Info, 'findOne', () => lean(existing));
+  let deleted = false;
+  stub(Info, 'deleteOne', async () => { deleted = true; });
+  stub(r2, 'send', async () => { throw new Error('R2 unavailable'); });
+  const res = response();
+  await deleteInfo({ params: { id: noteId }, auth: { userId: 'alice' } }, res);
+  assert.equal(res.statusCode, 500);
+  assert.equal(deleted, false);
+});
+
+test('vault reset preflight prevents deletion while legacy attachment mappings are unknown', async () => {
+  stub(Info, 'find', () => lean([fileNote(), fileNote({ _id: 'legacy', storagePaths: undefined })]));
+  let deleted = false;
+  stub(Info, 'deleteOne', async () => { deleted = true; });
+  const res = response();
+  await deleteAllInfos({ auth: { userId: 'alice' } }, res);
+  assert.equal(res.statusCode, 409);
+  assert.equal(deleted, false);
+  assert.equal(calls.length, 0);
 });

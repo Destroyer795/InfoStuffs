@@ -31,6 +31,17 @@ const infoSchema = new mongoose.Schema({
   imageURL: {
     type: String, // for image URLs
   },
+  byteSize: {
+    type: Number,
+    default: 0,
+    min: 0,
+    validate: { validator: Number.isSafeInteger, message: 'byteSize must be a non-negative integer' },
+  },
+  // Opaque ciphertext object keys allow cleanup without decrypting imageURL or file.
+  storagePaths: {
+    type: [String],
+    default: undefined,
+  },
   isTemporary: {
     type: Boolean,
     default: false,
@@ -41,10 +52,11 @@ const infoSchema = new mongoose.Schema({
   }
 }, {
   timestamps: true,
+  autoIndex: false,
 });
 
-// MongoDB TTL Index: automatically purge documents when expiresAt timestamp is reached
-infoSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+// Application cleanup must delete stored ciphertext before removing its note and accounting.
+infoSchema.index({ expiresAt: 1 });
 
 const Info = mongoose.model('Info', infoSchema);
 export default Info;

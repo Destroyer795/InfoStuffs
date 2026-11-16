@@ -4,7 +4,7 @@ import Info from '../models/info.model.js';
 import StorageObject from '../models/storageObject.model.js';
 import {
   MAX_FILE_BYTES, MAX_STORAGE_BYTES, StorageError, isValidStoragePath, requireStorage,
-  withStorageQuotaLock, getOwnedStorageObject, deleteStorageObject,
+  withStorageQuotaLock, withStorageLock, getOwnedStorageObject, deleteStorageObject,
 } from '../services/storage.js';
 
 const handleError = (res, error) => {
@@ -28,7 +28,7 @@ export const getPresignedUploadUrl = async (req, res) => {
   }
   try {
     const client = requireStorage();
-    const uploadUrl = await withStorageQuotaLock(async () => {
+    const uploadUrl = await withStorageLock(`user:${req.auth.userId}`, () => withStorageQuotaLock(async () => {
       const totalUsage = await Info.aggregate([{ $group: { _id: null, total: { $sum: '$byteSize' } } }]);
       const objectUsage = await StorageObject.aggregate([{ $group: { _id: null, total: { $sum: '$byteSize' } } }]);
       // The object ledger also covers migration files, outstanding PUT URLs and abandoned uploads.
@@ -52,7 +52,7 @@ export const getPresignedUploadUrl = async (req, res) => {
         await StorageObject.deleteOne({ _id: storagePath, userId: req.auth.userId });
         throw error;
       }
-    });
+    }));
     return res.status(200).json({ success: true, uploadUrl, storagePath });
   } catch (error) {
     return handleError(res, error);

@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { ensureNoteCleanupIndexes } from './storageIndexes.js';
 
 let cached = global.mongoose;
 
@@ -22,7 +23,8 @@ export const connectDB = async () => {
       bufferCommands: false, //Disabling Mongoose buffering for serverless
     };
 
-    cached.promise = mongoose.connect(process.env.MONGO_URI, opts).then((mongoose) => {
+    cached.promise = mongoose.connect(process.env.MONGO_URI, opts).then(async (mongoose) => {
+      await ensureNoteCleanupIndexes();
       return mongoose;
     });
   }

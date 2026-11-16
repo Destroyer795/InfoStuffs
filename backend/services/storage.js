@@ -84,6 +84,10 @@ export const prepareInfoAttachments = async (info, requestedPaths, userId, exist
       || (object.userId !== userId && !(existingInfo && object.status === 'legacy' && !object.userId))) {
       throw new StorageError(403, 'You do not have permission to attach this file.');
     }
+    if (object.status !== 'legacy' && object.uploadExpiresAt <= new Date()
+      && !getInfoStoragePaths(existingInfo || {}).includes(storagePath)) {
+      throw new StorageError(409, 'This upload expired before it was saved. Please upload the file again.');
+    }
     const otherInfo = await Info.exists({
       storagePaths: storagePath,
       ...(existingInfo ? { _id: { $ne: existingInfo._id } } : {}),

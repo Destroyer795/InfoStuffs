@@ -1,153 +1,159 @@
 import mongoose from 'mongoose';
 import Info from '../models/info.model.js';
+import StorageObject from '../models/storageObject.model.js';
+import {
+  StorageError, assertAttachmentMapping, getInfoStoragePaths, prepareInfoAttachments,
+  deleteInfoAttachments, deleteStorageObject, withStorageLock,
+} from '../services/storage.js';
 
-const pickAllowedInfoFields = (body) => {
-  const allowedFields = ['name', 'content', 'category', 'importance', 'type', 'file', 'imageURL', 'isTemporary', 'expiresAt'];
-  return allowedFields.reduce((accumulator, field) => {
-    if (body[field] !== undefined) {
-      accumulator[field] = body[field];
+const pickAllowedInfoFields = (body = {}) => {
+  const allowedFields = ['name', 'content', 'category', 'importance', 'type', 'file', 'imageURL', 'byteSize', 'storagePaths', 'isTemporary', 'expiresAt'];
+  return Object.fromEntries(allowedFields.filter((field) => body[field] !== undefined).map((field) => [field, body[field]]));
+};
+
+const validateInfo = (info, validateExpiration = true) => {
+  if (!info.name || !info.category || !info.importance || !info.type) throw new StorageError(400, 'Missing base fields');
+  if (!['text', 'image', 'file'].includes(info.type)) throw new StorageError(400, 'Invalid note type');
+  if (info.byteSize !== undefined && (!Number.isSafeInteger(info.byteSize) || info.byteSize < 0)) {
+    throw new StorageError(400, 'byteSize must be a non-negative integer');
+  }
+  if (info.type === 'text' && !info.content) throw new StorageError(400, 'Text content is required');
+  if (info.type === 'image' && !info.imageURL) throw new StorageError(400, 'Image URL is required');
+  if (info.type === 'file' && !info.file) throw new StorageError(400, 'File URL is required');
+  if (info.type !== 'image') info.imageURL = '';
+  if (info.type !== 'file') info.file = '';
+  if (!info.isTemporary) {
+    info.expiresAt = null;
+  } else if (validateExpiration) {
+    if (!info.expiresAt) throw new StorageError(400, 'Expiration date is required for temporary notes');
+    const expiresAt = new Date(info.expiresAt);
+    if (isNaN(expiresAt.getTime())) throw new StorageError(400, 'Invalid expiration date format');
+    if (expiresAt.getTime() <= Date.now() + 30_000) {
+      throw new StorageError(400, 'Expiration date must be at least 30 seconds in the future');
     }
-    return accumulator;
-  }, {});
+  }
+};
+
+const handleError = (res, error, operation) => {
+  const status = error.status || (error.name === 'ValidationError' ? 400 : 500);
+  if (status === 500) console.error(`Error ${operation}:`, error.message);
+  return res.status(status).json({ success: false, message: status === 500 ? 'Server error' : error.message });
+};
+
+const markAttachmentsReady = async (info) => {
+  try {
+    await StorageObject.updateMany({ _id: { $in: getInfoStoragePaths(info) }, userId: info.userId }, { $set: { status: 'ready' } });
+  } catch (error) {
+    console.error('[R2] Attachment status update deferred:', error.message);
+  }
 };
 
 export const getInfos = async (req, res) => {
   try {
-    const infos = await Info.find({userId: req.auth.userId}).sort({ createdAt: -1 }); //sorting by newest first
-    res.status(200).json({ success: true, data: infos });
+    const infos = await Info.find({ userId: req.auth.userId }).sort({ createdAt: -1 });
+    return res.status(200).json({ success: true, data: infos });
   } catch (error) {
-    console.error('Error fetching infos:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    return handleError(res, error, 'fetching infos');
   }
 };
 
 export const createInfo = async (req, res) => {
-  const info = {
-    ...pickAllowedInfoFields(req.body),
-    userId: req.auth.userId,
-  };
-
-  // Basic required fields
-  if (!info.name || !info.category || !info.importance || !info.type) {
-    return res.status(400).json({ success: false, message: 'Missing base fields' });
-  }
-
-  // Type-specific required fields
-  if (info.type === 'text' && !info.content) {
-    return res.status(400).json({ success: false, message: 'Text content is required' });
-  }
-
-  if (info.type === 'image' && !info.imageURL) {
-    return res.status(400).json({ success: false, message: 'Image URL is required' });
-  }
-
-  if (info.type === 'file' && !info.file) {
-    return res.status(400).json({ success: false, message: 'File URL is required' });
-  }
-
-  // Temporary note validation
-  if (info.isTemporary) {
-    if (!info.expiresAt) {
-      return res.status(400).json({ success: false, message: 'Expiration date is required for temporary notes' });
-    }
-    const expDate = new Date(info.expiresAt);
-    if (isNaN(expDate.getTime())) {
-      return res.status(400).json({ success: false, message: 'Invalid expiration date format' });
-    }
-    // Must be at least 30 seconds in the future
-    if (expDate.getTime() <= Date.now() + 30 * 1000) {
-      return res.status(400).json({ success: false, message: 'Expiration date must be at least 1 minute in the future' });
-    }
-  } else {
-    info.expiresAt = null;
-  }
-
   try {
-    const newInfo = new Info(info);
-    await newInfo.save();
-    res.status(201).json({ success: true, data: newInfo });
+    const info = { ...pickAllowedInfoFields(req.body), userId: req.auth.userId };
+    validateInfo(info);
+    const newInfo = await withStorageLock(`user:${info.userId}`, async () => {
+      const attachments = await prepareInfoAttachments(info, info.storagePaths, info.userId);
+      if (info.byteSize !== undefined && info.byteSize !== attachments.byteSize) {
+        throw new StorageError(400, 'byteSize does not match the uploaded ciphertext.');
+      }
+      const document = new Info({ ...info, ...attachments });
+      await document.save();
+      await markAttachmentsReady(document);
+      return document;
+    });
+    return res.status(201).json({ success: true, data: newInfo });
   } catch (error) {
-    console.error('Error creating info:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    return handleError(res, error, 'creating info');
   }
 };
 
 export const updateInfo = async (req, res) => {
   const { id } = req.params;
-  const updates = pickAllowedInfoFields(req.body);
+  if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ success: false, message: 'Invalid ID format' });
   const userId = req.auth.userId;
-
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(400).json({ success: false, message: 'Invalid ID format' });
-  }
-
-  if (updates.isTemporary !== undefined) {
-    if (updates.isTemporary) {
-      if (updates.expiresAt !== undefined && updates.expiresAt !== null) {
-        const expDate = new Date(updates.expiresAt);
-        if (isNaN(expDate.getTime())) {
-          return res.status(400).json({ success: false, message: 'Invalid expiration date format' });
-        }
-        if (expDate.getTime() <= Date.now() + 30 * 1000) {
-          return res.status(400).json({ success: false, message: 'Expiration date must be at least 1 minute in the future' });
+  try {
+    const updatedInfo = await withStorageLock(`user:${userId}`, () => withStorageLock(`note:${id}`, async () => {
+      const existing = await Info.findOne({ _id: id, userId }).lean();
+      if (!existing) throw new StorageError(404, 'Info not found or you do not have permission to update it');
+      const updates = pickAllowedInfoFields(req.body);
+      const info = { ...existing, ...updates };
+      validateInfo(info, updates.isTemporary !== undefined || updates.expiresAt !== undefined);
+      const replacingAttachment = ['file', 'imageURL', 'type'].some((field) => updates[field] !== undefined && updates[field] !== existing[field]);
+      if (replacingAttachment) assertAttachmentMapping(existing);
+      const attachments = await prepareInfoAttachments(info,
+        updates.storagePaths ?? (info.type === 'text' ? [] : undefined), userId, existing);
+      if (updates.byteSize !== undefined && updates.byteSize !== attachments.byteSize) {
+        throw new StorageError(400, 'byteSize does not match the uploaded ciphertext.');
+      }
+      const document = await Info.findOneAndUpdate({ _id: id, userId }, {
+        ...pickAllowedInfoFields(info), ...attachments,
+      }, { new: true, runValidators: true });
+      if (!document) throw new StorageError(404, 'Info not found');
+      await markAttachmentsReady(document);
+      // Commit the new reference before removing the old ciphertext, so failed uploads cannot destroy it.
+      for (const path of getInfoStoragePaths(existing).filter((path) => !attachments.storagePaths.includes(path))) {
+        try {
+          await StorageObject.updateOne({ _id: path, userId }, { $set: { status: 'ready' } });
+          await deleteStorageObject(path, userId);
+        } catch (error) {
+          console.error('[R2] Replaced attachment retained for cleanup retry:', path, error.message);
         }
       }
-    } else {
-      updates.expiresAt = null;
-    }
-  }
-
-  try {
-    const updatedInfo = await Info.findOneAndUpdate(
-      { _id: id, userId },
-      updates,
-      { new: true, runValidators: true }
-    );
-
-    if (!updatedInfo) {
-      return res.status(404).json({ success: false, message: 'Info not found or you do not have permission to update it' });
-    }
-
-    res.status(200).json({ success: true, data: updatedInfo });
+      return document;
+    }));
+    return res.status(200).json({ success: true, data: updatedInfo });
   } catch (error) {
-    console.error('Error updating info:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    return handleError(res, error, 'updating info');
   }
 };
 
 export const deleteInfo = async (req, res) => {
   const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ success: false, message: 'Invalid ID format' });
   const userId = req.auth.userId;
-
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(400).json({ success: false, message: 'Invalid ID format' });
-  }
-
   try {
-    const deletedInfo = await Info.findOneAndDelete({ _id: id, userId });
-
-    if (!deletedInfo) {
-      return res.status(404).json({ success: false, message: 'Info not found or you do not have permission to delete it' });
-    }
-
-    res.status(200).json({ success: true, message: 'Info deleted successfully' });
+    await withStorageLock(`user:${userId}`, () => withStorageLock(`note:${id}`, async () => {
+      const info = await Info.findOne({ _id: id, userId }).lean();
+      if (!info) throw new StorageError(404, 'Info not found or you do not have permission to delete it');
+      await deleteInfoAttachments(info);
+      await Info.deleteOne({ _id: id, userId });
+    }));
+    return res.status(200).json({ success: true, message: 'Info deleted successfully' });
   } catch (error) {
-    console.error('Error deleting info:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    return handleError(res, error, 'deleting info');
   }
 };
 
-// The "Nuclear Option"
 export const deleteAllInfos = async (req, res) => {
   const userId = req.auth.userId;
-
   try {
-    // Delete ALL entries belonging to this specific user
-    await Info.deleteMany({ userId: userId });
-    
-    res.status(200).json({ success: true, message: "Vault reset successfully." });
+    await withStorageLock(`user:${userId}`, async () => {
+      const infos = await Info.find({ userId }).lean();
+      // Preflight every legacy mapping before carrying out the destructive reset.
+      infos.forEach(assertAttachmentMapping);
+      for (const info of infos) {
+        await withStorageLock(`note:${info._id}`, async () => {
+          const current = await Info.findOne({ _id: info._id, userId }).lean();
+          if (!current) return;
+          await deleteInfoAttachments(current);
+          await Info.deleteOne({ _id: current._id, userId });
+        });
+      }
+      const remainingObjects = await StorageObject.find({ userId }).lean();
+      for (const object of remainingObjects) await deleteStorageObject(object._id, userId);
+    });
+    return res.status(200).json({ success: true, message: 'Vault reset successfully.' });
   } catch (error) {
-    console.error("Error resetting vault:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    return handleError(res, error, 'resetting vault');
   }
 };
