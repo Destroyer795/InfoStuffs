@@ -9,6 +9,8 @@ const storageObjectSchema = new mongoose.Schema({
   uploadExpiresAt: { type: Date, default: () => new Date(0) },
 }, { timestamps: true });
 
+storageObjectSchema.index({ userId: 1, status: 1, uploadExpiresAt: 1 });
+
 // A database lease serializes quota reservations across API processes and serverless instances.
 const storageLockSchema = new mongoose.Schema({
   _id: { type: String, required: true },

@@ -6,6 +6,8 @@ import StorageObject, { StorageLock } from '../models/storageObject.model.js';
 
 export const MAX_FILE_BYTES = 100 * 1024 * 1024;
 export const MAX_STORAGE_BYTES = 9 * 1024 * 1024 * 1024;
+export const MAX_PENDING_UPLOADS = 3;
+export const MAX_PENDING_UPLOAD_BYTES = 300 * 1024 * 1024;
 export const STORAGE_PATH_PATTERN = /^(images|documents|uploads)\/[a-zA-Z0-9._-]+$/;
 
 export class StorageError extends Error {
@@ -136,6 +138,20 @@ export const deleteStorageObject = async (storagePath, userId, excludedInfoIds =
 export const deleteInfoAttachments = async (info, excludedInfoIds = [info._id]) => {
   for (const storagePath of assertAttachmentMapping(info)) {
     await deleteStorageObject(storagePath, info.userId, excludedInfoIds);
+  }
+};
+
+// The caller holds the user's storage lock. Never discard reservations on expiry alone.
+export const cleanupExpiredUserUploadReservations = async (userId) => {
+  const objects = await StorageObject.find({
+    userId, status: { $in: ['pending', 'deleting'] }, uploadExpiresAt: { $lte: new Date() },
+  }).limit(MAX_PENDING_UPLOADS).lean();
+  for (const object of objects) {
+    try {
+      await deleteStorageObject(object._id, userId);
+    } catch (error) {
+      console.error('[R2 Cleanup] Upload reservation retained for retry:', object._id, error.message);
+    }
   }
 };
 

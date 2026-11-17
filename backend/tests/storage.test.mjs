@@ -6,6 +6,7 @@ import express from 'express';
 Object.assign(process.env, {
   R2_ACCOUNT_ID: 'test-account', R2_ACCESS_KEY_ID: 'test-access-key',
   R2_SECRET_ACCESS_KEY: 'test-secret-key', R2_BUCKET_NAME: 'test-bucket', VERCEL: '1',
+  MONGO_URI: 'mongodb://127.0.0.1:1/isolated-storage-tests',
 });
 const { default: Info } = await import('../models/info.model.js');
 const { default: StorageObject, StorageLock } = await import('../models/storageObject.model.js');
@@ -15,7 +16,9 @@ const { getPresignedUploadUrl, getPresignedDownloadUrl, deleteFileFromStorage } 
 const { cleanupExpiredNotes } = await import('../services/noteCleanup.js');
 const { createInfo, updateInfo, deleteInfo, deleteAllInfos } = await import('../controller/info.controller.js');
 const { ensureNoteCleanupIndexes } = await import('../config/storageIndexes.js');
-const { MAX_STORAGE_BYTES, MAX_FILE_BYTES, isValidStoragePath, prepareInfoAttachments } = await import('../services/storage.js');
+const { default: PresignRequestWindow } = await import('../models/presignRequestWindow.model.js');
+const { PRESIGN_REQUEST_LIMIT } = await import('../middleware/presignedUploadLimiter.js');
+const { MAX_STORAGE_BYTES, MAX_FILE_BYTES, MAX_PENDING_UPLOADS, MAX_PENDING_UPLOAD_BYTES, isValidStoragePath, prepareInfoAttachments } = await import('../services/storage.js');
 
 const restores = [];
 const stub = (target, name, implementation) => {
@@ -38,11 +41,16 @@ beforeEach(() => {
   stub(Info, 'exists', async () => null);
   stub(StorageLock, 'updateOne', async () => ({}));
   stub(StorageLock, 'findOneAndUpdate', async () => ({}));
-  stub(StorageObject, 'aggregate', async () => [{ total: [...objects.values()].reduce((sum, object) => sum + object.byteSize, 0) }]);
+  stub(StorageObject, 'aggregate', async (pipeline) => {
+    const match = pipeline[0]?.$match;
+    const rows = [...objects.values()].filter((object) => !match
+      || (object.userId === match.userId && match.status.$in.includes(object.status)));
+    return [{ count: rows.length, total: rows.reduce((sum, object) => sum + object.byteSize, 0) }];
+  });
   stub(StorageObject, 'exists', async ({ _id }) => objects.has(_id));
   stub(StorageObject, 'create', async (object) => { objects.set(object._id, object); return object; });
   stub(StorageObject, 'findById', (id) => lean(objects.get(id) || null));
-  stub(StorageObject, 'find', () => lean([]));
+  stub(StorageObject, 'find', () => ({ ...lean([]), limit() { return this; } }));
   stub(StorageObject, 'deleteOne', async ({ _id }) => { objects.delete(_id); return {}; });
   stub(StorageObject, 'updateOne', async ({ _id }, update) => { Object.assign(objects.get(_id), update.$set); });
   stub(StorageObject, 'updateMany', async () => ({}));
@@ -99,6 +107,175 @@ test('exact quota boundary succeeds and signs ciphertext size, content type and 
   const duplicate = response();
   await getPresignedUploadUrl(uploadRequest(), duplicate);
   assert.equal(duplicate.statusCode, 409);
+});
+
+test('93 unused presign attempts cannot exhaust global storage or block another user', async () => {
+  for (let attempt = 0; attempt < 93; attempt++) {
+    const res = response();
+    await getPresignedUploadUrl(uploadRequest({ storagePath: `uploads/reservation-${attempt}.bin`, byteSize: MAX_FILE_BYTES }), res);
+    assert.equal(res.statusCode, attempt < MAX_PENDING_UPLOADS ? 200 : 429);
+    if (attempt >= MAX_PENDING_UPLOADS) assert.equal(res.body.uploadUrl, undefined);
+  }
+  assert.equal(objects.size, MAX_PENDING_UPLOADS);
+  assert.equal([...objects.values()].reduce((sum, object) => sum + object.byteSize, 0), MAX_PENDING_UPLOAD_BYTES);
+  const bob = response();
+  await getPresignedUploadUrl({ ...uploadRequest({ storagePath: 'uploads/bob.bin' }), auth: { userId: 'bob' } }, bob);
+  assert.equal(bob.statusCode, 200);
+  assert.equal(calls.length, 0);
+});
+
+test('the pending byte budget includes existing reservations even below the file count limit', async () => {
+  objects.set('uploads/existing.bin', { userId: 'alice', status: 'pending', byteSize: MAX_PENDING_UPLOAD_BYTES - 10 });
+  const res = response();
+  await getPresignedUploadUrl(uploadRequest({ byteSize: 11 }), res);
+  assert.equal(res.statusCode, 429);
+  assert.equal(objects.size, 1);
+});
+
+test('cancelling an upload cannot free budget while its presigned URL remains valid', async () => {
+  for (let index = 0; index < MAX_PENDING_UPLOADS; index++) {
+    await getPresignedUploadUrl(uploadRequest({ storagePath: `uploads/pending-${index}.bin` }), response());
+  }
+  const deleted = response();
+  await deleteFileFromStorage(uploadRequest({ storagePath: 'uploads/pending-0.bin' }), deleted);
+  assert.equal(deleted.statusCode, 200);
+  assert.equal(objects.get('uploads/pending-0.bin').status, 'deleting');
+  const next = response();
+  await getPresignedUploadUrl(uploadRequest({ storagePath: 'uploads/next.bin' }), next);
+  assert.equal(next.statusCode, 429);
+  assert.equal(objects.size, MAX_PENDING_UPLOADS);
+});
+
+const exposeExpiredReservations = () => {
+  stub(StorageObject, 'find', (query) => {
+    let rows = [...objects.values()].filter((object) => object.userId === query.userId
+      && query.status.$in.includes(object.status) && object.uploadExpiresAt <= query.uploadExpiresAt.$lte);
+    return { limit(value) { rows = rows.slice(0, value); return this; }, lean: async () => rows };
+  });
+};
+
+test('expired reservations only release budget after successful storage cleanup', async () => {
+  for (let index = 0; index < MAX_PENDING_UPLOADS; index++) {
+    objects.set(`uploads/expired-${index}.bin`, { _id: `uploads/expired-${index}.bin`, userId: 'alice', status: 'pending', byteSize: MAX_FILE_BYTES, uploadExpiresAt: new Date(0) });
+  }
+  objects.set('uploads/bob-expired.bin', { _id: 'uploads/bob-expired.bin', userId: 'bob', status: 'pending', byteSize: MAX_FILE_BYTES, uploadExpiresAt: new Date(0) });
+  exposeExpiredReservations();
+  const res = response();
+  await getPresignedUploadUrl(uploadRequest(), res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(objects.size, 2);
+  assert.equal(objects.has('uploads/bob-expired.bin'), true);
+  assert.equal(calls.length, MAX_PENDING_UPLOADS);
+  assert.ok(calls.every((command) => command.constructor.name === 'DeleteObjectCommand' && command.input.Key.startsWith('uploads/expired-')));
+});
+
+test('failed cleanup keeps expired reservations charged and does not take the global quota lock', async () => {
+  for (let index = 0; index < MAX_PENDING_UPLOADS; index++) {
+    objects.set(`uploads/expired-${index}.bin`, { _id: `uploads/expired-${index}.bin`, userId: 'alice', status: 'deleting', byteSize: MAX_FILE_BYTES, uploadExpiresAt: new Date(0) });
+  }
+  exposeExpiredReservations();
+  stub(r2, 'send', async () => { throw new Error('Storage unavailable'); });
+  const acquiredLocks = [];
+  stub(StorageLock, 'findOneAndUpdate', async ({ _id }) => { acquiredLocks.push(_id); return {}; });
+  const res = response();
+  await getPresignedUploadUrl(uploadRequest(), res);
+  assert.equal(res.statusCode, 429);
+  assert.equal(objects.size, MAX_PENDING_UPLOADS);
+  assert.deepEqual(acquiredLocks, ['user:alice']);
+});
+
+test('verified uploads leave the pending budget but remain in global storage accounting', async () => {
+  for (let index = 0; index < MAX_PENDING_UPLOADS; index++) {
+    objects.set(`uploads/ready-${index}.bin`, { userId: 'alice', status: 'ready', byteSize: MAX_FILE_BYTES });
+  }
+  const res = response();
+  await getPresignedUploadUrl(uploadRequest(), res);
+  assert.equal(res.statusCode, 200);
+  const usage = await StorageObject.aggregate([{ $group: { _id: null, total: { $sum: '$byteSize' } } }]);
+  assert.equal(usage[0].total, MAX_PENDING_UPLOAD_BYTES + 42);
+});
+
+test('concurrent presign attempts cannot exceed the per-user budget', async () => {
+  const leases = new Map();
+  stub(StorageLock, 'updateOne', async (query, update, options) => {
+    if (options?.upsert && !leases.has(query._id)) leases.set(query._id, { ...update.$setOnInsert });
+    const lease = leases.get(query._id);
+    if (lease && (!query.owner || lease.owner === query.owner) && update.$set) Object.assign(lease, update.$set);
+  });
+  stub(StorageLock, 'findOneAndUpdate', async (query, update) => {
+    const lease = leases.get(query._id);
+    if (!lease || lease.lockedUntil > query.lockedUntil.$lte) return null;
+    return Object.assign(lease, update.$set);
+  });
+  for (let round = 0; round < 4; round++) {
+    const responses = await Promise.all(Array.from({ length: 8 }, async (_, index) => {
+      const res = response();
+      await getPresignedUploadUrl(uploadRequest({ storagePath: `uploads/concurrent-${round}-${index}.bin`, byteSize: MAX_FILE_BYTES }), res);
+      return res;
+    }));
+    assert.ok(responses.every((res) => [200, 429, 503].includes(res.statusCode)));
+    assert.ok(objects.size <= MAX_PENDING_UPLOADS);
+  }
+  assert.equal(objects.size, MAX_PENDING_UPLOADS);
+});
+
+test('the pending budget is checked again when the global reservation lock is acquired', async () => {
+  for (let index = 0; index < MAX_PENDING_UPLOADS - 1; index++) {
+    objects.set(`uploads/before-${index}.bin`, { userId: 'alice', status: 'pending', byteSize: MAX_FILE_BYTES });
+  }
+  stub(StorageLock, 'findOneAndUpdate', async ({ _id }) => {
+    if (_id === 'uploads') {
+      objects.set('uploads/changed.bin', { userId: 'alice', status: 'pending', byteSize: MAX_FILE_BYTES });
+    }
+    return {};
+  });
+  const res = response();
+  await getPresignedUploadUrl(uploadRequest(), res);
+  assert.equal(res.statusCode, 429);
+  assert.equal(objects.size, MAX_PENDING_UPLOADS);
+  assert.equal(objects.has('uploads/opaque.bin'), false);
+});
+
+test('the HTTP presign handler chain rate-limits one authenticated user without blocking another', async () => {
+  const windows = new Map();
+  stub(PresignRequestWindow, 'findOneAndUpdate', ({ _id }, update) => ({ lean: async () => {
+    const count = (windows.get(_id)?.count || 0) + update.$inc.count;
+    const window = { _id, count, expiresAt: update.$setOnInsert.expiresAt };
+    windows.set(_id, window);
+    return window;
+  } }));
+  const route = fileRoutes.stack.find((layer) => layer.route?.path === '/presigned-upload').route;
+  const app = express();
+  app.use(express.json());
+  // Exercise the production handler chain with synthetic auth; do not call Clerk or production storage.
+  app.post('/api/files/presigned-upload', (req, res, next) => {
+    req.auth = { userId: req.headers['x-test-user'] || 'alice' };
+    next();
+  }, ...route.stack.map((layer) => layer.handle));
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise((resolve) => server.once('listening', resolve));
+  try {
+    for (let attempt = 0; attempt <= PRESIGN_REQUEST_LIMIT; attempt++) {
+      const res = await fetch(`http://127.0.0.1:${server.address().port}/api/files/presigned-upload`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(uploadRequest({ storagePath: `uploads/http-${attempt}.bin` }).body),
+      });
+      if (attempt === PRESIGN_REQUEST_LIMIT) {
+        assert.equal(res.status, 429);
+        assert.match((await res.json()).message, /Too many upload requests/);
+        assert.ok(Number(res.headers.get('Retry-After')) > 0);
+      } else await res.arrayBuffer();
+    }
+    const bob = await fetch(`http://127.0.0.1:${server.address().port}/api/files/presigned-upload`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-test-user': 'bob' },
+      body: JSON.stringify(uploadRequest({ storagePath: 'uploads/bob-http.bin' }).body),
+    });
+    assert.equal(bob.status, 200);
+    await bob.arrayBuffer();
+    assert.equal(objects.size, MAX_PENDING_UPLOADS + 1);
+  } finally {
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
 });
 
 test('concurrent quota lease rejects a request without issuing a URL', async () => {
