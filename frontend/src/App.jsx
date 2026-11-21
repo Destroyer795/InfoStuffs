@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useCallback, lazy, Suspense } from 'react';
-import { useAuth, useUser, SignedOut, AuthenticateWithRedirectCallback } from '@clerk/clerk-react';
+import { useAuth, useUser, useReverification, SignedOut, AuthenticateWithRedirectCallback } from '@clerk/clerk-react';
 import { Box, ThemeProvider, CssBaseline, CircularProgress, Backdrop, Snackbar, Alert } from '@mui/material';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import NavBar from './components/NavBar.jsx';
@@ -19,6 +19,17 @@ const Landing = lazy(() => import('./pages/Landing.jsx'));
 
 const LoadingScreen = () => <Backdrop open sx={{ color: 'text.primary', bgcolor: 'background.default', zIndex: (theme) => theme.zIndex.modal + 1 }}><CircularProgress color="inherit" /></Backdrop>;
 
+const requestVaultReset = async (send) => {
+  try {
+    return await send();
+  } catch (error) {
+    const { status, data } = error.response || {};
+    // Clerk recognizes the hint as a result. Axios throws on its HTTP 403 response.
+    if (status === 403 && data?.clerk_error?.reason === 'reverification-error') return data;
+    throw error;
+  }
+};
+
 const App = () => {
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('appTheme');
@@ -30,6 +41,7 @@ const App = () => {
   const { user, isSignedIn, isLoaded: userLoaded } = useUser();
   const notify = useCallback((message, severity = 'info') => setSnackbar({ open: true, message, severity }), []);
   const vault = useVaultSession({ userId: isSignedIn ? user?.id : null, getToken, notify });
+  const resetWithReverification = useReverification(requestVaultReset);
   const theme = useMemo(() => darkMode ? darkTheme : lightTheme, [darkMode]);
   useEffect(() => { localStorage.setItem('appTheme', darkMode ? 'dark' : 'light'); }, [darkMode]);
   useEffect(() => { setSearchQuery(''); }, [user?.id, vault.active?.id]);
@@ -43,7 +55,8 @@ const App = () => {
       <CssBaseline /><CustomCursor />
       {(!authLoaded || !userLoaded) && <LoadingScreen />}
       {isSignedIn && userLoaded && !vault.active && <VaultAccessDialog key={user.id} catalog={vault.catalog}
-        loading={vault.loading} loadError={vault.loadError} onRetry={vault.reload} onActivate={vault.activate} onReset={vault.reset}
+        loading={vault.loading} loadError={vault.loadError} onRetry={vault.reload} onActivate={vault.activate}
+        onReset={() => vault.reset(resetWithReverification)}
         onOpenOffline={() => window.dispatchEvent(new Event('infostuffs:open-offline'))} />}
       <Snackbar open={snackbar.open} autoHideDuration={7000} onClose={closeSnackbar} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         <Alert onClose={closeSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>{snackbar.message}</Alert>

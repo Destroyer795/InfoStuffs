@@ -1,7 +1,7 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { createInfo, deleteInfo, getInfos, updateInfo, deleteAllInfos } from '../controller/info.controller.js';
-import { requireAuth } from '../middleware/requireAuth.js';
+import { requireAuth, requireVaultResetReverification } from '../middleware/requireAuth.js';
 
 const router = express.Router();
 
@@ -18,7 +18,7 @@ router.use(requireAuth);
 
 router.get('/', getInfos);
 router.post('/', createInfo);
-router.delete('/nuke', nukeLimiter, deleteAllInfos);
+router.delete('/nuke', requireVaultResetReverification, nukeLimiter, deleteAllInfos);
 router.patch('/:id', updateInfo);
 router.delete('/:id', deleteInfo);
 

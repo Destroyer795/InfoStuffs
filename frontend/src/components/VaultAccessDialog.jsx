@@ -75,7 +75,8 @@ export default function VaultAccessDialog({ catalog, loading, loadError, onRetry
   );
 
   return (
-    <Dialog open fullWidth maxWidth="sm" disableEscapeKeyDown aria-labelledby="vault-access-title"
+    <Dialog open fullWidth maxWidth="sm" disableEscapeKeyDown disableEnforceFocus={mode === 'reset' && busy}
+      aria-labelledby="vault-access-title"
       slotProps={{ paper: { sx: { p: { xs: 0.5, sm: 2 } } } }}>
       <DialogTitle id="vault-access-title" sx={{ pb: 1 }}>
         <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
@@ -110,7 +111,13 @@ export default function VaultAccessDialog({ catalog, loading, loadError, onRetry
               <TextField fullWidth label="Type RESET ALL to confirm" value={confirmation} disabled={busy} onChange={(event) => setConfirmation(event.target.value)} />
               <Button color="error" variant="contained" sx={resetButtonStyle} disabled={busy || confirmation !== 'RESET ALL'} onClick={async () => {
                 setBusy(true); setError('');
-                try { await onReset(); back(); } catch (failure) { report(failure); } finally { setBusy(false); }
+                try {
+                  await onReset();
+                  back();
+                } catch (failure) {
+                  if (failure.code === 'reverification_cancelled') setError('Verification cancelled. Your vaults were kept.');
+                  else report(failure);
+                } finally { setBusy(false); }
               }}>Permanently reset all vaults</Button>
               <Button disabled={busy} onClick={back}>Cancel</Button>
             </> : mode === 'create' || !empty ? <Box component="form" onSubmit={submit}>

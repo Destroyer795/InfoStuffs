@@ -1,4 +1,5 @@
 import { verifyToken } from '@clerk/backend';
+import { reverificationError, signedInAuthObject } from '@clerk/backend/internal';
 
 export const requireAuth = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -17,12 +18,23 @@ export const requireAuth = async (req, res, next) => {
     if (!payload || !payload.sub) {
       return res.status(401).json({ message: 'Invalid token payload' });
     }
+    const { sessionId, has } = signedInAuthObject({}, token, payload);
     req.auth = {
       userId: payload.sub,
       email: payload.email,
+      sessionId,
+      has,
     };
     next();
   } catch (error) {
     res.status(401).json({ message: 'Unauthorized' });
   }
+};
+
+export const requireVaultResetReverification = (req, res, next) => {
+  const policy = 'strict';
+  if (!req.auth?.sessionId || !req.auth.has?.({ reverification: policy })) {
+    return res.status(403).json(reverificationError(policy));
+  }
+  next();
 };

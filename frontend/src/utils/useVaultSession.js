@@ -24,8 +24,8 @@ export default function useVaultSession({ userId, getToken, notify }) {
   const activeRef = useRef(active);
   activeRef.current = active;
 
-  const headers = useCallback(async () => {
-    const token = await getToken();
+  const headers = useCallback(async (options) => {
+    const token = await getToken(options);
     if (!token) throw new Error('Your sign-in session expired. Please sign in again.');
     return { Authorization: `Bearer ${token}` };
   }, [getToken]);
@@ -197,12 +197,19 @@ export default function useVaultSession({ userId, getToken, notify }) {
     setInfos((previous) => previous.filter((note) => note._id !== id));
   };
 
-  const reset = async () => {
+  const reset = async (verify = (send) => send()) => {
     const sequence = epoch.current;
-    const auth = await headers();
+    const result = await verify(async () => {
+      guard(userId, sequence);
+      const auth = await headers({ skipCache: true });
+      guard(userId, sequence);
+      const response = await axios.delete(`${api}/info/nuke`, { headers: auth });
+      return response.data;
+    });
     guard(userId, sequence);
-    await axios.delete(`${api}/info/nuke`, { headers: auth });
-    guard(userId, sequence);
+    if (result?.success !== true) {
+      throw new Error('Verify your sign-in again before resetting your vaults.');
+    }
     await clearOfflineVault();
     guard(userId, sequence);
     activeRef.current = null;

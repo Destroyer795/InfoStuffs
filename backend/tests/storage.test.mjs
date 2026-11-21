@@ -1,6 +1,7 @@
 import test, { beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
+import { signedInAuthObject } from '@clerk/backend/internal';
 
 // Never contact configured production services while running tests.
 Object.assign(process.env, {
@@ -13,6 +14,7 @@ const { default: Vault } = await import('../models/vault.model.js');
 const { default: StorageObject, StorageLock } = await import('../models/storageObject.model.js');
 const { default: r2 } = await import('../config/r2.js');
 const { default: fileRoutes } = await import('../routes/file.route.js');
+const { default: infoRoutes } = await import('../routes/info.route.js');
 const { getPresignedUploadUrl, getPresignedDownloadUrl, deleteFileFromStorage } = await import('../controller/file.controller.js');
 const { cleanupExpiredNotes } = await import('../services/noteCleanup.js');
 const { createInfo, updateInfo, deleteInfo, deleteAllInfos } = await import('../controller/info.controller.js');
@@ -568,4 +570,49 @@ test('vault reset stops before deleting any notes when a mapped attachment has n
   assert.match(res.body.message, /ownership could not be verified/);
   assert.equal(deleted, false);
   assert.equal(calls.length, 0);
+});
+
+test('the reset route requires recent Clerk verification before accessing vault data', async () => {
+  let resetReads = 0;
+  let vaultDeletes = 0;
+  stub(Info, 'find', () => { resetReads++; return lean([]); });
+  stub(Vault, 'deleteMany', async () => { vaultDeletes++; });
+
+  const route = infoRoutes.stack.find((layer) => layer.route?.path === '/nuke').route;
+  const app = express();
+  // Exercise the production route handlers with the SDK auth object built from fixture claims.
+  app.delete('/nuke', (req, _res, next) => {
+    const claims = { sub: 'alice', sid: req.headers['x-test-session'], fva: JSON.parse(req.headers['x-test-fva']) };
+    req.auth = signedInAuthObject({}, 'fixture-token', claims);
+    next();
+  }, ...route.stack.map((layer) => layer.handle));
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise((resolve) => server.once('listening', resolve));
+  const reset = (fva, sessionId = 'sess_alice') => fetch(`http://127.0.0.1:${server.address().port}/nuke`, {
+    method: 'DELETE',
+    headers: { 'x-test-fva': JSON.stringify(fva), ...(sessionId && { 'x-test-session': sessionId }) },
+  });
+
+  try {
+    for (const [fva, sessionId] of [[[12, -1]], [[10, -1]], [[0, 12]], [null], [['0', -1]], [[-1, -1]], [[0, -1], null]]) {
+      const response = await reset(fva, sessionId);
+      assert.equal(response.status, 403);
+      assert.deepEqual((await response.json()).clerk_error, {
+        type: 'forbidden',
+        reason: 'reverification-error',
+        metadata: { reverification: 'strict' },
+      });
+    }
+    assert.equal(resetReads, 0);
+    assert.equal(vaultDeletes, 0);
+    assert.equal(calls.length, 0);
+
+    const response = await reset([0, -1]);
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).success, true);
+    assert.equal(resetReads, 1);
+    assert.equal(vaultDeletes, 1);
+  } finally {
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
 });
