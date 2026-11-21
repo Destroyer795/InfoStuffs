@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 const storageObjectSchema = new mongoose.Schema({
   _id: { type: String, required: true },
   userId: { type: String, default: null, index: true },
+  vaultId: { type: String, default: null },
   byteSize: { type: Number, required: true, min: 0 },
   status: { type: String, enum: ['pending', 'ready', 'legacy', 'deleting'], required: true },
   uploadExpiresAt: { type: Date, default: () => new Date(0) },

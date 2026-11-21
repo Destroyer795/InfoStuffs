@@ -308,6 +308,7 @@ export default function SplitPaneVault({
   onUpdate,
   onDelete,
   userKey,
+  vaultId,
   searchQuery = '',
   setSearchQuery
 }) {
@@ -497,12 +498,12 @@ export default function SplitPaneVault({
     let file = editFormData.type === 'file' ? editFormData.file : '';
     let byteSize = editFormData.type === editNote?.type ? (editNote.byteSize || 0) : 0;
     if (editFormData.type === 'image' && newFileData.imageFile) {
-      const uploaded = await uploadToStorage(newFileData.imageFile, createOpaqueStoragePath(newFileData.imageFile, 'images'), userKey);
+      const uploaded = await uploadToStorage(newFileData.imageFile, createOpaqueStoragePath(newFileData.imageFile, 'images'), userKey, vaultId);
       imageURL = uploaded.storagePath;
       byteSize = uploaded.byteSize;
     }
     if (editFormData.type === 'file' && newFileData.docFile) {
-      const uploaded = await uploadToStorage(newFileData.docFile, createOpaqueStoragePath(newFileData.docFile, 'documents'), userKey);
+      const uploaded = await uploadToStorage(newFileData.docFile, createOpaqueStoragePath(newFileData.docFile, 'documents'), userKey, vaultId);
       file = uploaded.storagePath;
       byteSize = uploaded.byteSize;
     }

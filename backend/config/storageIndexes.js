@@ -19,4 +19,5 @@ export const ensureNoteCleanupIndexes = async () => {
     }
   }
   await Info.collection.createIndex({ expiresAt: 1 });
+  await Info.collection.createIndex({ userId: 1, vaultId: 1, createdAt: -1 });
 };

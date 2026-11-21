@@ -6,6 +6,7 @@ import rateLimit from "express-rate-limit";
 import { connectDB } from "../config/db.js";
 import infoRoutes from "../routes/info.route.js";
 import fileRoutes from "../routes/file.route.js";
+import vaultRoutes from '../routes/vault.route.js';
 import { cleanupExpiredNotes } from '../services/noteCleanup.js';
 import { fileURLToPath } from 'url';
 
@@ -106,6 +107,7 @@ app.use(async (req, res, next) => {
 // Routes - mounted at both paths for Vercel compatibility with rate limiting
 app.use("/api/info", apiLimiter, infoRoutes);
 app.use("/api/files", apiLimiter, fileRoutes);
+app.use('/api/vaults', apiLimiter, vaultRoutes);
 app.use("/", apiLimiter, infoRoutes);
 
 // Global error handling middleware (prevents stack trace disclosure)

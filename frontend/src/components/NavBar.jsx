@@ -1,5 +1,5 @@
-import { AppBar, Toolbar, Typography, IconButton, Stack, Box, Avatar } from '@mui/material';
-import { Brightness4, Brightness7 } from '@mui/icons-material';
+import { AppBar, Toolbar, Typography, IconButton, Stack, Box, Avatar, Button, Tooltip } from '@mui/material';
+import { Brightness4, Brightness7, LockOutlined } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { useTheme } from '@mui/material/styles';
@@ -8,7 +8,7 @@ import ProfileMenu from './ProfileMenu';
 
 const PUBLIC_LOGO_HOST = 'https://info-stuffs.vercel.app';
 
-function NavBar({ darkMode, toggleDarkMode }) {
+function NavBar({ darkMode, toggleDarkMode, vaultName, onLockVault }) {
   const theme = useTheme();
   const navigate = useNavigate();
   const { user } = useUser();
@@ -68,7 +68,13 @@ function NavBar({ darkMode, toggleDarkMode }) {
           </Box>
         </Stack>
 
-        <Stack direction="row" spacing={2} alignItems="center">
+        <Stack direction="row" spacing={{ xs: 1, sm: 2 }} alignItems="center">
+          {vaultName && <Tooltip title="Lock this vault to switch or create another">
+            <Button variant="outlined" onClick={onLockVault} startIcon={<LockOutlined />} aria-label={`Lock ${vaultName} and switch vaults`}
+              sx={{ minWidth: 0, maxWidth: { xs: 115, sm: 230 } }}>
+              <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{vaultName}</Box>
+            </Button>
+          </Tooltip>}
           <IconButton 
             onClick={toggleDarkMode} 
             color="inherit"

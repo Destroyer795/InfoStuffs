@@ -56,6 +56,21 @@ test('oversized files, encryption overhead and locked vaults fail before network
   assert.equal(networkCalls, 0);
 });
 
+test('scoped uploads send the vault ID only to the authenticated presign API', async () => {
+  const vaultId = 'ce12a5cc-7d49-481e-a1d0-00b42d976641';
+  globalThis.fetch = async (url, options) => {
+    if (options.method === 'POST') {
+      assert.equal(JSON.parse(options.body).vaultId, vaultId);
+      return json({ success: true, uploadUrl: 'https://r2.example/put' });
+    }
+    assert.equal(url, 'https://r2.example/put');
+    assert.equal(options.headers.Authorization, undefined);
+    assert.equal(await (await decryptFile(options.body, key)).text(), 'private');
+    return new Response(null, { status: 200 });
+  };
+  await uploadToStorage(new File(['private'], 'original.txt'), 'documents/opaque.txt', key, vaultId);
+});
+
 test('quota errors reach the caller and no PUT follows a rejected presign request', async () => {
   let calls = 0;
   globalThis.fetch = async () => {

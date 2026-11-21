@@ -9,6 +9,7 @@ Object.assign(process.env, {
   MONGO_URI: 'mongodb://127.0.0.1:1/isolated-storage-tests',
 });
 const { default: Info } = await import('../models/info.model.js');
+const { default: Vault } = await import('../models/vault.model.js');
 const { default: StorageObject, StorageLock } = await import('../models/storageObject.model.js');
 const { default: r2 } = await import('../config/r2.js');
 const { default: fileRoutes } = await import('../routes/file.route.js');
@@ -37,6 +38,8 @@ let calls;
 beforeEach(() => {
   objects = new Map();
   calls = [];
+  stub(Vault, 'exists', async () => null);
+  stub(Vault, 'deleteMany', async () => ({}));
   stub(Info, 'aggregate', async () => []);
   stub(Info, 'exists', async () => null);
   stub(StorageLock, 'updateOne', async () => ({}));
@@ -107,6 +110,16 @@ test('exact quota boundary succeeds and signs ciphertext size, content type and 
   const duplicate = response();
   await getPresignedUploadUrl(uploadRequest(), duplicate);
   assert.equal(duplicate.statusCode, 409);
+});
+
+test('a scoped upload reservation keeps its authenticated vault association', async () => {
+  const vaultId = 'ce12a5cc-7d49-481e-a1d0-00b42d976641';
+  stub(Vault, 'exists', async ({ _id, userId }) => _id === vaultId && userId === 'alice');
+  const res = response();
+  await getPresignedUploadUrl(uploadRequest({ vaultId }), res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(objects.get('uploads/opaque.bin').vaultId, vaultId);
+  assert.equal(objects.get('uploads/opaque.bin').userId, 'alice');
 });
 
 test('93 unused presign attempts cannot exhaust global storage or block another user', async () => {
@@ -412,7 +425,7 @@ test('startup replaces the deployed TTL index before serving data', async () => 
   stub(Info.collection, 'dropIndex', async (name) => operations.push(['drop', name]));
   stub(Info.collection, 'createIndex', async (key) => operations.push(['create', key]));
   await ensureNoteCleanupIndexes();
-  assert.deepEqual(operations, [['drop', 'expiresAt_1'], ['create', { expiresAt: 1 }]]);
+  assert.deepEqual(operations, [['drop', 'expiresAt_1'], ['create', { expiresAt: 1 }], ['create', { userId: 1, vaultId: 1, createdAt: -1 }]]);
 });
 
 test('create stores server-verified ciphertext bytes and only the authenticated user ID', async () => {

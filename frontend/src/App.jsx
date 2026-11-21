@@ -1,490 +1,58 @@
 import { useEffect, useState, useMemo, useCallback, lazy, Suspense } from 'react';
-import { 
-  useAuth, 
-  useUser, 
-  SignedOut, 
-  AuthenticateWithRedirectCallback
-} from '@clerk/clerk-react';
-import axios from 'axios';
-import {
-  Box,
-  ThemeProvider,
-  CssBaseline,
-  CircularProgress,
-  Typography,
-  Backdrop,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Button,
-  Snackbar,
-  Alert
-} from '@mui/material';
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-  useLocation
-} from 'react-router-dom';
-
+import { useAuth, useUser, SignedOut, AuthenticateWithRedirectCallback } from '@clerk/clerk-react';
+import { Box, ThemeProvider, CssBaseline, CircularProgress, Backdrop, Snackbar, Alert } from '@mui/material';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import NavBar from './components/NavBar.jsx';
 import CustomCursor from './components/Cursor.jsx';
 import CustomScrollbar from './components/CustomScrollbar.jsx';
 import Login from './pages/Login.jsx';
 import Signup from './pages/Signup.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
-
-import { encryptText, decryptNoteArray } from './utils/encryption';
-import EncryptionWorker from './utils/worker?worker'; 
+import VaultAccessDialog from './components/VaultAccessDialog.jsx';
+import useVaultSession from './utils/useVaultSession.js';
 import { lightTheme, darkTheme } from './theme';
-import config from './config';
-import { saveOfflineNotes, getOfflineNotes } from './utils/localStore';
-import { normalizeStoragePath } from './utils/fileStorage';
 
 const SplitPaneVault = lazy(() => import('./components/SplitPaneVault.jsx'));
 const Create = lazy(() => import('./pages/Create.jsx'));
-const UpdateProf = lazy(() => import('./pages/UpdateProf.jsx').then(module => ({ default: module.UpdateProf })));
+const UpdateProf = lazy(() => import('./pages/UpdateProf.jsx'));
 const Landing = lazy(() => import('./pages/Landing.jsx'));
 
-const LoadingScreen = ({ darkMode }) => (
-  <Backdrop
-    open
-    sx={{
-      zIndex: (theme) => theme.zIndex.drawer + 1,
-      backgroundColor: darkMode ? 'rgb(0, 0, 0)' : 'rgb(255, 255, 255)',
-      flexDirection: 'column',
-      gap: 2
-    }}
-  >
-    <CircularProgress
-      size={60}
-      thickness={4}
-      sx={{ color: darkMode ? '#90caf9' : '#1976d2' }}
-    />
-    <Typography variant="h6" sx={{ color: darkMode ? '#fff' : '#000', fontWeight: 500 }}>
-      Loading...
-    </Typography>
-  </Backdrop>
-);
-
-const VaultModal = ({ open, onUnlock, onReset, darkMode }) => {
-  const [password, setPassword] = useState('');
-  const [showConfirm, setShowConfirm] = useState(false);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (password) onUnlock(password);
-  };
-
-  const handleResetConfirm = () => {
-    onReset();
-    setShowConfirm(false);
-    setPassword('');
-  };
-
-  const btnStyle = {
-    borderWidth: 2,
-    borderRadius: 1,
-    textTransform: 'none',
-    fontWeight: 600,
-    '&:hover': { borderWidth: 2 }
-  };
-
-  if (showConfirm) {
-    return (
-      <Dialog 
-        open={true} 
-        PaperProps={{ 
-          sx: { 
-            bgcolor: darkMode ? '#1e1e1e' : '#fff', 
-            color: darkMode ? '#fff' : '#000',
-            border: '2px solid #d32f2f'
-          } 
-        }}
-      >
-        <DialogTitle sx={{ color: '#d32f2f', fontWeight: 'bold' }}>⚠️ EMERGENCY RESET</DialogTitle>
-        <DialogContent>
-          <Typography color={darkMode ? '#ccc' : '#000'}>
-            Since you lost your password, your data is unrecoverable.
-            <br /><br />
-            This action will <b>PERMANENTLY DELETE ALL YOUR INFORMATIONS</b> so you can start fresh with a new password.
-            <br /><br />
-            Are you sure you want to do this?
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ p: 2, gap: 1 }}>
-          <Button 
-            onClick={() => setShowConfirm(false)} 
-            variant="outlined"
-            sx={{ ...btnStyle, color: darkMode ? '#fff' : '#000', borderColor: darkMode ? '#555' : '#ccc' }}
-          >
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleResetConfirm} 
-            color="error" 
-            variant="outlined"
-            sx={btnStyle}
-          >
-            Yes, Delete Everything
-          </Button>
-        </DialogActions>
-      </Dialog>
-    );
-  }
-
-  return (
-    <Dialog 
-      open={open} 
-      disableEscapeKeyDown
-      PaperProps={{
-        sx: { 
-          bgcolor: darkMode ? '#1e1e1e' : '#fff', 
-          color: darkMode ? '#fff' : '#000'
-        }
-      }}
-    >
-      <DialogTitle>Unlock Your Vault</DialogTitle>
-      <DialogContent>
-        <Typography variant="body2" sx={{ mb: 2, color: darkMode ? '#ccc' : '#666' }}>
-          Enter your secure password to decrypt your notes.
-        </Typography>
-        <form onSubmit={handleSubmit}>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Vault Password"
-            type="password"
-            fullWidth
-            variant="outlined"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            InputLabelProps={{ style: { color: darkMode ? '#aaa' : undefined } }}
-            InputProps={{ 
-              style: { color: darkMode ? '#fff' : undefined },
-              sx: { '& .MuiOutlinedInput-notchedOutline': { borderColor: darkMode ? '#555' : undefined } }
-            }}
-          />
-        </form>
-      </DialogContent>
-      <Box sx={{ 
-        display: 'grid', 
-        gridTemplateColumns: '1fr 1fr', 
-        gap: 1.5, 
-        px: 3, 
-        pb: 3, 
-        alignItems: 'stretch' 
-      }}>
-        <Button 
-          color="error" 
-          variant="outlined"
-          onClick={() => setShowConfirm(true)}
-          sx={{ ...btnStyle, height: '100%', m: 0 }}
-        >
-          Forgot Password?
-        </Button>
-        <Button 
-          onClick={handleSubmit} 
-          disabled={!password} 
-          variant="outlined"
-          sx={{ ...btnStyle, height: '100%', m: 0 }}
-        >
-          Unlock
-        </Button>
-      </Box>
-    </Dialog>
-  );
-};
+const LoadingScreen = () => <Backdrop open sx={{ color: 'text.primary', bgcolor: 'background.default', zIndex: (theme) => theme.zIndex.modal + 1 }}><CircularProgress color="inherit" /></Backdrop>;
 
 const App = () => {
-  const [infos, setInfos] = useState([]);
-  // 1. Initialize from LocalStorage (or check system preference)
   const [darkMode, setDarkMode] = useState(() => {
-    const savedTheme = localStorage.getItem('appTheme');
-    if (savedTheme) {
-      return savedTheme === 'dark';
-    }
-    // Fallback: Check if the user's OS is set to Dark Mode
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const saved = localStorage.getItem('appTheme');
+    return saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
-  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  
-  const [encryptionKey, setEncryptionKey] = useState(null);
-  const [isUnlocking, setIsUnlocking] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
-
-  const API_BASE_URL = config.API_BASE_URL;
-
   const { getToken, isLoaded: authLoaded } = useAuth();
   const { user, isSignedIn, isLoaded: userLoaded } = useUser();
-
-  const theme = useMemo(() => (darkMode ? darkTheme : lightTheme), [darkMode]);
-
-  const toggleDarkMode = () => setDarkMode((prev) => !prev);
-
+  const notify = useCallback((message, severity = 'info') => setSnackbar({ open: true, message, severity }), []);
+  const vault = useVaultSession({ userId: isSignedIn ? user?.id : null, getToken, notify });
+  const theme = useMemo(() => darkMode ? darkTheme : lightTheme, [darkMode]);
+  useEffect(() => { localStorage.setItem('appTheme', darkMode ? 'dark' : 'light'); }, [darkMode]);
+  useEffect(() => { setSearchQuery(''); }, [user?.id, vault.active?.id]);
   const filteredInfos = useMemo(() => {
-    if (!searchQuery || !searchQuery.trim()) return infos;
     const query = searchQuery.toLowerCase().trim();
-    return (infos || []).filter(
-      (info) =>
-        info.name?.toLowerCase().includes(query) ||
-        info.category?.toLowerCase().includes(query) ||
-        (typeof info.content === 'string' && info.content.toLowerCase().includes(query))
-    );
-  }, [infos, searchQuery]);
-
-  const handleUnlock = (password) => {
-    if (user?.id) {
-      setIsUnlocking(true); // Show loader immediately
-
-      // Spawn the worker
-      const worker = new EncryptionWorker();
-
-      // Send data to background thread
-      worker.postMessage({ password, salt: user.id });
-
-      // Listen for the result
-      worker.onmessage = (e) => {
-        const { success, key, error } = e.data;
-        
-        if (success) {
-          setEncryptionKey(key);
-        } else {
-          console.error("Encryption failed:", error);
-        }
-        
-        setIsUnlocking(false); // Hide loader
-        worker.terminate(); // Clean up the worker
-      };
-
-      // Handle worker errors
-      worker.onerror = (err) => {
-        console.error("Worker error:", err);
-        setIsUnlocking(false);
-        worker.terminate();
-      };
-    }
-  };
-
-  const handleVaultReset = async () => {
-    try {
-      const headers = await getAuthHeaders();
-      await axios.delete(`${API_BASE_URL}/api/info/nuke`, { headers });
-      
-      setInfos([]); 
-      setEncryptionKey(null); 
-      setSnackbar({ open: true, message: "Vault has been reset. You can now use a new password.", severity: 'success' });
-    } catch (err) {
-      console.error("Reset failed", err);
-      setSnackbar({ open: true, message: err.response?.data?.message || 'Failed to reset vault.', severity: 'error' });
-    }
-  };
-
-  const handleCloseSnackbar = (event, reason) => {
-    if (reason === 'clickaway') return;
-    setSnackbar({ ...snackbar, open: false });
-  };
-
-  const getAuthHeaders = useCallback(async () => {
-    const token = await getToken();
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  }, [getToken]);
-
-  const fetchInfos = useCallback(async () => {
-    if (!isSignedIn || !encryptionKey) return;
-
-    setIsLoading(true);
-
-    // 1. OFFLINE BOOT: If no internet, read from IndexedDB
-    if (!navigator.onLine) {
-      console.log("Network offline: Booting from Zero-Knowledge Local Cache...");
-      try {
-        const cachedNotes = await getOfflineNotes();
-        const decrypted = await decryptNoteArray(cachedNotes || [], encryptionKey);
-        setInfos(decrypted);
-      } catch (err) {
-        console.error('Failed to retrieve offline notes:', err);
-        setInfos([]);
-      } finally {
-        setIsLoading(false);
-      }
-      return;
-    }
-
-    // 2. ONLINE SYNC: Fetch from backend normally
-    try {
-      const headers = await getAuthHeaders();
-      const res = await axios.get(`${API_BASE_URL}/api/info`, { headers });
-      const rawNotes = res.data.data || [];
-      
-      // 3. THE ZKA CACHE: Save the raw ciphertext BEFORE decryption (background process)
-      saveOfflineNotes(rawNotes, user?.id).catch(err => console.error("Cache write failed:", err));
-      
-      const decrypted = await decryptNoteArray(rawNotes, encryptionKey);
-      let attachmentSyncFailed = false;
-      // Only an unlocked client can recover encrypted legacy paths for metadata backfill.
-      for (const note of decrypted) {
-        if (note.storagePaths?.length || !(note.imageURL || note.file)) continue;
-        try {
-          const storagePaths = [...new Set([note.imageURL, note.file].filter(Boolean).map(normalizeStoragePath))];
-          const synced = await axios.patch(`${API_BASE_URL}/api/info/${note._id}`, { storagePaths }, { headers });
-          note.storagePaths = synced.data.data.storagePaths;
-          note.byteSize = synced.data.data.byteSize;
-        } catch (error) {
-          attachmentSyncFailed = true;
-          console.warn('Attachment metadata sync deferred:', error.response?.data?.message || error.message);
-        }
-      }
-      if (attachmentSyncFailed) {
-        setSnackbar({ open: true, message: 'Some attachments are temporarily unavailable. Please try again later.', severity: 'warning' });
-      }
-      setInfos(decrypted);
-    } catch (err) {
-      console.error('Failed to fetch from backend', err);
-      
-      // Fallback in case Render is down but the device thinks it's online
-      try {
-        const cachedNotes = await getOfflineNotes();
-        const decrypted = await decryptNoteArray(cachedNotes || [], encryptionKey);
-        setInfos(decrypted);
-      } catch (cacheErr) {
-        console.error('Failed to retrieve offline cache:', cacheErr);
-        setSnackbar({ open: true, message: 'Failed to load your content.', severity: 'error' });
-        setInfos([]);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isSignedIn, encryptionKey, getAuthHeaders, API_BASE_URL, user?.id]);
-
-  useEffect(() => {
-    localStorage.setItem('appTheme', darkMode ? 'dark' : 'light');
-  }, [darkMode]);
-
-  useEffect(() => {
-    if (authLoaded && userLoaded && isSignedIn && encryptionKey) {
-      fetchInfos();
-    } else if (authLoaded && userLoaded && !isSignedIn) {
-      setIsLoading(false);
-      setEncryptionKey(null);
-    }
-  }, [authLoaded, userLoaded, isSignedIn, encryptionKey, fetchInfos]);
-
-  const handleCreate = async (newData) => {
-    if (!encryptionKey) return;
-    const headers = await getAuthHeaders();
-    
-    const encryptedData = { 
-      ...newData, 
-      byteSize: newData.byteSize || 0,
-      storagePaths: [newData.imageURL, newData.file].filter(Boolean).map(normalizeStoragePath),
-      name: await encryptText(newData.name, encryptionKey),
-      category: await encryptText(newData.category, encryptionKey),
-      content: newData.type === 'text' ? await encryptText(newData.content, encryptionKey) : newData.content,
-      imageURL: newData.imageURL ? await encryptText(newData.imageURL, encryptionKey) : '',
-      file: newData.file ? await encryptText(newData.file, encryptionKey) : '',
-      isTemporary: newData.isTemporary || false,
-      expiresAt: newData.expiresAt || null
-    };
-
-    const res = await axios.post(`${API_BASE_URL}/api/info`, encryptedData, { headers });
-    const newInfo = res.data.data;
-    
-    // the imageURL/file is already the unencrypted path here 
-    // so we can just pass them as the true paths.
-    const decryptedNewInfo = {
-      ...newInfo,
-      name: newData.name,
-      category: newData.category,
-      content: newData.type === 'text' ? newData.content : '',
-      imageURL: newData.imageURL || '',
-      file: newData.file || '',
-      isTemporary: newData.isTemporary || false,
-      expiresAt: newData.expiresAt || null
-    };
-    setInfos((prev) => [decryptedNewInfo, ...prev]);
-  };
-
-  const handleUpdate = async (id, updatedData) => {
-    if (!encryptionKey) return;
-    const headers = await getAuthHeaders();
-
-    const encryptedData = { 
-      ...updatedData, 
-      byteSize: updatedData.byteSize || 0,
-      storagePaths: [updatedData.imageURL, updatedData.file].filter(Boolean).map(normalizeStoragePath),
-      name: await encryptText(updatedData.name, encryptionKey),
-      category: await encryptText(updatedData.category, encryptionKey),
-      content: updatedData.type === 'text' ? await encryptText(updatedData.content, encryptionKey) : updatedData.content,
-      imageURL: updatedData.imageURL ? await encryptText(updatedData.imageURL, encryptionKey) : '',
-      file: updatedData.file ? await encryptText(updatedData.file, encryptionKey) : '',
-      isTemporary: updatedData.isTemporary || false,
-      expiresAt: updatedData.expiresAt !== undefined ? updatedData.expiresAt : null
-    };
-    
-    const response = await axios.patch(`${API_BASE_URL}/api/info/${id}`, encryptedData, { headers });
-    
-    const updated = { 
-      ...response.data.data, 
-      name: updatedData.name,
-      category: updatedData.category,
-      content: updatedData.type === 'text' ? updatedData.content : '',
-      imageURL: updatedData.imageURL || '',
-      file: updatedData.file || '',
-      isTemporary: updatedData.isTemporary || false,
-      expiresAt: updatedData.expiresAt || null
-    };
-    setInfos((prev) => prev.map((item) => (item._id === id ? updated : item)));
-  };
-
-  const handleDelete = async (id) => {
-    const headers = await getAuthHeaders();
-    await axios.delete(`${API_BASE_URL}/api/info/${id}`, { headers });
-    setInfos((prev) => prev.filter((item) => item._id !== id));
-  };
-
-  const showVaultModal = isSignedIn && userLoaded && !encryptionKey;
-  const shouldShowLoading = !authLoaded || !userLoaded || (isSignedIn && isLoading && encryptionKey) || isUnlocking;
-
+    return query ? vault.infos.filter((info) => [info.name, info.category, info.content].some((value) => typeof value === 'string' && value.toLowerCase().includes(query))) : vault.infos;
+  }, [searchQuery, vault.infos]);
+  const closeSnackbar = (_, reason) => { if (reason !== 'clickaway') setSnackbar((previous) => ({ ...previous, open: false })); };
   return (
     <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <CustomCursor />
-      {shouldShowLoading && <LoadingScreen darkMode={darkMode} />}
-      
-      {showVaultModal && !isUnlocking && (
-        <VaultModal 
-          open={true} 
-          onUnlock={handleUnlock}
-          onReset={handleVaultReset}
-          darkMode={darkMode} 
-        />
-      )}
-
-      <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
-        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }} variant="filled">
-          {snackbar.message}
-        </Alert>
+      <CssBaseline /><CustomCursor />
+      {(!authLoaded || !userLoaded) && <LoadingScreen />}
+      {isSignedIn && userLoaded && !vault.active && <VaultAccessDialog key={user.id} catalog={vault.catalog}
+        loading={vault.loading} loadError={vault.loadError} onRetry={vault.reload} onActivate={vault.activate} onReset={vault.reset}
+        onOpenOffline={() => window.dispatchEvent(new Event('infostuffs:open-offline'))} />}
+      <Snackbar open={snackbar.open} autoHideDuration={7000} onClose={closeSnackbar} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        <Alert onClose={closeSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>{snackbar.message}</Alert>
       </Snackbar>
-
       <Router>
-        <AppContent
-          infos={infos}
-          filteredInfos={filteredInfos}
-          handleUpdate={handleUpdate}
-          handleDelete={handleDelete}
-          handleCreate={handleCreate}
-          darkMode={darkMode}
-          toggleDarkMode={toggleDarkMode}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          isVaultUnlocked={!!encryptionKey} 
-          userKey={encryptionKey}
-        />
+        <AppContent infos={vault.infos} filteredInfos={filteredInfos} handleCreate={vault.createInfo} handleUpdate={vault.updateInfo}
+          handleDelete={vault.deleteInfo} darkMode={darkMode} toggleDarkMode={() => setDarkMode((previous) => !previous)}
+          searchQuery={searchQuery} setSearchQuery={setSearchQuery} isVaultUnlocked={!!vault.active} userKey={vault.active?.key}
+          vaultId={vault.active?.id} vaultName={vault.active?.name} onLockVault={vault.lock} />
       </Router>
     </ThemeProvider>
   );
@@ -493,7 +61,7 @@ const App = () => {
 function AppContent({
   infos, filteredInfos, handleUpdate, handleDelete, handleCreate, darkMode,
   toggleDarkMode,
-  searchQuery, setSearchQuery, isVaultUnlocked, userKey
+  searchQuery, setSearchQuery, isVaultUnlocked, userKey, vaultId, vaultName, onLockVault
 }) {
   const location = useLocation();
   const { isSignedIn, isLoaded } = useUser();
@@ -504,7 +72,7 @@ function AppContent({
       <CustomScrollbar global={true} watch={location.pathname} />
       {!hideNav && (
         <>
-          <NavBar darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+          <NavBar darkMode={darkMode} toggleDarkMode={toggleDarkMode} vaultName={vaultName} onLockVault={onLockVault} />
         </>
       )}
       <Suspense fallback={<LoadingScreen darkMode={darkMode} />}>
@@ -558,6 +126,7 @@ function AppContent({
                     onUpdate={handleUpdate}
                     onDelete={handleDelete}
                     userKey={userKey}
+                    vaultId={vaultId}
                     searchQuery={searchQuery}
                     setSearchQuery={setSearchQuery}
                   />
@@ -569,7 +138,7 @@ function AppContent({
             path="/create"
             element={
               <ProtectedRoute>
-                <Create handleCreate={handleCreate} userKey={userKey} />
+                {isVaultUnlocked && <Create key={vaultId} handleCreate={handleCreate} userKey={userKey} vaultId={vaultId} />}
               </ProtectedRoute>
             }
           />

@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 
 const infoSchema = new mongoose.Schema({
+  vaultId: { type: String, default: null },
   userId: {
     type: String,
     required: true,
@@ -57,6 +58,7 @@ const infoSchema = new mongoose.Schema({
 
 // Application cleanup must delete stored ciphertext before removing its note and accounting.
 infoSchema.index({ expiresAt: 1 });
+infoSchema.index({ userId: 1, vaultId: 1, createdAt: -1 });
 
 const Info = mongoose.model('Info', infoSchema);
 export default Info;

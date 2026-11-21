@@ -1,141 +1,57 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Box, 
-  Typography, 
-  Container, 
-  Card, 
-  CardContent, 
-  TextField, 
-  Button, 
-  CircularProgress, 
-  Alert, 
-  Grid, 
-  Chip, 
-  InputAdornment, 
-  IconButton, 
-  Dialog, 
-  DialogTitle, 
-  DialogContent, 
-  DialogActions,
-  Paper
-} from '@mui/material';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Box, Typography, Container, Card, CardContent, TextField, Button, Alert, Grid, Chip,
+  InputAdornment, IconButton, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import LockIcon from '@mui/icons-material/Lock';
-import LockOpenIcon from '@mui/icons-material/LockOpen';
 import SearchIcon from '@mui/icons-material/Search';
-import Visibility from '@mui/icons-material/Visibility';
-import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import WifiOffIcon from '@mui/icons-material/WifiOff';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-import { getOfflineNotes, getOfflineSalt } from '../utils/localStore';
-import { decryptText } from '../utils/encryption';
-import EncryptionWorker from '../utils/worker?worker';
+import { getOfflineSnapshot } from '../utils/localStore';
+import { decryptVaultNotes, validateVaultMetadata } from '../utils/vaultCrypto.js';
+import VaultAccessDialog from '../components/VaultAccessDialog.jsx';
 
 const OfflineVault = () => {
-  const [cachedNotes, setCachedNotes] = useState([]);
+  const [snapshot, setSnapshot] = useState({ userId: null, vaults: [], notes: [] });
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [isUnlocked, setIsUnlocked] = useState(false);
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [isUnlocking, setIsUnlocking] = useState(false);
+  const [vaultName, setVaultName] = useState('');
   const [error, setError] = useState('');
   const [decryptedNotes, setDecryptedNotes] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedImportance, setSelectedImportance] = useState('All');
   const [selectedNote, setSelectedNote] = useState(null);
-
-  // Fetch cached notes on mount
-  useEffect(() => {
-    const loadCache = async () => {
-      const data = await getOfflineNotes();
-      setCachedNotes(data);
-    };
-    loadCache();
+  const epoch = useRef(0);
+  const loadCache = useCallback(async () => {
+    const sequence = epoch.current;
+    setLoading(true); setLoadError('');
+    try {
+      const data = await getOfflineSnapshot();
+      data.vaults.forEach(validateVaultMetadata);
+      if (sequence === epoch.current) setSnapshot(data);
+    } catch (failure) {
+      if (sequence === epoch.current) setLoadError(failure.message || 'Unable to read cached encrypted vaults.');
+    } finally { if (sequence === epoch.current) setLoading(false); }
   }, []);
-
-  const handleUnlock = async (e) => {
-    e.preventDefault();
-    if (!password) return;
-    if (cachedNotes.length === 0) {
-      setError("No cached notes found in offline storage. Please connect online and unlock your vault once to sync notes locally.");
-      return;
-    }
-
-    setIsUnlocking(true);
-    setError('');
-
-    // Fetch the salt from metadata store or fallback to first note
-    const storedSalt = await getOfflineSalt();
-    const firstNote = cachedNotes[0];
-    const salt = storedSalt || (firstNote && firstNote.userId) || null;
-
-    if (!salt) {
-      setError('No offline user salt found. Please connect online to synchronize your vault credentials.');
-      setIsUnlocking(false);
-      return;
-    }
-
-    // Use Web Worker to derive the key
-    const worker = new EncryptionWorker();
-    worker.postMessage({ password, salt });
-
-    worker.onmessage = async (event) => {
-      const { success, key, error: workerError } = event.data;
-
-      if (!success) {
-        setError(workerError || 'Failed to derive decryption key.');
-        setIsUnlocking(false);
-        worker.terminate();
-        return;
-      }
-
-      try {
-        // Try decrypting the first note's name to verify the password
-        const verifiedName = await decryptText(firstNote.name, key);
-
-        if (verifiedName === '') {
-          setError('Incorrect password. Please try again.');
-          setIsUnlocking(false);
-          worker.terminate();
-          return;
-        }
-
-        // Decryption was successful! Now decrypt all notes.
-        const decryptedPromises = cachedNotes.map(async (note) => {
-          const name = await decryptText(note.name, key);
-          const category = await decryptText(note.category, key);
-          const content = note.type === 'text' 
-            ? await decryptText(note.content, key) 
-            : note.content;
-
-          return {
-            ...note,
-            name: name || 'Untitled',
-            category: category || 'General',
-            content: content || ''
-          };
-        });
-
-        const decrypted = await Promise.all(decryptedPromises);
-        setDecryptedNotes(decrypted);
-        setIsUnlocked(true);
-      } catch {
-        setError('An error occurred during decryption.');
-      } finally {
-        setIsUnlocking(false);
-        worker.terminate();
-      }
-    };
+  useEffect(() => { loadCache(); return () => { epoch.current += 1; }; }, [loadCache]);
+  const handleUnlock = async (match) => {
+    const sequence = epoch.current;
+    const ids = new Set(match.legacyInfoIds || []);
+    const encrypted = snapshot.notes.filter((note) =>
+      (note.vaultId === match.metadata.id || (!note.vaultId && ids.has(note._id))) &&
+      (!note.expiresAt || new Date(note.expiresAt).getTime() > Date.now()));
+    const result = await decryptVaultNotes(encrypted, match.key);
+    if (sequence !== epoch.current) throw new DOMException('Vault session changed.', 'AbortError');
+    setDecryptedNotes(result.notes); setVaultName(match.name); setIsUnlocked(true);
+    setError(result.failedCount ? `${result.failedCount} encrypted item(s) could not be verified and were kept unchanged.` : '');
   };
-
   const handleLock = () => {
-    setIsUnlocked(false);
-    setPassword('');
-    setDecryptedNotes([]);
-    setSelectedNote(null);
+    epoch.current += 1;
+    setIsUnlocked(false); setDecryptedNotes([]); setVaultName(''); setSelectedNote(null);
+    setSearchQuery(''); setSelectedCategory('All'); setSelectedImportance('All'); setError('');
   };
-
   // Get unique categories from decrypted notes
   const categories = ['All', ...new Set(decryptedNotes.map(note => note.category))];
   const importances = ['All', 'High', 'Medium', 'Low'];
@@ -144,7 +60,7 @@ const OfflineVault = () => {
   const filteredNotes = decryptedNotes.filter(note => {
     const matchesSearch = 
       note.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      note.content.toLowerCase().includes(searchQuery.toLowerCase());
+      (note.content || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'All' || note.category === selectedCategory;
     const matchesImportance = selectedImportance === 'All' || note.importance === selectedImportance;
 
@@ -161,98 +77,11 @@ const OfflineVault = () => {
   };
 
   if (!isUnlocked) {
-    return (
-      <Container maxWidth="sm" sx={{ mt: 8, mb: 4 }}>
-        <Paper 
-          elevation={0}
-          sx={{ 
-            p: 4, 
-            textAlign: 'center', 
-            borderRadius: '16px', 
-            border: '2px solid #E6E6E6',
-            bgcolor: '#1E1E1E'
-          }}
-        >
-          <Box display="flex" justifyContent="center" alignItems="center" sx={{ mb: 2 }}>
-            <WifiOffIcon sx={{ fontSize: 48, color: '#f44336', mr: 1 }} />
-            <LockIcon sx={{ fontSize: 48, color: '#E6E6E6' }} />
-          </Box>
-          <Typography variant="h4" fontWeight="bold" gutterBottom color="primary">
-            Offline Vault Locked
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
-            You are offline. Decrypt and access your local zero-knowledge cache in-browser. Your password is never sent over the network.
-          </Typography>
-
-          {cachedNotes.length === 0 ? (
-            <Alert severity="warning" sx={{ border: '1px solid #ff9800', borderRadius: '8px', mt: 2 }}>
-              No cached notes found in this browser's IndexedDB. You must log in online at least once to sync your notes locally.
-            </Alert>
-          ) : (
-            <form onSubmit={handleUnlock}>
-              <TextField
-                type={showPassword ? 'text' : 'password'}
-                label="Vault Password"
-                variant="outlined"
-                fullWidth
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isUnlocking}
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={() => setShowPassword(!showPassword)}
-                        edge="end"
-                        disabled={isUnlocking}
-                      >
-                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{ mb: 3 }}
-              />
-
-              {error && (
-                <Alert severity="error" sx={{ mb: 3, border: '1px solid #f44336', borderRadius: '8px' }}>
-                  {error}
-                </Alert>
-              )}
-
-              <Button
-                type="submit"
-                variant="outlined"
-                fullWidth
-                disabled={isUnlocking}
-                startIcon={isUnlocking ? <CircularProgress size={20} color="inherit" /> : <LockOpenIcon />}
-                sx={{
-                  py: 1.5,
-                  borderWidth: 2,
-                  borderRadius: 1,
-                  fontWeight: 'bold',
-                  borderColor: '#E6E6E6',
-                  color: '#E6E6E6',
-                  '&:hover': {
-                    borderWidth: 2,
-                    bgcolor: 'rgba(230,230,230,0.1)'
-                  }
-                }}
-              >
-                {isUnlocking ? 'Deriving AES-256 Key via PBKDF2...' : 'Unlock Vault'}
-              </Button>
-            </form>
-          )}
-
-          <Typography variant="caption" display="block" sx={{ mt: 4, color: 'text.secondary' }}>
-            Found {cachedNotes.length} encrypted local {cachedNotes.length === 1 ? 'record' : 'records'}.
-          </Typography>
-        </Paper>
-      </Container>
-    );
+    return <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+      <VaultAccessDialog offline catalog={{ userId: snapshot.userId, vaults: snapshot.vaults, legacyNotes: snapshot.notes.filter((note) => !note.vaultId) }}
+        loading={loading} loadError={loadError} onRetry={loadCache} onActivate={handleUnlock} />
+    </Box>;
   }
-
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 8 }}>
       {/* Header section */}
@@ -260,7 +89,7 @@ const OfflineVault = () => {
         <Box display="flex" alignItems="center">
           <WifiOffIcon sx={{ color: '#f44336', mr: 1, fontSize: 32 }} />
           <Typography variant="h4" fontWeight="bold">
-            Offline Vault Browser
+            Offline: {vaultName}
           </Typography>
         </Box>
         <Button 
@@ -271,11 +100,11 @@ const OfflineVault = () => {
             borderWidth: 2,
             borderRadius: 1,
             fontWeight: 'bold',
-            borderColor: '#E6E6E6',
-            color: '#E6E6E6',
+            borderColor: 'text.primary',
+            color: 'text.primary',
             '&:hover': {
               borderWidth: 2,
-              bgcolor: 'rgba(230,230,230,0.1)'
+              bgcolor: 'action.hover'
             }
           }}
         >
@@ -283,6 +112,7 @@ const OfflineVault = () => {
         </Button>
       </Box>
 
+      {error && <Alert severity="warning" sx={{ mb: 3 }}>{error}</Alert>}
       {/* Search Bar */}
       <Box sx={{ mb: 4 }}>
         <TextField
@@ -301,7 +131,7 @@ const OfflineVault = () => {
           sx={{
             '& .MuiOutlinedInput-root': {
               borderRadius: '50px',
-              border: '2px solid #E6E6E6'
+              border: '2px solid', borderColor: 'text.primary'
             }
           }}
         />
@@ -371,18 +201,18 @@ const OfflineVault = () => {
                   display: 'flex', 
                   flexDirection: 'column',
                   cursor: 'pointer',
-                  border: '2px solid #E6E6E6',
+                  border: '2px solid', borderColor: 'text.primary',
                   borderRadius: '12px',
-                  bgcolor: '#1E1E1E',
+                  bgcolor: 'background.paper',
                   transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease',
                   '&:hover': {
                     transform: 'translate(-4px, -4px)',
-                    boxShadow: '8px 8px 0px 0px #E6E6E6',
+                    boxShadow: (theme) => '8px 8px 0px ' + theme.palette.text.primary,
                     borderColor: '#ffffff',
                   },
                   '&:active': {
                     transform: 'translate(0px, 0px)',
-                    boxShadow: '2px 2px 0px 0px #E6E6E6',
+                    boxShadow: (theme) => '2px 2px 0px ' + theme.palette.text.primary,
                   }
                 }}
               >
@@ -481,11 +311,11 @@ const OfflineVault = () => {
         onClose={() => setSelectedNote(null)}
         fullWidth
         maxWidth="md"
-        PaperProps={{
+      Props={{
           sx: { 
             borderRadius: '16px', 
-            border: '2px solid #E6E6E6',
-            bgcolor: '#1E1E1E',
+            border: '2px solid', borderColor: 'text.primary',
+            bgcolor: 'background.paper',
             overflowX: 'hidden',
             maxWidth: 'calc(100vw - 32px)',
             boxSizing: 'border-box'
@@ -494,7 +324,7 @@ const OfflineVault = () => {
       >
         <DialogTitle 
           sx={{ 
-            borderBottom: '2px solid #E6E6E6', 
+            borderBottom: '2px solid', borderColor: 'text.primary',
             p: 2.5, 
             overflow: 'hidden',
             maxWidth: '100%',
@@ -550,14 +380,14 @@ const OfflineVault = () => {
               color: '#ffffff',
               '& img': { maxWidth: '100%' },
               '& pre': {
-                backgroundColor: '#111',
+                backgroundColor: 'background.default',
                 padding: '12px',
                 borderRadius: '4px',
                 border: '1px solid #333',
                 overflowX: 'auto',
               },
               '& code': {
-                backgroundColor: '#111',
+                backgroundColor: 'background.default',
                 padding: '2px 4px',
                 borderRadius: '2px',
                 fontFamily: 'monospace',
@@ -568,8 +398,8 @@ const OfflineVault = () => {
                 padding: 0
               },
               '& blockquote': {
-                borderLeft: '6px solid #E6E6E6',
-                backgroundColor: '#111',
+                borderLeft: '6px solid', borderColor: 'text.primary',
+                backgroundColor: 'background.default',
                 margin: '1.5em 0',
                 padding: '16px 24px',
                 fontStyle: 'italic',
@@ -611,11 +441,11 @@ const OfflineVault = () => {
               borderWidth: 2,
               borderRadius: 1,
               fontWeight: 'bold',
-              borderColor: '#E6E6E6',
-              color: '#E6E6E6',
+              borderColor: 'text.primary',
+              color: 'text.primary',
               '&:hover': {
                 borderWidth: 2,
-                bgcolor: 'rgba(230,230,230,0.1)'
+                bgcolor: 'action.hover'
               }
             }}
           >

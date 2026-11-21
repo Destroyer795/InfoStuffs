@@ -242,7 +242,7 @@ const getPlaceholderImage = (id) => {
   return `/photos/${imageIndex}.jpg`;
 };
 
-const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, userKey }) => {
+const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, userKey, vaultId }) => {
   const [selectedInfo, setSelectedInfo] = useState(null);
   const [editInfo, setEditInfo] = useState(null);
   const [formData, setFormData] = useState({
@@ -308,12 +308,12 @@ const InfoGrid = ({ infos, onUpdate, onDelete, searchQuery, setSearchQuery, user
     let file = formData.type === 'file' ? formData.file : '';
     let byteSize = formData.type === editInfo?.type ? (editInfo.byteSize || 0) : 0;
     if (formData.type === 'image' && newFileData.imageFile) {
-      const uploaded = await uploadToStorage(newFileData.imageFile, createOpaqueStoragePath(newFileData.imageFile, 'images'), userKey);
+      const uploaded = await uploadToStorage(newFileData.imageFile, createOpaqueStoragePath(newFileData.imageFile, 'images'), userKey, vaultId);
       imageURL = uploaded.storagePath;
       byteSize = uploaded.byteSize;
     }
     if (formData.type === 'file' && newFileData.docFile) {
-      const uploaded = await uploadToStorage(newFileData.docFile, createOpaqueStoragePath(newFileData.docFile, 'documents'), userKey);
+      const uploaded = await uploadToStorage(newFileData.docFile, createOpaqueStoragePath(newFileData.docFile, 'documents'), userKey, vaultId);
       file = uploaded.storagePath;
       byteSize = uploaded.byteSize;
     }

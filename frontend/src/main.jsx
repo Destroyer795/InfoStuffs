@@ -4,7 +4,7 @@ import { ClerkProvider } from '@clerk/clerk-react'
 import App from './App.jsx'
 import { registerSW } from 'virtual:pwa-register'
 import { ThemeProvider, CssBaseline } from '@mui/material'
-import { darkTheme } from './theme'
+import { darkTheme, lightTheme } from './theme'
 import OfflineVault from './pages/OfflineVault.jsx'
 import CustomCursor from './components/Cursor.jsx'
 import CustomScrollbar from './components/CustomScrollbar.jsx'
@@ -39,6 +39,7 @@ window.addEventListener('unhandledrejection', (event) => {
 
 const InfoStuffsRoot = () => {
   const [isOffline, setIsOffline] = useState(!navigator.onLine || clerkLoadFailed);
+  const [offlineDarkMode, setOfflineDarkMode] = useState(() => localStorage.getItem('appTheme') !== 'light');
 
   useEffect(() => {
     // If the user regains internet, reload the page so Clerk can safely boot up
@@ -46,7 +47,10 @@ const InfoStuffsRoot = () => {
       setIsOffline(false);
       window.location.reload(); 
     };
-    const handleOffline = () => setIsOffline(true);
+    const handleOffline = () => {
+      setOfflineDarkMode(localStorage.getItem('appTheme') !== 'light');
+      setIsOffline(true);
+    };
 
     // Subscribe to module-level Clerk failure signal
     const handleClerkFail = () => setIsOffline(true);
@@ -57,6 +61,7 @@ const InfoStuffsRoot = () => {
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+    window.addEventListener('infostuffs:open-offline', handleOffline);
 
     // Fast connectivity probe: check immediately upon boot to bypass long browser
     // DNS/TCP timeouts when Clerk is blocked by lack of internet.
@@ -90,6 +95,7 @@ const InfoStuffsRoot = () => {
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('infostuffs:open-offline', handleOffline);
       clerkFailCallbacks.delete(handleClerkFail);
       if (probeTimeoutId) clearTimeout(probeTimeoutId);
       abortController.abort();
@@ -99,7 +105,7 @@ const InfoStuffsRoot = () => {
   // If offline, DO NOT render Clerk. Render the secure local vault instead.
   if (isOffline) {
     return (
-      <ThemeProvider theme={darkTheme}>
+      <ThemeProvider theme={offlineDarkMode ? darkTheme : lightTheme}>
         <CssBaseline />
         <CustomCursor />
         <CustomScrollbar global={true} />

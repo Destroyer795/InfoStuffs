@@ -3,7 +3,7 @@
 
 InfoStuffs is a privacy-first, zero-knowledge / end-to-end encrypted (E2EE) information management system. Unlike traditional cloud storage, it allows users to store sensitive notes, images, and documents without trusting the server with plaintext data.
 
-The application employs client-side AES-256 encryption with user-derived keys, ensuring that the backend database and file storage providers never see the actual contents, original filenames, or unencrypted media paths. While the backend manages access control and coordinates synchronization, it only operates on encrypted ciphertext for all sensitive fields.
+The application employs client-side AES-256-GCM encryption with independent vault data keys wrapped by password-derived keys. The backend database and file storage providers never receive vault passwords, unlocked keys, original filenames, or plaintext contents. Opaque storage paths and other operational metadata remain visible as described below.
 
 **Technical Write-up / Case Study:**  
 Designing a Zero-Knowledge Personal Information Manager with Client-Side Encryption  
@@ -27,7 +27,7 @@ Designing a Zero-Knowledge Personal Information Manager with Client-Side Encrypt
 
 **Cryptography:** Web Crypto API (AES-GCM + PBKDF2) using Web Workers
 
-**Offline Capabilities:** Progressive Web App (PWA) with Service Worker asset caching, automatic offline detection & Clerk auth bypass, offline cryptographic key derivation using cached user identifiers as PBKDF2 salt.
+**Offline Capabilities:** Progressive Web App (PWA) with Service Worker asset caching, automatic offline detection, cached encrypted vault envelopes and verified local unlock without Clerk or an internet connection.
 
 **DevOps:** Docker, Google Cloud Platform (Cloud Run & Build), Vercel (Serverless Monolith Deployment)
 
@@ -40,8 +40,11 @@ This project implements a strict Zero-Knowledge/E2EE model to minimize server tr
 ### 1. Client-Side Encryption (The Vault)
 
 - **No Static Keys:** The application does not store encryption keys on the server.  
-- **User-Derived Keys:** Upon login, users provide a Vault Password. This password is processed in the browser (using a dedicated Web Worker to maintain UI responsiveness) utilizing the native Web Crypto API and PBKDF2 (Password-Based Key Derivation Function 2) to derive a temporary 256-bit AES-GCM key in memory.  
-- **Encryption:** This key securely encrypts (and authenticates via GCM) text content, titles, categories, and file paths (used for media references) before any data leaves the client device.
+- **Independent Vault Keys:** Each new vault receives a random 256-bit data key. A worker derives a wrapping key using PBKDF2-HMAC-SHA-256, 600,000 iterations and a fresh 32-byte salt. AES-GCM wraps the data key and encrypts the vault name. The authenticated envelope is bound to its vault ID, version and purpose. Unlocked data keys are non-extractable Web Crypto keys held in memory.
+- **Verified Unlock:** The browser authenticates and decrypts the wrapped key before opening a vault, including an empty vault. A password that opens several vaults offers a choice using locally decrypted names. A failed unlock keeps everything locked and offers Try again or an explicit Create another vault flow with a name, password and password confirmation. Network and metadata validation failures prevent creation until resolved.
+- **Legacy Recovery:** Existing notes use the original 300,000-iteration PBKDF2 derivation with the Clerk user ID as salt. Only after successfully authenticating existing encrypted fields does the browser wrap that same key and associate the matching notes with a vault. Other historic passwords remain independently recoverable. No note ciphertext, file bytes or object paths are rewritten. Interrupted recovery can be retried using the persisted wrapped key.
+- **Encryption:** The data key authenticates and encrypts content, titles, categories and media references before they leave the browser. Required fields that fail authentication are excluded from the editable view and reported, while their ciphertext stays unchanged.
+- **Password Guessing Limits:** Wrapped keys and authenticated ciphertext allow offline password guesses by someone holding a database copy. Strong unique passphrases and an expensive KDF reduce this risk. This is client-side E2EE, not a formal zero-knowledge proof or a guarantee against a compromised browser or maliciously changed client code. New passwords require at least 12 characters. [OWASP PBKDF2 guidance](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html) and the [Web Crypto specification](https://www.w3.org/TR/webcrypto/) describe the underlying primitives.
 
 ### 2. Secure File & Media Handling
 
@@ -56,19 +59,20 @@ This project implements a strict Zero-Knowledge/E2EE model to minimize server tr
 ### 3. Nuclear Reset
 
 - **Irrecoverable Keys:** Since the server cannot recover lost vault passwords, the application provides a Nuclear Reset option.  
-- **Data Wipe:** This allows users to permanently delete all encrypted and inaccessible data and reinitialize the vault with a new encryption key.
+- **Data Wipe:** This permanently deletes every vault, note, attachment and encrypted key envelope in the account. The UI requires typing `RESET ALL`. Creating a separate vault never requires a reset. Reset and explicit logout also clear encrypted offline caches.
 
 ### 4. Zero-Knowledge Offline Vault (PWA)
 
-- **Offline Caching:** During an online session, the raw encrypted ciphertexts of the user's notes are saved into IndexedDB. Plaintext content is never stored on disk.
+- **Offline Caching:** IndexedDB caches encrypted key envelopes, encrypted names and ciphertext notes scoped to the account and vault. Syncing one vault preserves other cached vaults. Successful note changes update the affected cached ciphertext. Plaintext content, passwords and unlocked keys are never persisted by the application.
 - **Immediate Offline Detection:** The application uses a module-level event interceptor, physical network state listeners, and a fast Google `clients3` connectivity probe (2.5-second abort timer) to detect offline states (or Lie-Fi conditions) instantly.
 - **Clerk Authentication Bypass:** If offline or if Clerk's script fails to load, the app skips Clerk initialization entirely and mounts a custom Offline Vault.
-- **Dynamic Local Key Derivation:** The user's offline password is derived with PBKDF2 using the Clerk User ID cached within the notes' `userId` field as the salt, regenerating the exact AES-GCM key without needing internet access. Note: The `userId` is a public unique identifier stored in plaintext in the database (standard practice for cryptographic salts).
+- **Verified Offline Unlock:** The same wrapped-key verification works offline, including for empty vaults. Old v2 caches remain readable using verified legacy decryption. Offline access is read-only and cannot create vaults or reset cloud data. Locking or switching clears the decrypted view; account changes and explicit logout clear the prior account cache. File attachments still require an online R2 download.
 
 ### 5. Plaintext Metadata Visibility (Security Model Trade-offs)
 
 To support server-side query routing, access control, and vault management, the application does not encrypt all database fields. The following metadata remains visible to the backend server and MongoDB database in plaintext:
 - **`userId`:** The unique Clerk identifier of the vault owner.
+- **Vault metadata:** Random vault IDs, compartment membership, vault count, public KDF parameters, wrapped-key ciphertext, timestamps and access patterns. Vault names are encrypted. Multiple vaults do not conceal their existence or provide plausible deniability.
 - **`importance`:** The user-assigned importance level (`High`, `Medium`, or `Low`).
 - **`type`:** The note type (`text`, `image`, or `file`).
 - **`isTemporary`:** A boolean flag indicating if the note is temporary.
@@ -94,6 +98,12 @@ To support server-side query routing, access control, and vault management, the 
 ---
 
 ## DevOps and Deployment
+
+### Vault upgrade and compatibility
+
+Deploy the backend vault endpoints before the matching frontend, then refresh installed clients. `GET /api/vaults` lists encrypted envelopes, `POST /api/vaults` registers one, and `POST /api/vaults/:id/adopt-legacy` associates authenticated legacy ciphertext without rewriting it. All require Clerk authentication. Accounts may have up to 20 vaults. Note reads use `?vaultId=<uuid>`, note creates and edits carry `vaultId`, and note deletion uses the same query scope. Unscoped reads return only unassigned legacy notes. Once an account has registered vaults, old clients cannot save unscoped notes or uploads.
+
+Back up the `vaults` collection together with Info records and R2 ciphertext. Wrapped keys and their KDF salts are required to reopen random-key vaults. No live data migration is required at deployment: the browser recovers matching legacy notes on a verified unlock and leaves unmatched notes intact. The backend database account must be able to create the new vault collection and the compound note index. Vault IDs provide routing and accidental cross-vault protection; the independent encryption keys provide content isolation. Clerk still authorizes the account as a whole.
 
 **Containerization:** Docker  
 
@@ -207,7 +217,8 @@ npm ci --legacy-peer-deps
 npm ci --prefix backend
 npm ci --prefix frontend --legacy-peer-deps
 npm test
+npm run test:ui --prefix frontend
 npm run build --prefix frontend
 ```
 
-Tests use fake storage and database adapters plus real AES-GCM encryption. They cover ownership, authentication, path traversal, quota boundaries, pending reservations, safe replacement and cleanup ordering, TTL index conversion, recursive migration, destination collisions, ciphertext integrity, and note backfill. No production storage or database is contacted by tests. The frontend build may report its existing bundle-size advisory.
+Tests use fake storage and database adapters plus real AES-GCM encryption. They cover ownership, authentication, path traversal, quota boundaries, pending reservations, safe replacement and cleanup ordering, TTL index conversion, recursive migration, destination collisions, ciphertext integrity, note backfill, wrapped-key verification, legacy recovery and account-scoped offline caches. Browser tests use installed Chrome with a fresh profile, an isolated local fixture and a fully intercepted API. They exercise the real React dialogs, vault session hook and encryption worker in light and dark themes, including mobile sizing, interrupted creation, offline access and session changes during unlock. No production storage or database is contacted by tests. To use Playwright's Chromium instead of installed Chrome, remove `channel: 'chrome'` in its config and install that browser through Playwright. The frontend build may report its existing bundle-size advisory.

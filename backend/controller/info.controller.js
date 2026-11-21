@@ -1,6 +1,8 @@
 import mongoose from 'mongoose';
 import Info from '../models/info.model.js';
 import StorageObject from '../models/storageObject.model.js';
+import Vault from '../models/vault.model.js';
+import { requireOwnedVault, resolveWritableVault, assertInfoVault } from '../services/vaults.js';
 import {
   StorageError, assertAttachmentMapping, getInfoStoragePaths, prepareInfoAttachments,
   deleteInfoAttachments, deleteStorageObject, withStorageLock,
@@ -50,7 +52,8 @@ const markAttachmentsReady = async (info) => {
 
 export const getInfos = async (req, res) => {
   try {
-    const infos = await Info.find({ userId: req.auth.userId }).sort({ createdAt: -1 });
+    const vaultId = req.query?.vaultId !== undefined ? await requireOwnedVault(req.auth.userId, req.query.vaultId) : null;
+    const infos = await Info.find({ userId: req.auth.userId, vaultId }).sort({ createdAt: -1 });
     return res.status(200).json({ success: true, data: infos });
   } catch (error) {
     return handleError(res, error, 'fetching infos');
@@ -62,6 +65,7 @@ export const createInfo = async (req, res) => {
     const info = { ...pickAllowedInfoFields(req.body), userId: req.auth.userId };
     validateInfo(info);
     const newInfo = await withStorageLock(`user:${info.userId}`, async () => {
+      info.vaultId = await resolveWritableVault(info.userId, req.body.vaultId);
       const attachments = await prepareInfoAttachments(info, info.storagePaths, info.userId);
       if (info.byteSize !== undefined && info.byteSize !== attachments.byteSize) {
         throw new StorageError(400, 'byteSize does not match the uploaded ciphertext.');
@@ -85,6 +89,7 @@ export const updateInfo = async (req, res) => {
     const updatedInfo = await withStorageLock(`user:${userId}`, () => withStorageLock(`note:${id}`, async () => {
       const existing = await Info.findOne({ _id: id, userId }).lean();
       if (!existing) throw new StorageError(404, 'Info not found or you do not have permission to update it');
+      await assertInfoVault(userId, existing, req.body.vaultId);
       const updates = pickAllowedInfoFields(req.body);
       const info = { ...existing, ...updates };
       validateInfo(info, updates.isTemporary !== undefined || updates.expiresAt !== undefined);
@@ -125,6 +130,7 @@ export const deleteInfo = async (req, res) => {
     await withStorageLock(`user:${userId}`, () => withStorageLock(`note:${id}`, async () => {
       const info = await Info.findOne({ _id: id, userId }).lean();
       if (!info) throw new StorageError(404, 'Info not found or you do not have permission to delete it');
+      await assertInfoVault(userId, info, req.query?.vaultId);
       await deleteInfoAttachments(info);
       await Info.deleteOne({ _id: id, userId });
     }));
@@ -151,6 +157,7 @@ export const deleteAllInfos = async (req, res) => {
       }
       const remainingObjects = await StorageObject.find({ userId }).lean();
       for (const object of remainingObjects) await deleteStorageObject(object._id, userId);
+      await Vault.deleteMany({ userId });
     });
     return res.status(200).json({ success: true, message: 'Vault reset successfully.' });
   } catch (error) {

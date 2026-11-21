@@ -2,6 +2,7 @@ import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import Info from '../models/info.model.js';
 import StorageObject from '../models/storageObject.model.js';
+import { resolveWritableVault } from '../services/vaults.js';
 import {
   MAX_FILE_BYTES, MAX_STORAGE_BYTES, MAX_PENDING_UPLOADS, MAX_PENDING_UPLOAD_BYTES,
   StorageError, isValidStoragePath, requireStorage, cleanupExpiredUserUploadReservations,
@@ -51,6 +52,7 @@ export const getPresignedUploadUrl = async (req, res) => {
   try {
     const client = requireStorage();
     const uploadUrl = await withStorageLock(`user:${req.auth.userId}`, async () => {
+      const vaultId = await resolveWritableVault(req.auth.userId, req.body.vaultId);
       await checkPendingUploadBudget(req.auth.userId, byteSize, true);
       return withStorageQuotaLock(async () => {
         await checkPendingUploadBudget(req.auth.userId, byteSize);
@@ -66,7 +68,7 @@ export const getPresignedUploadUrl = async (req, res) => {
         }
         const signingDate = new Date();
         await StorageObject.create({
-          _id: storagePath, userId: req.auth.userId, byteSize, status: 'pending',
+          _id: storagePath, userId: req.auth.userId, vaultId, byteSize, status: 'pending',
           uploadExpiresAt: new Date(signingDate.getTime() + 900_000),
         });
         try {

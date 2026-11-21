@@ -26,7 +26,7 @@ import MarkdownInput from "../components/MarkdownInput"; // Import added
 import TemporaryRetentionSelector from "../components/TemporaryRetentionSelector";
 import { calculateExpirationDate, validateRetentionConfig } from "../utils/snippet";
 
-export default function Create({ handleCreate, userKey }) {
+export default function Create({ handleCreate, userKey, vaultId }) {
   const [formData, setFormData] = useState({
     name: '',
     category: '',
@@ -141,7 +141,7 @@ export default function Create({ handleCreate, userKey }) {
           return;
         }
         const storagePath = createOpaqueStoragePath(formData.imageFile, "images");
-        const uploaded = await uploadToStorage(formData.imageFile, storagePath, userKey);
+        const uploaded = await uploadToStorage(formData.imageFile, storagePath, userKey, vaultId);
         submission.imageURL = uploaded.storagePath;
         submission.byteSize = uploaded.byteSize;
       } else if (formData.type === 'file') {
@@ -151,7 +151,7 @@ export default function Create({ handleCreate, userKey }) {
           return;
         }
         const storagePath = createOpaqueStoragePath(formData.docFile, "documents");
-        const uploaded = await uploadToStorage(formData.docFile, storagePath, userKey);
+        const uploaded = await uploadToStorage(formData.docFile, storagePath, userKey, vaultId);
         submission.file = uploaded.storagePath;
         submission.byteSize = uploaded.byteSize;
       }

@@ -15,6 +15,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useRef } from 'react';
 import { useClerk, useUser } from '@clerk/clerk-react';
+import { clearOfflineVault } from '../utils/localStore.js';
 
 export default function ProfileMenu({ anchorEl, open, onClose }) {
   const theme = useTheme();
@@ -54,8 +55,10 @@ export default function ProfileMenu({ anchorEl, open, onClose }) {
     }
   }, [open, onClose, anchorEl]);
 
-  const handleLogout = () => {
-    signOut();
+  const handleLogout = async () => {
+    window.dispatchEvent(new Event('infostuffs:lock'));
+    try { await clearOfflineVault(); } catch { console.warn('Offline cache could not be cleared.'); }
+    await signOut();
     onClose();
   };
 

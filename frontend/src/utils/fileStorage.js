@@ -51,7 +51,7 @@ const storageRequest = async (endpoint, method, body) => {
   return result;
 };
 
-export const uploadToStorage = async (file, storagePath, key) => {
+export const uploadToStorage = async (file, storagePath, key, vaultId) => {
   validateFileSize(file);
   if (!key) throw new Error('Unlock your vault before uploading files.');
   storagePath = normalizeStoragePath(storagePath);
@@ -61,6 +61,7 @@ export const uploadToStorage = async (file, storagePath, key) => {
   if (encryptedBlob.size > MAX_FILE_BYTES) throw new Error('File exceeds maximum size limit of 100MB.');
   const { uploadUrl } = await storageRequest('/presigned-upload', 'POST', {
     storagePath, byteSize: encryptedBlob.size, contentType: 'application/octet-stream',
+    ...(vaultId ? { vaultId } : {}),
   });
   try {
     const response = await fetch(uploadUrl, {
