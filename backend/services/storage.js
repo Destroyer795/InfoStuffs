@@ -119,18 +119,33 @@ export const prepareInfoAttachments = async (info, requestedPaths, userId, exist
   return { storagePaths: uniquePaths, byteSize };
 };
 
+const requireDeletionOwner = async (storagePath, userId) => {
+  const object = await StorageObject.findById(storagePath).lean();
+  if (!object?.userId) {
+    throw new StorageError(409, 'File ownership could not be verified. The attachment was kept for review.');
+  }
+  if (object.userId !== userId) throw new StorageError(403, 'You do not have permission to delete this file.');
+  return object;
+};
+
+export const preflightInfoAttachmentDeletion = async (info) => {
+  for (const storagePath of assertAttachmentMapping(info)) {
+    await requireDeletionOwner(storagePath, info.userId);
+  }
+};
+
 export const deleteStorageObject = async (storagePath, userId, excludedInfoIds = []) => {
   const client = requireStorage();
-  const object = await StorageObject.findById(storagePath).lean();
-  if (object && object.userId !== userId) throw new StorageError(403, 'You do not have permission to delete this file.');
+  const object = await requireDeletionOwner(storagePath, userId);
   const reference = await Info.exists({
     $or: [{ storagePaths: storagePath }, { imageURL: storagePath }, { file: storagePath }],
     ...(excludedInfoIds.length ? { _id: { $nin: excludedInfoIds } } : {}),
   });
   if (reference) throw new StorageError(409, 'Delete or update the attached note to remove this file.');
   await client.send(new DeleteObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: storagePath }));
-  // Retain the reservation while a previously issued PUT URL can still recreate the object.
-  if (object?.uploadExpiresAt > new Date()) {
+  // Keep ownership available for retry until the referencing note is deleted.
+  // Also retain reservations while a previously issued PUT URL can recreate the object.
+  if (excludedInfoIds.length || object.uploadExpiresAt > new Date()) {
     await StorageObject.updateOne({ _id: storagePath, userId }, { $set: { status: 'deleting' } });
   } else {
     await StorageObject.deleteOne({ _id: storagePath, userId });

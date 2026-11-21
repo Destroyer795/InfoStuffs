@@ -350,13 +350,26 @@ test('attachment accounting uses R2 ContentLength and rejects under-reported cip
 
 test('expired note remains in MongoDB when R2 deletion fails', async () => {
   const note = { _id: 'note', userId: 'alice', file: 'uploads/opaque.bin' };
+  objects.set(note.file, { userId: 'alice', status: 'ready', byteSize: 42 });
   stub(Info, 'find', () => lean([note]));
   stub(Info, 'findOne', () => lean(note));
   let databaseDeletes = 0;
   stub(Info, 'deleteOne', async () => { databaseDeletes++; return { deletedCount: 1 }; });
-  stub(r2, 'send', async () => { throw new Error('R2 unavailable'); });
+  stub(r2, 'send', async (command) => { calls.push(command); throw new Error('R2 unavailable'); });
   assert.equal(await cleanupExpiredNotes(), 0);
   assert.equal(databaseDeletes, 0);
+  assert.equal(calls[0]?.constructor.name, 'DeleteObjectCommand');
+});
+
+test('expired notes with missing attachment ownership are retained without an R2 delete', async () => {
+  const note = { _id: 'note', userId: 'alice', file: 'uploads/opaque.bin' };
+  stub(Info, 'find', () => lean([note]));
+  stub(Info, 'findOne', () => lean(note));
+  let databaseDeletes = 0;
+  stub(Info, 'deleteOne', async () => { databaseDeletes++; return { deletedCount: 1 }; });
+  assert.equal(await cleanupExpiredNotes(), 0);
+  assert.equal(databaseDeletes, 0);
+  assert.equal(calls.length, 0);
 });
 
 test('unmapped encrypted legacy notes are retained for reconciliation', async () => {
@@ -495,6 +508,7 @@ test('legacy reconciliation requires recorded ownership and preserves the encryp
 
 test('note deletion removes ciphertext before MongoDB and leaves the record on R2 errors', async () => {
   const existing = fileNote();
+  objects.set(existing.storagePaths[0], { userId: 'alice', status: 'ready', byteSize: 42 });
   stub(Info, 'findOne', () => lean(existing));
   let deleted = false;
   stub(Info, 'deleteOne', async () => { deleted = true; });
@@ -505,13 +519,53 @@ test('note deletion removes ciphertext before MongoDB and leaves the record on R
   assert.equal(deleted, false);
 });
 
+test('note deletion retains the ownership record when MongoDB fails after R2 deletion', async () => {
+  const existing = fileNote();
+  const path = existing.storagePaths[0];
+  objects.set(path, { userId: 'alice', status: 'ready', byteSize: 42 });
+  stub(Info, 'findOne', () => lean(existing));
+  stub(Info, 'deleteOne', async () => { throw new Error('MongoDB unavailable'); });
+  const request = { params: { id: noteId }, auth: { userId: 'alice' } };
+  const failed = response();
+  await deleteInfo(request, failed);
+  assert.equal(failed.statusCode, 500);
+  assert.equal(objects.get(path).userId, 'alice');
+  assert.equal(objects.get(path).status, 'deleting');
+
+  stub(Info, 'deleteOne', async () => {
+    assert.equal(calls.length, 2);
+    assert.ok(calls.every((command) => command.constructor.name === 'DeleteObjectCommand'));
+    return { deletedCount: 1 };
+  });
+  const retried = response();
+  await deleteInfo(request, retried);
+  assert.equal(retried.statusCode, 200);
+});
+
 test('vault reset preflight prevents deletion while legacy attachment mappings are unknown', async () => {
-  stub(Info, 'find', () => lean([fileNote(), fileNote({ _id: 'legacy', storagePaths: undefined })]));
+  const existing = fileNote();
+  objects.set(existing.storagePaths[0], { userId: 'alice', status: 'ready', byteSize: 42 });
+  stub(Info, 'find', () => lean([existing, fileNote({ _id: 'legacy', storagePaths: undefined })]));
   let deleted = false;
   stub(Info, 'deleteOne', async () => { deleted = true; });
   const res = response();
   await deleteAllInfos({ auth: { userId: 'alice' } }, res);
   assert.equal(res.statusCode, 409);
+  assert.equal(deleted, false);
+  assert.equal(calls.length, 0);
+});
+
+test('vault reset stops before deleting any notes when a mapped attachment has no verified owner', async () => {
+  const existing = fileNote();
+  objects.set(existing.storagePaths[0], { userId: 'alice', status: 'ready', byteSize: 42 });
+  const unmatched = fileNote({ _id: 'unmatched', storagePaths: ['uploads/unmatched.bin'] });
+  stub(Info, 'find', () => lean([existing, unmatched]));
+  let deleted = false;
+  stub(Info, 'deleteOne', async () => { deleted = true; });
+  const res = response();
+  await deleteAllInfos({ auth: { userId: 'alice' } }, res);
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.message, /ownership could not be verified/);
   assert.equal(deleted, false);
   assert.equal(calls.length, 0);
 });

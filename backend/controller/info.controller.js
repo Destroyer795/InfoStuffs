@@ -5,7 +5,7 @@ import Vault from '../models/vault.model.js';
 import { requireOwnedVault, resolveWritableVault, assertInfoVault } from '../services/vaults.js';
 import {
   StorageError, assertAttachmentMapping, getInfoStoragePaths, prepareInfoAttachments,
-  deleteInfoAttachments, deleteStorageObject, withStorageLock,
+  deleteInfoAttachments, deleteStorageObject, preflightInfoAttachmentDeletion, withStorageLock,
 } from '../services/storage.js';
 
 const pickAllowedInfoFields = (body = {}) => {
@@ -145,8 +145,8 @@ export const deleteAllInfos = async (req, res) => {
   try {
     await withStorageLock(`user:${userId}`, async () => {
       const infos = await Info.find({ userId }).lean();
-      // Preflight every legacy mapping before carrying out the destructive reset.
-      infos.forEach(assertAttachmentMapping);
+      // Verify every attachment before the reset starts deleting notes or objects.
+      for (const info of infos) await preflightInfoAttachmentDeletion(info);
       for (const info of infos) {
         await withStorageLock(`note:${info._id}`, async () => {
           const current = await Info.findOne({ _id: info._id, userId }).lean();
