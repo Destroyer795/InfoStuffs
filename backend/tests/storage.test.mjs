@@ -473,10 +473,17 @@ test('successful replacement saves the new reference before deleting the old cip
   assert.equal(res.body.data.byteSize, 42);
 });
 
-test('legacy reconciliation backfills a note without changing its encrypted reference', async () => {
+test('legacy reconciliation requires recorded ownership and preserves the encrypted reference', async () => {
   const existing = fileNote({ storagePaths: undefined, byteSize: 0 });
   stub(Info, 'findOne', () => lean(existing));
   objects.set('uploads/old.bin', { userId: null, status: 'legacy', byteSize: 42 });
+  const request = { params: { id: noteId }, auth: { userId: 'alice' }, body: { storagePaths: ['uploads/old.bin'] } };
+  const denied = response();
+  await updateInfo(request, denied);
+  assert.equal(denied.statusCode, 403);
+  assert.equal(objects.get('uploads/old.bin').userId, null);
+  assert.equal(calls.length, 0);
+  objects.get('uploads/old.bin').userId = 'alice';
   stub(Info, 'findOneAndUpdate', async (filter, updates) => ({ ...existing, ...updates }));
   const res = response();
   await updateInfo({ params: { id: noteId }, auth: { userId: 'alice' }, body: { storagePaths: ['uploads/old.bin'] } }, res);

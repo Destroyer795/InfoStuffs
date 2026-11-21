@@ -53,11 +53,13 @@ const verifyDestination = async (s3, bucketName, filePath, expected) => {
 };
 
 const backfillReferences = async (InfoModel, StorageModel, filePath, backfilledIds) => {
-  const notes = await InfoModel.find({
+  const candidates = await InfoModel.find({
     $or: [{ imageURL: filePath }, { file: filePath }, { storagePaths: filePath }],
   }).lean();
-  const owners = [...new Set(notes.map((note) => note.userId))];
   const ledger = await StorageModel.findById(filePath).lean();
+  // Client-supplied path metadata cannot establish ownership of an unassigned object.
+  const notes = candidates.filter((note) => ledger.userId || note.imageURL === filePath || note.file === filePath);
+  const owners = [...new Set(notes.map((note) => note.userId))];
   if (owners.length > 1 || (ledger.userId && owners.some((userId) => userId !== ledger.userId))) {
     throw new Error('Conflicting note owners reference the same object. Ownership requires manual reconciliation.');
   }
@@ -156,7 +158,7 @@ export const migrateSupabaseToR2 = async ({
   }
   logger.log(`Migration summary: ${JSON.stringify(summary)}`);
   if (summary.legacyNotesPending) {
-    logger.warn(`${summary.legacyNotesPending} encrypted note references require a vault unlock to backfill ownership and note byteSize. All copied objects already count toward quota.`);
+    logger.warn(`${summary.legacyNotesPending} encrypted note references need verified ownership before vault sync can backfill their paths and byteSize. All copied objects already count toward quota.`);
   }
   if (!summary.filesMigrated && !summary.existingFilesVerified && !summary.failures) {
     logger.warn('No source objects were found. Verify the bucket and service-role permissions before switching storage.');

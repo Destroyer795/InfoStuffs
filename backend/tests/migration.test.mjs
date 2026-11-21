@@ -121,6 +121,19 @@ test('migration copies identical ciphertext, preserves paths and backfills every
   assert.equal(files.size, 4);
 });
 
+test('path metadata alone cannot assign an unowned migration object', async () => {
+  const path = 'uploads/unassigned.enc';
+  const state = fixture({
+    files: new Map([[path, Buffer.from('opaque ciphertext bytes')]]),
+    notes: [{ _id: 'note', userId: 'alice', type: 'file', file: 'iv:ciphertext', storagePaths: [path] }],
+  });
+  const summary = await migrateSupabaseToR2(state.options);
+  assert.equal(summary.failures, 0);
+  assert.equal(summary.recordsBackfilled, 0);
+  assert.equal(state.ledger.get(path).userId, null);
+  assert.ok(state.destination.has(path));
+});
+
 test('rerunning verifies identical destination objects without uploading again', async () => {
   const files = new Map([['uploads/existing.enc', Buffer.from('opaque ciphertext bytes')]]);
   const state = fixture({ files, existing: files });

@@ -73,8 +73,7 @@ export const getOwnedStorageObject = async (storagePath, userId) => {
   return object;
 };
 
-// Legacy keys are secret capabilities obtained only after local path decryption.
-// A user may associate an unclaimed migration object with their own existing note.
+// Migration ownership must be recorded by a trusted operator or migration job.
 export const prepareInfoAttachments = async (info, requestedPaths, userId, existingInfo = null) => {
   const paths = requestedPaths === undefined ? getInfoStoragePaths(existingInfo || info) : requestedPaths;
   if (!Array.isArray(paths) || paths.length > 2 || paths.some((path) => !isValidStoragePath(path))) {
@@ -90,8 +89,7 @@ export const prepareInfoAttachments = async (info, requestedPaths, userId, exist
   let byteSize = 0;
   for (const storagePath of uniquePaths) {
     let object = await StorageObject.findById(storagePath).lean();
-    if (!object || object.status === 'deleting'
-      || (object.userId !== userId && !(existingInfo && object.status === 'legacy' && !object.userId))) {
+    if (!object || object.status === 'deleting' || object.userId !== userId) {
       throw new StorageError(403, 'You do not have permission to attach this file.');
     }
     if ((object.vaultId || null) !== (info.vaultId || null) &&
@@ -113,8 +111,8 @@ export const prepareInfoAttachments = async (info, requestedPaths, userId, exist
       throw new StorageError(400, 'Uploaded ciphertext size does not match the reserved file size.');
     }
     object = await StorageObject.findOneAndUpdate({
-      _id: storagePath, userId: object.userId, status: object.status,
-    }, { $set: { userId, vaultId: info.vaultId || null, byteSize: head.ContentLength, status: object.status === 'legacy' ? 'legacy' : 'ready' } }, { new: true });
+      _id: storagePath, userId, status: object.status, vaultId: object.vaultId ?? null,
+    }, { $set: { vaultId: info.vaultId || null, byteSize: head.ContentLength, status: object.status === 'legacy' ? 'legacy' : 'ready' } }, { new: true });
     if (!object) throw new StorageError(409, 'File ownership changed. Please sync the vault and retry.');
     byteSize += head.ContentLength;
   }
