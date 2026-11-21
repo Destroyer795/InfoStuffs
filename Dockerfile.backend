@@ -5,10 +5,10 @@ WORKDIR /usr/src/app
 COPY package.json ./
 COPY package-lock.json ./
 
-RUN npm install
+RUN npm ci --omit=dev --legacy-peer-deps
 
 COPY ./backend ./backend
 
 EXPOSE 5000 10000
 
-CMD [ "npm", "start" ]
+CMD ["node", "backend/api/info.js"]
